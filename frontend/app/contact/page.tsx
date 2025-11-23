@@ -116,8 +116,8 @@ export default async function ContactPage() {
               <div className="space-y-4 text-gray-700">
                 <p>
                   <strong className="text-[#00349B]">Email:</strong>{' '}
-                  <a href={`mailto:${siteSettings?.contactEmail || 'info@flolabs.international'}`} className="hover:underline">
-                    {siteSettings?.contactEmail || 'info@flolabs.international'}
+                  <a href={`mailto:${siteSettings?.contactEmail || 'info@hephaestus.international'}`} className="hover:underline">
+                    {siteSettings?.contactEmail || 'info@hephaestus.international'}
                   </a>
                 </p>
                 

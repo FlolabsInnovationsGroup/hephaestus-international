@@ -2,7 +2,7 @@
 
 ## Welcome to Your Content Management System!
 
-This guide will help you manage content on the Flo Labs International website using Strapi CMS. Don't worry - it's designed to be easy to use, even if you're not technical!
+This guide will help you manage content on the Hephaestus.International website using Strapi CMS. Don't worry - it's designed to be easy to use, even if you're not technical!
 
 ## 🔑 Logging In
 

@@ -189,8 +189,8 @@ export default async function InternshipPage(props: PageProps) {
                 <div className="max-w-2xl mx-auto p-8 bg-gray-50 rounded-lg border-2 border-gray-200 text-center">
                   <p className="text-gray-600 text-lg">
                     Application form is being set up. Please check back soon or contact us directly at{' '}
-                    <a href="mailto:info@flolabs.international" className="text-[#00349B] underline">
-                      info@flolabs.international
+                    <a href="mailto:info@hephaestus.international" className="text-[#00349B] underline">
+                      info@hephaestus.international
                     </a>
                   </p>
                 </div>

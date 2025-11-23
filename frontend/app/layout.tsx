@@ -18,8 +18,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Flolabs International | Innovation in AI & Robotics",
-  description: "Join Flolabs International - Building the future through innovation in AI, robotics, and cutting-edge technology. Explore internship opportunities.",
+  title: "Hephaestus.International | Innovation in AI & Robotics",
+  description: "Join Hephaestus.International - Building the future through innovation in AI, robotics, and cutting-edge technology. Explore internship opportunities.",
   keywords: "AI, robotics, internships, technology, machine learning, engineering",
 };
 

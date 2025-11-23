@@ -33,14 +33,14 @@ export STRAPI_API_TOKEN="your-token-here"
 
 **Option B: Add to .env.local (recommended for multiple runs)**
 ```bash
-cd /Users/elizabethstein/Projects/flolabsinternational/frontend
+cd /Users/elizabethstein/Projects/hephaestus-international/frontend
 echo 'STRAPI_API_TOKEN=your-token-here' >> .env.local
 ```
 
 ## Run the Sync Script
 
 ```bash
-cd /Users/elizabethstein/Projects/flolabsinternational/scripts
+cd /Users/elizabethstein/Projects/hephaestus-international/scripts
 node sync-missing-internships.js
 ```
 
@@ -119,7 +119,7 @@ curl -s https://strapi-production-7ecb.up.railway.app/api/internships | jq '.dat
 After syncing, rebuild your Next.js site to fetch the updated internships:
 
 ```bash
-cd /Users/elizabethstein/Projects/flolabsinternational/frontend
+cd /Users/elizabethstein/Projects/hephaestus-international/frontend
 npm run build
 ```
 

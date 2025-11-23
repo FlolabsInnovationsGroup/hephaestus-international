@@ -666,6 +666,7 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    currentWork: Schema.Attribute.RichText;
     description: Schema.Attribute.RichText & Schema.Attribute.Required;
     images: Schema.Attribute.Media<'images', true>;
     link: Schema.Attribute.String;
@@ -677,6 +678,9 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     order: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
+    shortDescription: Schema.Attribute.Text;
+    showOnHomepage: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -736,7 +740,7 @@ export interface ApiSiteSettingSiteSetting extends Struct.SingleTypeSchema {
     contactEmail: Schema.Attribute.Email;
     contactPhone: Schema.Attribute.String;
     copyrightText: Schema.Attribute.String &
-      Schema.Attribute.DefaultTo<'\u00A9 2025 Flo Labs International. All rights reserved.'>;
+      Schema.Attribute.DefaultTo<'\u00A9 2025 Hephaestus.International. All rights reserved.'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -752,7 +756,7 @@ export interface ApiSiteSettingSiteSetting extends Struct.SingleTypeSchema {
     publishedAt: Schema.Attribute.DateTime;
     siteName: Schema.Attribute.String &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'Flo Labs International'>;
+      Schema.Attribute.DefaultTo<'Hephaestus.International'>;
     siteTagline: Schema.Attribute.String;
     socialLinks: Schema.Attribute.JSON;
     updatedAt: Schema.Attribute.DateTime;

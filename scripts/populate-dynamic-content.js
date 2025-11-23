@@ -100,7 +100,7 @@ const sectionContent = [
   {
     identifier: 'hero-title',
     title: 'Hero Title',
-    content: 'FLO LABS R&D',
+    content: 'HEPHAESTUS R&D',
   },
   {
     identifier: 'hero-subtitle',
@@ -130,12 +130,12 @@ const sectionContent = [
 ];
 
 const siteSettings = {
-  siteName: 'Flo Labs International R&D',
+  siteName: 'Hephaestus.International R&D',
   siteTagline: 'Advanced AI and Robotics Program',
-  contactEmail: 'contact@flolabsinternational.com',
+  contactEmail: 'contact@hephaestus-international.com',
   contactPhone: '',
   footerText: 'A Flo Labs Company',
-  copyrightText: '© 2025 Flo Labs International. All rights reserved.',
+  copyrightText: '© 2025 Hephaestus.International. All rights reserved.',
   socialLinks: {
     linkedin: 'https://www.linkedin.com/company/flomad-labs-r-d/',
     facebook: '',

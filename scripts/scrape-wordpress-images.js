@@ -7,7 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const WP_SITE = 'https://flolabs.international';
+const WP_SITE = 'https://hephaestus.international';
 
 async function fetchHTML(url) {
   return new Promise((resolve, reject) => {
@@ -140,7 +140,7 @@ async function scrapeAboutPage() {
   
   allImgs.forEach(m => {
     const url = m[1];
-    if (url.includes('flolabs.international')) {
+    if (url.includes('hephaestus.international')) {
       images.push(url);
       console.log('  -', url.split('/').pop());
     }

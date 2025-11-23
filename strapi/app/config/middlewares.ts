@@ -21,8 +21,8 @@ export default [
       origin: [
         'http://localhost:3001', // Local development
         'https://flolabsfrontend-qjspkjdvi-flomad-dev.vercel.app', // Vercel production
-        'https://flolabs.international', // Custom domain (when configured)
-        'https://www.flolabs.international', // Custom domain with www
+        'https://hephaestus.international', // Custom domain (when configured)
+        'https://www.hephaestus.international', // Custom domain with www
       ],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],

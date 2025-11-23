@@ -1,4 +1,4 @@
-# Flo Labs International - AI Coding Agent Instructions
+# Hephaestus.International - AI Coding Agent Instructions
 
 ## Project Architecture
 

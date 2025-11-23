@@ -1,14 +1,14 @@
-# Flo Labs International - Modern Website
+# Hephaestus.International - Modern Website
 
 > Modern, high-performance website built with Next.js 16 and Strapi CMS
 
 ## 📋 Project Overview
 
-A complete redesign of flolabs.international, moving from WordPress to a modern JAMstack architecture using Next.js 16, Strapi v5 (headless CMS), and PostgreSQL.
+A complete redesign of hephaestus.international, moving from WordPress to a modern JAMstack architecture using Next.js 16, Strapi v5 (headless CMS), and PostgreSQL.
 
-**Live Site:** https://flolabsinternational.vercel.app (or custom domain TBD)
+**Live Site:** https://hephaestus-international.vercel.app (or custom domain TBD)
 **CMS Admin:** https://strapi-production-7ecb.up.railway.app/admin  
-**Original Site:** https://flolabs.international (WordPress - legacy)
+**Original Site:** https://hephaestus.international (WordPress - legacy)
 
 ## ✅ Current Status
 
@@ -87,7 +87,7 @@ strapi/app/       # Strapi CMS
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd flolabsinternational
+   cd hephaestus-international
    ```
 
 2. **Install frontend dependencies**
@@ -291,3 +291,12 @@ JWT_SECRET=<secret>
 **Ready for Production** ✅  
 Last Updated: November 8, 2025  
 Maintained by: Flo Labs Development Team
+
+
+## About Hephaestus.International
+
+Hephaestus.International is powered by Flo Labs International infrastructure and technology. 
+
+This site maintains the same architecture and capabilities as Flo Labs International but operates as an independent brand focused on [specific focus area to be defined].
+
+

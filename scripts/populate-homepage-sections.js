@@ -31,7 +31,7 @@ const homepageSections = [
   {
     identifier: 'get-recruited-content',
     title: 'Get Recruited Content',
-    content: '<p>Join the Flo Labs family and kickstart your career in AI and robotic technologies. We are on a mission to bring the world together with the latest trends in AI and robotics. We are looking for individuals who are hungry for more growth in their experience and knowledge. Gain the experience you desire by applying with us on the programs page.</p>',
+    content: '<p>Join the Hephaestus family and kickstart your career in AI and robotic technologies. We are on a mission to bring the world together with the latest trends in AI and robotics. We are looking for individuals who are hungry for more growth in their experience and knowledge. Gain the experience you desire by applying with us on the programs page.</p>',
     subtitle: null
   },
   {
@@ -43,7 +43,7 @@ const homepageSections = [
   {
     identifier: 'ambitious-projects-content',
     title: 'Ambitious Projects Content',
-    content: '<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>Flo Labs R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>',
+    content: '<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>Hephaestus R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>',
     subtitle: null
   },
   {
@@ -55,7 +55,7 @@ const homepageSections = [
   {
     identifier: 'long-live-learning-content',
     title: 'Long Live Learning Content',
-    content: '<p>Learn about the latest trends in technology. We are learning about the future of <strong>AI, robotics, education,</strong> and so much more. Every day is a great day to learn and we want to continuously learn and we expand.</p><p><strong>Flo Labs</strong> wants to prepare you for your own journey in your career. We help you learn the way you want to learn so you can achieve your goals of getting to the next level.</p>',
+    content: '<p>Learn about the latest trends in technology. We are learning about the future of <strong>AI, robotics, education,</strong> and so much more. Every day is a great day to learn and we want to continuously learn and we expand.</p><p><strong>Hephaestus</strong> wants to prepare you for your own journey in your career. We help you learn the way you want to learn so you can achieve your goals of getting to the next level.</p>',
     subtitle: null
   }
 ]

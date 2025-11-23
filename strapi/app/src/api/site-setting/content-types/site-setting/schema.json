@@ -15,7 +15,7 @@
     "siteName": {
       "type": "string",
       "required": true,
-      "default": "Flo Labs International"
+      "default": "Hephaestus.International"
     },
     "siteTagline": {
       "type": "string"
@@ -47,7 +47,7 @@
     },
     "copyrightText": {
       "type": "string",
-      "default": "© 2025 Flo Labs International. All rights reserved."
+      "default": "© 2025 Hephaestus.International. All rights reserved."
     }
   }
 }

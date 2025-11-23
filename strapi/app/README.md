@@ -1,6 +1,6 @@
 # Flo Labs Strapi CMS Application
 
-Strapi v5.31.0 headless CMS for managing Flo Labs International content.
+Strapi v5.31.0 headless CMS for managing Hephaestus.International content.
 
 ## Quick Start
 

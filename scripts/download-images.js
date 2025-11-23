@@ -1,5 +1,5 @@
 /**
- * Download WordPress images from flolabs.international
+ * Download WordPress images from hephaestus.international
  * 
  * Usage: node download-images.js
  */
@@ -18,27 +18,27 @@ if (!fs.existsSync(IMAGES_DIR)) {
 // Images to download from WordPress site
 const images = [
   {
-    url: 'https://flolabs.international/wp-content/uploads/2024/11/image-33-e1731164191312.png',
+    url: 'https://hephaestus.international/wp-content/uploads/2024/11/image-33-e1731164191312.png',
     filename: 'internship-carousel-1.png',
     description: 'Remote Internship Opportunities for Students'
   },
   {
-    url: 'https://flolabs.international/wp-content/uploads/2024/11/image-29.png',
+    url: 'https://hephaestus.international/wp-content/uploads/2024/11/image-29.png',
     filename: 'internship-carousel-2.png',
     description: 'Remote Internship Opportunities for professionals across the globe'
   },
   {
-    url: 'https://flolabs.international/wp-content/uploads/2024/11/Frame-1-59.png',
+    url: 'https://hephaestus.international/wp-content/uploads/2024/11/Frame-1-59.png',
     filename: 'internship-carousel-3.png',
     description: 'Hands-on robotics internship opportunity for remote learners'
   },
   {
-    url: 'https://flolabs.international/wp-content/uploads/2025/06/Frame-26-1.jpg',
+    url: 'https://hephaestus.international/wp-content/uploads/2025/06/Frame-26-1.jpg',
     filename: 'blog-hero.jpg',
     description: 'Blog page hero image'
   },
   {
-    url: 'https://flolabs.international/wp-content/uploads/2025/02/cropped-cropped-Frame-4-1-e1761930232615-1-e1761930649141.jpg',
+    url: 'https://hephaestus.international/wp-content/uploads/2025/02/cropped-cropped-Frame-4-1-e1761930232615-1-e1761930649141.jpg',
     filename: 'logo.jpg',
     description: 'Flo Labs R&D International logo'
   }
@@ -80,7 +80,7 @@ function downloadImage(url, filename, description) {
  * Main function
  */
 async function main() {
-  console.log('Starting image download from flolabs.international...\n');
+  console.log('Starting image download from hephaestus.international...\n');
   console.log(`Images will be saved to: ${IMAGES_DIR}\n`);
 
   let successCount = 0;

@@ -11,7 +11,7 @@ export async function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Flo Labs Section */}
             <div>
-              <h3 className="font-semibold text-white mb-4 text-lg">FLO LABS</h3>
+              <h3 className="font-semibold text-white mb-4 text-lg">HEPHAESTUS</h3>
               <div className="space-y-2">
                 <p>
                   <a

@@ -6,7 +6,7 @@ const { promisify } = require('util');
 const stream = require('stream');
 const pipeline = promisify(stream.pipeline);
 
-const WORDPRESS_URL = 'https://flolabs.international';
+const WORDPRESS_URL = 'https://hephaestus.international';
 const OUTPUT_DIR = path.join(__dirname, 'wordpress-images');
 
 // Ensure output directory exists

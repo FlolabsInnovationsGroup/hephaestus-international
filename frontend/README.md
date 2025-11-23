@@ -1,6 +1,6 @@
-# Flo Labs International - Frontend
+# Hephaestus.International - Frontend
 
-Next.js 16 frontend application for flolabs.international, powered by Strapi CMS.
+Next.js 16 frontend application for hephaestus.international, powered by Strapi CMS.
 
 ## Quick Start
 

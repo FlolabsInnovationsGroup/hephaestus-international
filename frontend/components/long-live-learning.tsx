@@ -33,7 +33,7 @@ export async function LongLiveLearning() {
               <div 
                 className="text-gray-700 text-lg leading-relaxed prose prose-lg max-w-none"
                 dangerouslySetInnerHTML={{ 
-                  __html: content?.content || '<p>Learn about the latest trends in technology. We are learning about the future of <strong>AI, robotics, education,</strong> and so much more. Every day is a great day to learn and we want to continuously learn and we expand.</p><p><strong>Flo Labs</strong> wants to prepare you for your own journey in your career. We help you learn the way you want to learn so you can achieve your goals of getting to the next level.</p>' 
+                  __html: content?.content || '<p>Learn about the latest trends in technology. We are learning about the future of <strong>AI, robotics, education,</strong> and so much more. Every day is a great day to learn and we want to continuously learn and we expand.</p><p><strong>Hephaestus</strong> wants to prepare you for your own journey in your career. We help you learn the way you want to learn so you can achieve your goals of getting to the next level.</p>' 
                 }}
               />
               <div className="border-t-4 border-[#0073e6] mt-4"></div>

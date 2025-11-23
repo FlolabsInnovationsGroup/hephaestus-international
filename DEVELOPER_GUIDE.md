@@ -12,7 +12,7 @@
 
 ### Project Structure
 ```
-flolabsinternational/
+hephaestus-international/
 ├── frontend/               # Next.js application
 │   ├── app/               # App Router pages
 │   │   ├── page.tsx       # Homepage
@@ -54,8 +54,8 @@ flolabsinternational/
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/FlomadLabsRD/flolabsinternational.git
-cd flolabsinternational
+git clone https://github.com/FlomadLabsRD/hephaestus-international.git
+cd hephaestus-international
 ```
 
 #### 2. Frontend Setup
@@ -514,9 +514,9 @@ npm run lint
 
 ## 📞 Support & Contacts
 
-- **Repository**: https://github.com/FlomadLabsRD/flolabsinternational
+- **Repository**: https://github.com/FlomadLabsRD/hephaestus-international
 - **Strapi Admin**: https://strapi-production-7ecb.up.railway.app/admin
-- **Production Site**: https://flolabsinternational.vercel.app
+- **Production Site**: https://hephaestus-international.vercel.app
 - **Issues**: Create GitHub issue for bugs/features
 
 ---

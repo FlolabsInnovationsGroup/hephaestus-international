@@ -1,6 +1,6 @@
 # Flo Labs Strapi CMS
 
-Headless CMS for managing internships, projects, blog posts, and media for flolabs.international.
+Headless CMS for managing internships, projects, blog posts, and media for hephaestus.international.
 
 ## Quick Start
 

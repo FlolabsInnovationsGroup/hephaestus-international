@@ -1,8 +1,8 @@
 # QA Checklist - Flo Labs Migration
 
 ## Deployment URLs
-- **New Site**: https://flolabsinternational.vercel.app
-- **Original Site**: https://flolabs.international (WordPress - legacy)
+- **New Site**: https://hephaestus-international.vercel.app
+- **Original Site**: https://hephaestus.international (WordPress - legacy)
 - **Strapi CMS**: https://strapi-production-7ecb.up.railway.app/admin
 
 ## ✅ Content Migration Status

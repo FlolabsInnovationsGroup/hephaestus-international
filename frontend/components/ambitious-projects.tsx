@@ -34,7 +34,7 @@ export async function AmbitiousProjects() {
               <div 
                 className="text-gray-700 text-lg leading-relaxed prose prose-lg max-w-none"
                 dangerouslySetInnerHTML={{ 
-                  __html: content?.content || '<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>Flo Labs R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>' 
+                  __html: content?.content || '<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>Hephaestus R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>' 
                 }}
               />
               <div className="border-t-4 border-[#0073e6] mt-4"></div>

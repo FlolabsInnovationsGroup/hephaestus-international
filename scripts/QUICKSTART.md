@@ -26,7 +26,7 @@ export STRAPI_API_TOKEN="paste-your-token-here"
 ## Step 3: Run the Import
 
 ```bash
-cd /Users/elizabethstein/Projects/flolabsinternational/scripts
+cd /Users/elizabethstein/Projects/hephaestus-international/scripts
 node import-wordpress-to-strapi.js
 ```
 
@@ -41,7 +41,7 @@ The script will show a summary like:
 
 Then check your live site:
 - **Strapi Admin**: <https://strapi-production-7ecb.up.railway.app/admin/content-manager/collection-types/api::internship.internship>
-- **Live Website**: <https://flolabsinternational.vercel.app/internships>
+- **Live Website**: <https://hephaestus-international.vercel.app/internships>
 
 ---
 
