@@ -3,8 +3,8 @@ import { Container, Section } from '@/components/layout'
 import { getSiteSettings } from '@/lib/strapi'
 
 export const metadata: Metadata = {
-  title: 'Contact Us | Flo Labs R&D International',
-  description: 'Get in touch with Flo Labs R&D International. Contact us for inquiries about internships, projects, and collaborations.',
+  title: 'Contact Us | Hephaestus International',
+  description: 'Get in touch with Hephaestus International. Contact us for inquiries about internships, projects, and collaborations.',
 }
 
 export default async function ContactPage() {
@@ -129,7 +129,7 @@ export default async function ContactPage() {
                     rel="noopener noreferrer"
                     className="hover:underline"
                   >
-                    Flo Labs R&D on LinkedIn
+                    Hephaestus Labs Institute on LinkedIn
                   </a>
                 </p>
               </div>

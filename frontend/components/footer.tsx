@@ -9,18 +9,18 @@ export async function Footer() {
       <Container>
         <div className="py-12 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Flo Labs Section */}
+            {/* Hephaestus Labs Institute Section */}
             <div>
               <h3 className="font-semibold text-white mb-4 text-lg">HEPHAESTUS</h3>
               <div className="space-y-2">
                 <p>
                   <a
-                    href="https://flomadlabs.com/"
+                    href="https://hephaestusinternational.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-white/70 hover:text-white transition-colors"
                   >
-                    {settings?.footerText || 'A Flo Labs Company'}
+                    {settings?.footerText || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
                   </a>
                 </p>
                 <p>
@@ -80,12 +80,12 @@ export async function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://flomadlabs.com/"
+                    href="https://hephaestusinternational.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-white/70 hover:text-white transition-colors"
                   >
-                    Flo Labs R&D
+                    Hephaestus Labs Institute
                   </a>
                 </li>
                 <li>

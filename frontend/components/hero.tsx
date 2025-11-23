@@ -14,7 +14,7 @@ export async function Hero() {
         {/* World map background - VISIBLE like WordPress */}
         <Image 
           src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058470/cropped_Frame_3_5_6196a31cc0.jpg" 
-          alt="Flo Labs Background"
+          alt="Hephaestus Labs Institute Background"
           fill
           className="object-cover opacity-60"
           priority

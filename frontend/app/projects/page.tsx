@@ -6,8 +6,8 @@ import { getProjects, getStrapiImageUrl } from '@/lib/strapi'
 import InternshipCarousel from '@/components/internship-carousel'
 
 export const metadata: Metadata = {
-  title: 'Our Projects | Flo Labs R&D International',
-  description: 'Explore our cutting-edge AI and robotics projects at Flo Labs - from MoodChanger to CAIPO, Flo Travel, and more.',
+  title: 'Our Projects | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
+  description: 'Explore our cutting-edge AI and robotics projects at Hephaestus Labs Institute - from MoodChanger to CAIPO, Flo Travel, and more.',
 }
 
 // Revalidate every 60 seconds
@@ -26,7 +26,7 @@ export default async function ProjectsPage() {
               Our Projects
             </h1>
             <p className="text-xl text-white/90">
-              Explore the innovative AI and robotics projects we&apos;re building at Flo Labs
+              Explore the innovative AI and robotics projects we&apos;re building at Hephaestus Labs Institute
             </p>
           </div>
         </Container>
@@ -175,7 +175,7 @@ export default async function ProjectsPage() {
             <div className="relative w-full max-w-2xl mx-auto mb-8">
               <Image
                 src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058571/Group_1_b03a84fef5.png"
-                alt="Flo Labs Positions"
+                alt="Hephaestus Labs Institute Positions"
                 width={674}
                 height={649}
                 className="w-full h-auto"

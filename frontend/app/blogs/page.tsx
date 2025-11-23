@@ -6,8 +6,8 @@ import { formatDate } from '@/lib/utils'
 import { getBlogPosts, getStrapiImageUrl } from '@/lib/strapi'
 
 export const metadata: Metadata = {
-  title: 'Blogs | Flo Labs R&D International',
-  description: 'Explore Blogs on AI Breakthroughs, Internships & Emerging Tech Trends - Stay ahead with Flo Labs R&D.',
+  title: 'Blogs | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
+  description: 'Explore Blogs on AI Breakthroughs, Internships & Emerging Tech Trends - Stay ahead with Hephaestus Labs Institute.',
 }
 
 export const revalidate = 60 // Revalidate every 60 seconds
@@ -25,7 +25,7 @@ export default async function BlogsPage() {
             <div className="mb-12">
               <Image
                 src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058482/Frame_4_3f70d2d7b7.jpg"
-                alt="Flo Labs Logo"
+                alt="Hephaestus Labs Institute Logo"
                 width={200}
                 height={200}
                 className="mx-auto"
@@ -54,7 +54,7 @@ export default async function BlogsPage() {
 
             <div className="text-lg text-white leading-relaxed space-y-4 max-w-4xl mx-auto">
               <p>
-                Welcome to Flo Labs R&D Blogs- your gateway to the world of AI innovation,{' '}
+                Welcome to Hephaestus Labs Institute Blogs- your gateway to the world of AI innovation,{' '}
                 <Link href="/internships" className="text-cyan-300 hover:underline font-semibold">
                   hands-on internships
                 </Link>

@@ -22,7 +22,7 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Image 
               src="/flo-labs-logo-new.svg" 
-              alt="Flo Labs R&D International" 
+              alt="Hephaestus Labs Institute of Experiential Learning Center of Excellence" 
               width={50}
               height={50}
               className="h-12 w-auto object-contain"

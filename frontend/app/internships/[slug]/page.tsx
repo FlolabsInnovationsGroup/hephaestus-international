@@ -31,7 +31,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const description = internship.description?.substring(0, 160) || `Join our team as a ${internship.title}`
 
   return {
-    title: `${internship.title} | Flo Labs Internships`,
+    title: `${internship.title} | Hephaestus Labs Institute Internships`,
     description,
     openGraph: {
       title: internship.title,

@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { Container, Section } from '@/components/layout'
 
 export const metadata: Metadata = {
-  title: '404 - Page Not Found | Flo Labs R&D International',
-  description: 'The page you are looking for could not be found.',
+  title: '404 - Page Not Found | Hephaestus International',
+  description: 'The page you are looking for does not exist.',
 }
 
 export default function NotFound() {

@@ -4,8 +4,8 @@ import { Container, Section } from '@/components/layout'
 import { getInterns, getStrapiImageUrl, getSectionContent } from '@/lib/strapi'
 
 export const metadata: Metadata = {
-  title: 'About Us | Flo Labs R&D International',
-  description: 'Learn about Flo Labs R&D International - our mission, objectives, and team dedicated to advancing AI and robotics innovation.',
+  title: 'About Us | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
+  description: 'Learn about Hephaestus Labs Institute of Experiential Learning Center of Excellence - our mission, objectives, and team dedicated to advancing AI and robotics innovation.',
 }
 
 // Revalidate every 60 seconds
@@ -31,7 +31,7 @@ export default async function AboutPage() {
           <div className="max-w-2xl mx-auto text-center">
             <Image 
               src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058482/Frame_4_3f70d2d7b7.jpg" 
-              alt="Flo Labs Logo" 
+              alt="Hephaestus Labs Institute Logo" 
               width={400}
               height={150}
               className="mx-auto"
@@ -47,7 +47,7 @@ export default async function AboutPage() {
           <div className="max-w-4xl mx-auto">
             <div className="gradient-border-box text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-4 text-[#00349B]">
-                {aboutTitle?.title || 'Flo Labs R&D'}
+                {aboutTitle?.title || 'Hephaestus Labs Institute'}
               </h1>
               <p className="text-xl tracking-wider mb-4 text-gray-700">
                 {aboutSubtitle?.title || 'EXECUTIVE MANAGEMENT PROGRAM'}
