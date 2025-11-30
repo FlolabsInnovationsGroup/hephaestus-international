@@ -33,7 +33,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
-/* Flo Labs specific styles */
+/* FloLabs specific styles */
 .flo-blue-section {
   /* EXACT WordPress blue gradient */
   background: radial-gradient(circle, rgb(0, 99, 181) 55%, rgb(0, 39, 117) 100%);

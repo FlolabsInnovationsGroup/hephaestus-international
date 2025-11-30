@@ -26,12 +26,12 @@ export async function Hero() {
       <Container className="relative z-10">
         <div className="mx-auto max-w-5xl text-center">
           <div>
-            <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 text-white">
-              {heroTitle?.content || 'HEPHAESTUS R&D'}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-8 text-white">
+              {heroTitle?.content || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
             </h1>
             
-            <p className="text-2xl md:text-3xl text-white/95 mb-16">
-              {heroSubtitle?.content || 'Advanced AI and Robotics Program'}
+            <p className="text-xl md:text-2xl text-white/95 mb-16">
+              {heroSubtitle?.content || 'Advance your career, Be at the center of the Future'}
             </p>
             
             {/* Scroll indicator */}

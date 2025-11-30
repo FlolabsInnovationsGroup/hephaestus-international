@@ -6,7 +6,7 @@
 
 const https = require('https');
 
-const STRAPI_URL = 'https://strapi-production-7ecb.up.railway.app';
+const STRAPI_URL = process.env.STRAPI_URL || 'https://hephaestus-international-production.up.railway.app';
 const STRAPI_TOKEN = process.env.STRAPI_TOKEN;
 
 if (!STRAPI_TOKEN) {

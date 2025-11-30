@@ -28,12 +28,12 @@ export async function generateMetadata(
 
   if (!post) {
     return {
-      title: 'Blog Post Not Found | Flo Labs',
+      title: 'Blog Post Not Found | Hephaestus',
     }
   }
 
   return {
-    title: `${post.title} | Flo Labs Blog`,
+    title: `${post.title} | Hephaestus Blog`,
     description: post.excerpt || '',
   }
 }

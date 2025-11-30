@@ -6,18 +6,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const STRAPI_URL = 'https://strapi-production-7ecb.up.railway.app';
-const STRAPI_API_TOKEN = process.env.STRAPI_API_TOKEN;
+const STRAPI_URL = process.env.STRAPI_URL || 'https://hephaestus-international-production.up.railway.app';
+const STRAPI_API_TOKEN = process.env.STRAPI_API_TOKEN || process.env.STRAPI_TOKEN;
 
 if (!STRAPI_API_TOKEN) {
-  console.error('Error: STRAPI_API_TOKEN environment variable is required');
+  console.error('Error: STRAPI_API_TOKEN or STRAPI_TOKEN environment variable is required');
   process.exit(1);
 }
 
 // Load upload results to get Strapi file IDs
-const uploadResults = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'wordpress-images/upload-results.json'), 'utf8')
-);
+const uploadResultsPath = path.join(__dirname, 'wordpress-images/upload-results-new.json');
+const uploadResultsPathOld = path.join(__dirname, 'wordpress-images/upload-results.json');
+const uploadResultsFile = fs.existsSync(uploadResultsPath) ? uploadResultsPath : uploadResultsPathOld;
+
+const uploadResults = JSON.parse(fs.readFileSync(uploadResultsFile, 'utf8'));
 
 // Create mapping: filename -> strapiId
 const imageMapping = {};
