@@ -14,14 +14,14 @@ RUN apk update && apk add --no-cache \
     vips-dev \
     git
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from strapi/app directory
+COPY strapi/app/package*.json ./
 
 # Install Node.js dependencies
 RUN npm install --omit=dev
 
-# Copy app files
-COPY . .
+# Copy app files from strapi/app directory
+COPY strapi/app/ .
 
 # Build admin panel
 ENV NODE_ENV=production
