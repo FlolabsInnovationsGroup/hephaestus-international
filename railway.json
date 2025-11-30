@@ -3,6 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "strapi/app/Dockerfile",
+    "buildContext": "strapi/app",
     "watchPatterns": ["strapi/app/**"]
   },
   "deploy": {
