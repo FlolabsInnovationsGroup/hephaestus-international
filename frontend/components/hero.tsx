@@ -7,40 +7,38 @@ export async function Hero() {
   const heroSubtitle = await getSectionContent('hero-subtitle')
   return (
     <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
-      {/* Blue hero section with visible world map - matching WordPress EXACTLY */}
+      {/* Blue hero section with visible world map */}
       <div className="absolute inset-0">
-        {/* Radial gradient background matching WordPress */}
-        <div className="absolute inset-0 hero-gradient-bg" />
-        {/* World map background - VISIBLE like WordPress */}
+        {/* Dark blue gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#001a3a]/80 via-[#002855]/70 to-[#003366]/80 z-10" />
+        {/* World map background */}
         <Image 
           src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058470/cropped_Frame_3_5_6196a31cc0.jpg" 
           alt="Hephaestus Labs Institute Background"
           fill
-          className="object-cover opacity-60"
+          className="object-cover"
           priority
         />
-        {/* Subtle overlay to blend */}
-        <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-[#0063b5]/10" />
       </div>
       
-      <Container className="relative z-10">
-        <div className="mx-auto max-w-5xl text-center px-4">
-          <div className="space-y-8">
-            {/* Main title with elegant italic styling */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold italic text-white leading-tight tracking-wide drop-shadow-lg">
+      <Container className="relative z-20">
+        <div className="mx-auto max-w-5xl text-center px-6">
+          <div className="space-y-6">
+            {/* Main title - clean, professional italic */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-medium italic text-white leading-[1.2] tracking-normal">
               {heroTitle?.content || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
             </h1>
             
-            {/* Subtitle with lighter weight */}
-            <p className="text-lg sm:text-xl md:text-2xl text-white/90 font-light tracking-wide max-w-3xl mx-auto">
-              {heroSubtitle?.content || 'Advance your career, Be at the center of the Future'}
+            {/* Subtitle - simple and clean */}
+            <p className="text-base sm:text-lg md:text-xl text-white/85 font-normal tracking-wide max-w-2xl mx-auto pt-2">
+              {heroSubtitle?.content || 'Advance your career, Be at the center of the future'}
             </p>
             
             {/* Scroll indicator */}
-            <div className="pt-12">
-              <div className="inline-block text-white/60 hover:text-white/90 transition-colors cursor-pointer">
-                <svg className="w-8 h-8 mx-auto animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+            <div className="pt-16">
+              <div className="inline-block text-white/50">
+                <svg className="w-6 h-6 mx-auto animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
