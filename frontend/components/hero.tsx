@@ -24,7 +24,7 @@ export async function Hero() {
       <Container className="relative z-20">
         <div className="mx-auto max-w-5xl text-center px-6">
           {/* Frosted glass background for better text readability */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl px-8 py-12 md:px-12 md:py-16 border border-white/10">
+          <div className="bg-black/30 backdrop-blur-sm px-8 py-10 md:px-12 md:py-14">
             <div className="space-y-6">
               {/* Main title - clean, professional italic */}
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-medium italic text-white leading-[1.2] tracking-normal">
