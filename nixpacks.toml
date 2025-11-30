@@ -1,0 +1,9 @@
+# Nixpacks configuration for Strapi
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm"]
+
+[phases.build]
+cmds = ["cd strapi/app && npm install && npm run build"]
+
+[start]
+cmd = "cd strapi/app && npm run start"
