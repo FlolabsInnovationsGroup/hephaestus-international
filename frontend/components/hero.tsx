@@ -24,21 +24,23 @@ export async function Hero() {
       </div>
       
       <Container className="relative z-10">
-        <div className="mx-auto max-w-5xl text-center">
-          <div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-8 text-white">
+        <div className="mx-auto max-w-5xl text-center px-4">
+          <div className="space-y-8">
+            {/* Main title with elegant italic styling */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold italic text-white leading-tight tracking-wide drop-shadow-lg">
               {heroTitle?.content || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
             </h1>
             
-            <p className="text-xl md:text-2xl text-white/95 mb-16">
+            {/* Subtitle with lighter weight */}
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 font-light tracking-wide max-w-3xl mx-auto">
               {heroSubtitle?.content || 'Advance your career, Be at the center of the Future'}
             </p>
             
             {/* Scroll indicator */}
-            <div className="mt-20">
-              <div className="inline-block text-white/70">
+            <div className="pt-12">
+              <div className="inline-block text-white/60 hover:text-white/90 transition-colors cursor-pointer">
                 <svg className="w-8 h-8 mx-auto animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
