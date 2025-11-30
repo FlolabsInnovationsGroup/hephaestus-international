@@ -14,14 +14,14 @@ RUN apk update && apk add --no-cache \
     vips-dev \
     git
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from app directory
+COPY app/package*.json ./
 
 # Install Node.js dependencies
 RUN npm ci --only=production
 
 # Copy app files
-COPY . .
+COPY app/ .
 
 # Build admin panel
 ENV NODE_ENV=production
