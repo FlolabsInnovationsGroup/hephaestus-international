@@ -59,9 +59,13 @@ export async function getServerBrand(): Promise<BrandConfig> {
   try {
     const headersList = await headers()
     const host = headersList.get('host') || ''
-    return getBrandFromHostname(host)
-  } catch {
+    console.log('[Server Brand Detection] Host:', host)
+    const brand = getBrandFromHostname(host)
+    console.log('[Server Brand Detection] Detected brand:', brand.name)
+    return brand
+  } catch (error) {
     // Fallback for static generation or when headers aren't available
+    console.log('[Server Brand Detection] Error, using default brand:', error)
     return defaultBrand
   }
 }
