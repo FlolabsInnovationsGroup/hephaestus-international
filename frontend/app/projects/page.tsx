@@ -4,10 +4,14 @@ import Image from 'next/image'
 import { Container, Section } from '@/components/layout'
 import { getProjects, getStrapiImageUrl } from '@/lib/strapi'
 import InternshipCarousel from '@/components/internship-carousel'
+import { getServerBrand } from '@/lib/branding'
 
-export const metadata: Metadata = {
-  title: 'Our Projects | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
-  description: 'Explore our cutting-edge AI and robotics projects at Hephaestus Labs Institute - from MoodChanger to CAIPO, Flo Travel, and more.',
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getServerBrand()
+  return {
+    title: `Our Projects | ${brand.tagline}`,
+    description: `Explore our cutting-edge AI and robotics projects at ${brand.fullName} - from MoodChanger to CAIPO, Flo Travel, and more.`,
+  }
 }
 
 // Revalidate every 60 seconds
@@ -15,6 +19,7 @@ export const revalidate = 60
 
 export default async function ProjectsPage() {
   const projects = await getProjects()
+  const brand = await getServerBrand()
 
   return (
     <>
@@ -26,7 +31,7 @@ export default async function ProjectsPage() {
               Our Projects
             </h1>
             <p className="text-xl text-white/90">
-              Explore the innovative AI and robotics projects we&apos;re building at Hephaestus Labs Institute
+              Explore the innovative AI and robotics projects we&apos;re building at {brand.fullName}
             </p>
           </div>
         </Container>
@@ -175,7 +180,7 @@ export default async function ProjectsPage() {
             <div className="relative w-full max-w-2xl mx-auto mb-8">
               <Image
                 src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058571/Group_1_b03a84fef5.png"
-                alt="Hephaestus Labs Institute Positions"
+                alt={`${brand.fullName} Positions`}
                 width={674}
                 height={649}
                 className="w-full h-auto"

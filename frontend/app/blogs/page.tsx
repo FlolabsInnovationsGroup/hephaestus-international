@@ -4,16 +4,21 @@ import Image from 'next/image'
 import { Container, Section } from '@/components/layout'
 import { formatDate } from '@/lib/utils'
 import { getBlogPosts, getStrapiImageUrl } from '@/lib/strapi'
+import { getServerBrand } from '@/lib/branding'
 
-export const metadata: Metadata = {
-  title: 'Blogs | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
-  description: 'Explore Blogs on AI Breakthroughs, Internships & Emerging Tech Trends - Stay ahead with Hephaestus Labs Institute.',
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getServerBrand()
+  return {
+    title: `Blogs | ${brand.tagline}`,
+    description: `Explore Blogs on AI Breakthroughs, Internships & Emerging Tech Trends - Stay ahead with ${brand.fullName}.`,
+  }
 }
 
 export const revalidate = 60 // Revalidate every 60 seconds
 
 export default async function BlogsPage() {
   const blogPosts = await getBlogPosts()
+  const brand = await getServerBrand()
   
   return (
     <>
@@ -25,7 +30,7 @@ export default async function BlogsPage() {
             <div className="mb-12">
               <Image
                 src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058482/Frame_4_3f70d2d7b7.jpg"
-                alt="Hephaestus Labs Institute Logo"
+                alt={`${brand.fullName} Logo`}
                 width={200}
                 height={200}
                 className="mx-auto"
@@ -54,7 +59,7 @@ export default async function BlogsPage() {
 
             <div className="text-lg text-white leading-relaxed space-y-4 max-w-4xl mx-auto">
               <p>
-                Welcome to Hephaestus Labs Institute Blogs- your gateway to the world of AI innovation,{' '}
+                Welcome to {brand.fullName} Blogs- your gateway to the world of AI innovation,{' '}
                 <Link href="/internships" className="text-cyan-300 hover:underline font-semibold">
                   hands-on internships
                 </Link>

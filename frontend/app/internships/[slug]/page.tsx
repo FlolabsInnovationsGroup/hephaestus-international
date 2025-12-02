@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Container, Section } from '@/components/layout'
 import { HubSpotForm } from '@/components/hubspot-form'
 import { getInternshipBySlug, getInternships } from '@/lib/strapi'
+import { getServerBrand } from '@/lib/branding'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -21,6 +22,7 @@ export async function generateStaticParams() {
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const params = await props.params
   const internship = await getInternshipBySlug(params.slug)
+  const brand = await getServerBrand()
 
   if (!internship) {
     return {
@@ -31,7 +33,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const description = internship.description?.substring(0, 160) || `Join our team as a ${internship.title}`
 
   return {
-    title: `${internship.title} | Hephaestus Labs Institute Internships`,
+    title: `${internship.title} | ${brand.fullName} Internships`,
     description,
     openGraph: {
       title: internship.title,
@@ -44,6 +46,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 export default async function InternshipPage(props: PageProps) {
   const params = await props.params
   const internship = await getInternshipBySlug(params.slug)
+  const brand = await getServerBrand()
 
   if (!internship) {
     notFound()
@@ -189,8 +192,8 @@ export default async function InternshipPage(props: PageProps) {
                 <div className="max-w-2xl mx-auto p-8 bg-gray-50 rounded-lg border-2 border-gray-200 text-center">
                   <p className="text-gray-600 text-lg">
                     Application form is being set up. Please check back soon or contact us directly at{' '}
-                    <a href="mailto:info@hephaestus.international" className="text-[#00349B] underline">
-                      info@hephaestus.international
+                    <a href={`mailto:${brand.email}`} className="text-[#00349B] underline">
+                      {brand.email}
                     </a>
                   </p>
                 </div>

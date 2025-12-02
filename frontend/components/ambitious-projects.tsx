@@ -1,9 +1,17 @@
 import { Container, Section } from './layout'
 import { getSectionContent } from '@/lib/strapi'
+import { getServerBrand, transformBrandContent } from '@/lib/branding'
 
 export async function AmbitiousProjects() {
   const title = await getSectionContent('ambitious-projects-title')
   const content = await getSectionContent('ambitious-projects-content')
+  const brand = await getServerBrand()
+  
+  const defaultContent = `<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>${brand.name} R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>`
+  
+  const displayContent = content?.content 
+    ? transformBrandContent(content.content, brand)
+    : defaultContent
   
   return (
     <Section className="bg-white">
@@ -33,9 +41,7 @@ export async function AmbitiousProjects() {
               <div className="border-t-4 border-[#0073e6] mb-4"></div>
               <div 
                 className="text-gray-700 text-lg leading-relaxed prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: content?.content || '<p>Enjoy collaborating with other thoughtful <strong>professionals</strong> that are passionate about bringing a vision to life! We offer experiential learning, a unique and immersive educational training program with hands-on, real world <strong>experience</strong>.</p><p><strong>Hephaestus R&D</strong> is an incubator launching innovative projects in AI and Robotics. We enhance learning and project outcomes through teamwork, idea sharing, and innovative methods like brainstorming and LLM automation, preparing students with practical skills.</p>' 
-                }}
+                dangerouslySetInnerHTML={{ __html: displayContent }}
               />
               <div className="border-t-4 border-[#0073e6] mt-4"></div>
             </div>

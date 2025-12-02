@@ -1,9 +1,17 @@
 import { Container, Section } from './layout'
 import { getSectionContent } from '@/lib/strapi'
+import { getServerBrand, transformBrandContent } from '@/lib/branding'
 
 export async function GetRecruited() {
   const title = await getSectionContent('get-recruited-title')
   const content = await getSectionContent('get-recruited-content')
+  const brand = await getServerBrand()
+  
+  const defaultContent = `<p>Join the ${brand.name} family and kickstart your career in AI and robotic technologies. We are on a mission to bring the world together with the latest trends in AI and robotics. We are looking for individuals who are hungry for more growth in their experience and knowledge. Gain the experience you desire by applying with us on the programs page.</p>`
+  
+  const displayContent = content?.content 
+    ? transformBrandContent(content.content, brand)
+    : defaultContent
   
   return (
     <Section className="bg-white">
@@ -33,9 +41,7 @@ export async function GetRecruited() {
               <div className="border-t-4 border-[#0073e6] mb-4"></div>
               <div 
                 className="text-gray-700 text-lg leading-relaxed prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: content?.content || '<p>Join the Hephaestus family and kickstart your career in AI and robotic technologies. We are on a mission to bring the world together with the latest trends in AI and robotics. We are looking for individuals who are hungry for more growth in their experience and knowledge. Gain the experience you desire by applying with us on the programs page.</p>' 
-                }}
+                dangerouslySetInnerHTML={{ __html: displayContent }}
               />
               <div className="border-t-4 border-[#0073e6] mt-4"></div>
             </div>

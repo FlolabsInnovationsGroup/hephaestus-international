@@ -1,26 +1,29 @@
 import Link from 'next/link'
 import { Container } from './layout'
 import { getSiteSettings } from '@/lib/strapi'
+import { getServerBrand } from '@/lib/branding'
 
 export async function Footer() {
   const settings = await getSiteSettings()
+  const brand = await getServerBrand()
+  
   return (
     <footer className="bg-black">
       <Container>
         <div className="py-12 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Hephaestus Labs Institute Section */}
+            {/* Brand Section */}
             <div>
-              <h3 className="font-semibold text-white mb-4 text-lg">HEPHAESTUS</h3>
+              <h3 className="font-semibold text-white mb-4 text-lg">{brand.name.toUpperCase()}</h3>
               <div className="space-y-2">
                 <p>
                   <a
-                    href="https://hephaestusinternational.com/"
+                    href={brand.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-white/70 hover:text-white transition-colors"
                   >
-                    {settings?.footerText || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
+                    {settings?.footerText || brand.tagline}
                   </a>
                 </p>
                 <p>
@@ -80,12 +83,12 @@ export async function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://hephaestusinternational.com/"
+                    href={brand.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-white/70 hover:text-white transition-colors"
                   >
-                    Hephaestus Labs Institute
+                    {brand.fullName}
                   </a>
                 </li>
                 <li>

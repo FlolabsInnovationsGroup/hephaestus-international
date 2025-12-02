@@ -2,10 +2,14 @@ import { Metadata } from 'next'
 import Image from 'next/image'
 import { Container, Section } from '@/components/layout'
 import { getInterns, getStrapiImageUrl, getSectionContent } from '@/lib/strapi'
+import { getServerBrand, transformBrandContent } from '@/lib/branding'
 
-export const metadata: Metadata = {
-  title: 'About Us | Hephaestus Labs Institute of Experiential Learning Center of Excellence',
-  description: 'Learn about Hephaestus Labs Institute of Experiential Learning Center of Excellence - our mission, objectives, and team dedicated to advancing AI and robotics innovation.',
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getServerBrand()
+  return {
+    title: `About Us | ${brand.tagline}`,
+    description: `Learn about ${brand.tagline} - our mission, objectives, and team dedicated to advancing AI and robotics innovation.`,
+  }
 }
 
 // Revalidate every 60 seconds
@@ -13,6 +17,7 @@ export const revalidate = 60
 
 export default async function AboutPage() {
   const interns = await getInterns(true) // Get only active interns
+  const brand = await getServerBrand()
   
   // Fetch About page content from Strapi
   const aboutTitle = await getSectionContent('about-title')
@@ -23,6 +28,11 @@ export default async function AboutPage() {
   const missionTitle = await getSectionContent('about-mission-title')
   const missionContent = await getSectionContent('about-mission-content')
   
+  // Transform content for brand
+  const displayTitle = aboutTitle?.title 
+    ? transformBrandContent(aboutTitle.title, brand) 
+    : brand.fullName
+  
   return (
     <>
       {/* Hero Section - Logo on white background (matching WordPress) */}
@@ -31,7 +41,7 @@ export default async function AboutPage() {
           <div className="max-w-2xl mx-auto text-center">
             <Image 
               src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058482/Frame_4_3f70d2d7b7.jpg" 
-              alt="Hephaestus Labs Institute Logo" 
+              alt={`${brand.fullName} Logo`}
               width={400}
               height={150}
               className="mx-auto"
@@ -47,7 +57,7 @@ export default async function AboutPage() {
           <div className="max-w-4xl mx-auto">
             <div className="gradient-border-box text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-4 text-[#00349B]">
-                {aboutTitle?.title || 'Hephaestus Labs Institute'}
+                {displayTitle}
               </h1>
               <p className="text-xl tracking-wider mb-4 text-gray-700">
                 {aboutSubtitle?.title || 'EXECUTIVE MANAGEMENT PROGRAM'}

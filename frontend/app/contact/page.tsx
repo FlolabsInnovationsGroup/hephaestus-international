@@ -1,14 +1,20 @@
 import { Metadata } from 'next'
 import { Container, Section } from '@/components/layout'
 import { getSiteSettings } from '@/lib/strapi'
+import { getServerBrand } from '@/lib/branding'
 
-export const metadata: Metadata = {
-  title: 'Contact Us | Hephaestus International',
-  description: 'Get in touch with Hephaestus International. Contact us for inquiries about internships, projects, and collaborations.',
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getServerBrand()
+  return {
+    title: `Contact Us | ${brand.name} International`,
+    description: `Get in touch with ${brand.name} International. Contact us for inquiries about internships, projects, and collaborations.`,
+  }
 }
 
 export default async function ContactPage() {
   const siteSettings = await getSiteSettings()
+  const brand = await getServerBrand()
+  
   return (
     <>
       {/* Hero Section */}
@@ -116,8 +122,8 @@ export default async function ContactPage() {
               <div className="space-y-4 text-gray-700">
                 <p>
                   <strong className="text-[#00349B]">Email:</strong>{' '}
-                  <a href={`mailto:${siteSettings?.contactEmail || 'info@hephaestus.international'}`} className="hover:underline">
-                    {siteSettings?.contactEmail || 'info@hephaestus.international'}
+                  <a href={`mailto:${siteSettings?.contactEmail || brand.email}`} className="hover:underline">
+                    {siteSettings?.contactEmail || brand.email}
                   </a>
                 </p>
                 
@@ -129,7 +135,7 @@ export default async function ContactPage() {
                     rel="noopener noreferrer"
                     className="hover:underline"
                   >
-                    Hephaestus Labs Institute on LinkedIn
+                    {brand.fullName} on LinkedIn
                   </a>
                 </p>
               </div>

@@ -1,10 +1,18 @@
 import Image from 'next/image'
 import { Container } from './layout'
 import { getSectionContent } from '@/lib/strapi'
+import { getServerBrand, transformBrandContent } from '@/lib/branding'
 
 export async function Hero() {
   const heroTitle = await getSectionContent('hero-title')
   const heroSubtitle = await getSectionContent('hero-subtitle')
+  const brand = await getServerBrand()
+  
+  // Transform CMS content to use correct brand name
+  const titleContent = heroTitle?.content 
+    ? transformBrandContent(heroTitle.content, brand)
+    : brand.tagline
+  
   return (
     <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
       {/* Blue hero section with visible world map */}
@@ -14,7 +22,7 @@ export async function Hero() {
         {/* World map background */}
         <Image 
           src="https://res.cloudinary.com/dgb6qsvev/image/upload/v1763058470/cropped_Frame_3_5_6196a31cc0.jpg" 
-          alt="Hephaestus Labs Institute Background"
+          alt={`${brand.fullName} Background`}
           fill
           className="object-cover"
           priority
@@ -28,7 +36,7 @@ export async function Hero() {
             <div className="space-y-6">
               {/* Main title - clean, professional */}
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-semibold text-white leading-[1.2] tracking-normal">
-                {heroTitle?.content || 'Hephaestus Labs Institute of Experiential Learning Center of Excellence'}
+                {titleContent}
               </h1>
               
               {/* Subtitle - simple and clean */}

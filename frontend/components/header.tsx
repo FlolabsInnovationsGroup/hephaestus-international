@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Container } from './layout'
 import { useState } from 'react'
+import { useBrand } from './brand-provider'
 
 const navigation = [
   { name: 'Blogs', href: '/blogs' },
@@ -14,6 +15,7 @@ const navigation = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { brand } = useBrand()
 
   return (
     <header className="fixed top-0 z-50 w-full bg-black/80 backdrop-blur-sm border-b border-white/10">
@@ -22,7 +24,7 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Image 
               src="/flo-labs-logo-new.svg" 
-              alt="Hephaestus Labs Institute of Experiential Learning Center of Excellence" 
+              alt={brand.tagline} 
               width={50}
               height={50}
               className="h-12 w-auto object-contain"

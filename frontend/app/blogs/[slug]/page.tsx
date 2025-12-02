@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { Container, Section } from '@/components/layout'
 import { formatDate } from '@/lib/utils'
 import { getBlogPosts, getBlogPostBySlug } from '@/lib/strapi'
+import { getServerBrand } from '@/lib/branding'
 
 export const revalidate = 60 // Revalidate every 60 seconds
 
@@ -25,15 +26,16 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params
   const post = await getBlogPostBySlug(params.slug)
+  const brand = await getServerBrand()
 
   if (!post) {
     return {
-      title: 'Blog Post Not Found | Hephaestus',
+      title: `Blog Post Not Found | ${brand.name}`,
     }
   }
 
   return {
-    title: `${post.title} | Hephaestus Blog`,
+    title: `${post.title} | ${brand.name} Blog`,
     description: post.excerpt || '',
   }
 }
