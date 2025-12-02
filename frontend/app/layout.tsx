@@ -7,6 +7,9 @@ import { BrandProvider } from "@/components/brand-provider";
 import { getServerBrand } from "@/lib/branding";
 import Script from "next/script";
 
+// Force dynamic rendering for brand detection
+export const dynamic = 'force-dynamic'
+
 const roboto = Roboto({ 
   weight: ['300', '400', '500', '700'],
   subsets: ["latin"],
