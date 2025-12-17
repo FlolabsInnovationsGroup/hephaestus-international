@@ -9,6 +9,12 @@ type PageProps = {
   params: Promise<{ slug: string }>
 }
 
+// Allow dynamic params for on-demand generation
+export const dynamicParams = true
+
+// Revalidate the page every 60 seconds
+export const revalidate = 60
+
 // Generate static params for all internships
 export async function generateStaticParams() {
   const internships = await getInternships()
