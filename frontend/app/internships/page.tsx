@@ -150,13 +150,13 @@ export default function InternshipsPage() {
                 
                 <div className="prose prose-lg max-w-none space-y-6 text-gray-700">
                   <p>
-                    The Flomad Labs R&D Internship will have you buzzing for a few key reasons and they all hinge on the exciting
+                    The FloLabs Innovations Group Internship will have you buzzing for a few key reasons and they all hinge on the exciting
                     intersection of AI, robotics, entrepreneurship and various technical domains.
                   </p>
                   
                   <h3 className="text-2xl font-bold text-gray-900">Flexible. Dynamic. Inspiring.</h3>
                   <p>
-                    Flomad Labs R&D internships offer flexible schedules, live and recorded
+                    FloLabs Innovations Group internships offer flexible schedules, live and recorded
                     sessions, and hands-on experience in cutting-edge AI and technology projects.
                   </p>
                   <p>
