@@ -1,8 +1,11 @@
 // Strapi API Helper Functions
 // Based on official Strapi v5 documentation
 
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'
-const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN
+// const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'
+// const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN
+
+const STRAPI_URL = "strapi-production-7ecb.up.railway.app"
+const STRAPI_TOKEN ="UoGvTL55YkgnaTYQRypCow=="
 
 interface StrapiResponse<T> {
   data: T
