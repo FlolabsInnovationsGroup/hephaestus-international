@@ -86,8 +86,8 @@ export default async function InternshipPage(props: PageProps) {
                 Overview
               </h2>
               <div className="text-lg text-gray-700 leading-relaxed space-y-4">
-                {internship.description.split('\n\n').map((paragraph) => (
-                  <p key={paragraph.substring(0, 50)}>{paragraph}</p>
+                {internship.description.split('\n\n').map((paragraph, index) => (
+                  <p key={`overview-${index}`}>{paragraph}</p>
                 ))}
               </div>
             </div>
@@ -99,8 +99,8 @@ export default async function InternshipPage(props: PageProps) {
                   Key Responsibilities
                 </h2>
                 <ul className="space-y-4">
-                  {responsibilities.map((item) => (
-                    <li key={item} className="flex items-start text-gray-700 leading-relaxed">
+                  {responsibilities.map((item, index) => (
+                    <li key={`responsibility-${index}`} className="flex items-start text-gray-700 leading-relaxed">
                       <span className="text-[#00349B] font-bold mr-3 mt-1 shrink-0">■</span>
                       <span className="text-lg">{item}</span>
                     </li>
@@ -116,8 +116,8 @@ export default async function InternshipPage(props: PageProps) {
                   Qualifications and Skills
                 </h2>
                 <ul className="space-y-4">
-                  {requirements.map((item) => (
-                    <li key={item} className="flex items-start text-gray-700 leading-relaxed">
+                  {requirements.map((item, index) => (
+                    <li key={`requirement-${index}`} className="flex items-start text-gray-700 leading-relaxed">
                       <span className="text-[#00349B] font-bold mr-3 mt-1 shrink-0">■</span>
                       <span className="text-lg">{item}</span>
                     </li>

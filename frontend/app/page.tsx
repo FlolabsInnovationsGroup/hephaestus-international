@@ -7,8 +7,22 @@ import { Verticals } from "@/components/verticals";
 import { LongLiveLearning } from "@/components/long-live-learning";
 import { Benefits } from "@/components/benefits";
 import { Methodology } from "@/components/methodology";
-import { getHomepageProjects } from "@/lib/strapi";
 import { getServerBrand } from "@/lib/branding";
+import {
+  getContentStrapiImageUrl,
+  getHomepageProjects,
+  type Project,
+} from "@/lib/strapi";
+
+function withResolvedContentImageUrls(projects: Project[]): Project[] {
+  return projects.map((project) => ({
+    ...project,
+    images: project.images?.map((img) => ({
+      ...img,
+      url: getContentStrapiImageUrl(img.url) ?? img.url,
+    })),
+  }));
+}
 
 // Force dynamic rendering to detect domain-based branding
 export const dynamic = 'force-dynamic'
@@ -24,8 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const projects = await getHomepageProjects();
-  
+  const projects = withResolvedContentImageUrls(await getHomepageProjects());
+
   return (
     <>
       <Hero />

@@ -41,12 +41,24 @@ export default function InternshipsPage() {
     async function fetchInternships() {
       try {
         const response = await fetch('/api/internships')
+        if (!response.ok) {
+          setInternships([])
+          setFilteredInternships([])
+          return
+        }
         const data = await response.json()
-        const sorted = sortInternships(data)
+        const list = Array.isArray(data)
+          ? data
+          : data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)
+            ? (data as { data: Internship[] }).data
+            : []
+        const sorted = sortInternships(list)
         setInternships(sorted)
         setFilteredInternships(sorted)
       } catch (error) {
         console.error('Error fetching internships:', error)
+        setInternships([])
+        setFilteredInternships([])
       } finally {
         setLoading(false)
       }

@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Container, Section } from '@/components/layout'
-import { getProjects, getStrapiImageUrl } from '@/lib/strapi'
+import { getContentStrapiImageUrl, getProjects } from '@/lib/strapi'
 import InternshipCarousel from '@/components/internship-carousel'
 import { getServerBrand } from '@/lib/branding'
 
@@ -55,7 +55,7 @@ export default async function ProjectsPage() {
                   {project.images && project.images.length > 0 ? (
                     <div className="relative w-full h-48">
                       <Image
-                        src={getStrapiImageUrl(project.images[0].url) || ''}
+                        src={getContentStrapiImageUrl(project.images[0].url) || ''}
                         alt={project.images[0].alternativeText || project.title}
                         fill
                         className="object-cover"
