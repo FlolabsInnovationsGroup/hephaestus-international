@@ -1,11 +1,16 @@
 // Strapi API Helper Functions
 // Based on official Strapi v5 documentation
 
-// const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'
-// const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN
+const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'
+const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN
 
-const STRAPI_URL = "https://strapi-production-7ecb.up.railway.app"
-const STRAPI_TOKEN ="1bf14b2a32f0481c849449cf5954ed00f042c9c9ba9ba7b51e7c74a829619f85b67adcc17bb2f1c3d3b97064f3172bb03fe53f11e17b5a5d4a5c007638263c459b258d106acee27a2bf55cef2e85f632b5fbf37a0e066fc314f91ef40875035d22e5471cb2005897fec708a17d34d52936e36a488621ca8947dc9989cac7745d"
+// const STRAPI_URL = "NEXT_PUBLIC_STRAPI_URL:https://hephaestus-international-production.up.railway.app"
+// const STRAPI_TOKEN ="d4c2540ef2327333ce7afc207eb5a79434fce32bb58b846495faa4ea5372b9de8c042d16cfde2c27cf55538b00fe37036e93fa7fe8ca5708292423d5f3c08f181be023543ee7d1353023f3704f2fcb009d2bbbb4d8a5a99c51bb66aeff5954e816d8fceb34ba3ce08405c2278a98c698920d79334258f75731293a1133bd0183"
+
+
+
+
+
 
 interface StrapiResponse<T> {
   data: T
