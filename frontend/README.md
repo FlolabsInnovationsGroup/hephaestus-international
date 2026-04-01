@@ -1,208 +1,210 @@
-# Hephaestus.International - Frontend
+# Hephaestus.International — Frontend
 
-Next.js 16 frontend application for hephaestus.international, powered by Strapi CMS.
+Next.js (App Router) frontend for **hephaestus.international**. Content is loaded from **two Strapi instances**: a **main** CMS for site-wide content and a **content** CMS for projects, blog posts, and internship job listings.
 
-## Quick Start
+---
+
+### نظرة عامة (عربي)
+
+الواجهة مبنية بـ Next.js وتتصل بـ **Strapi رئيسي** (إعدادات الموقع، الأقسام، الفريق، …) و**Strapi للمحتوى** (المشاريع، المدونات، إعلانات التدريب). المتغيرات السرية تُقرأ من الخادم فقط ولا تُعرَّض للمتصفح. راجع قسم **Environment Variables** أدناه.
+
+---
+
+## Quick start
 
 ### Prerequisites
-- Node.js 18-20 (use `nvm use 20` if using nvm)
-- Environment variables configured (see below)
 
-### Installation
+- Node.js 18–22 (e.g. `nvm use 20`)
+- `.env.local` configured (see below)
+
+### Install
 
 ```bash
 npm install
 ```
 
-### Environment Variables
+### Environment variables
 
-Create `.env.local` file:
+Create `.env.local` in this directory (see also `.env.example`):
 
 ```env
-NEXT_PUBLIC_STRAPI_URL=https://strapi-production-7ecb.up.railway.app
-STRAPI_API_TOKEN=your-full-access-token
+# Main Strapi — site settings, sections, team pages, benefits, methodology, etc.
+NEXT_PUBLIC_STRAPI_URL=https://your-main-strapi.example.com
+STRAPI_API_TOKEN=your-main-strapi-api-token
+
+# Content Strapi — projects, blog posts, internship listings (job posts only)
+CONTENT_STRAPI_URL=https://your-content-strapi.example.com
+CONTENT_STRAPI_API_TOKEN=your-content-strapi-api-token
 ```
 
-### Development Server
+| Variable | Scope | Purpose |
+|----------|--------|---------|
+| `NEXT_PUBLIC_STRAPI_URL` | Client + server | Base URL for **main** Strapi (public). |
+| `STRAPI_API_TOKEN` | **Server only** | API token for main Strapi. |
+| `CONTENT_STRAPI_URL` | **Server only** | Base URL for **content** Strapi (no `NEXT_PUBLIC_` prefix). |
+| `CONTENT_STRAPI_API_TOKEN` | **Server only** | API token for content Strapi. |
+
+Never commit real tokens. Do not prefix secret tokens with `NEXT_PUBLIC_`.
+
+### Development
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000). Restart the dev server after changing `.env.local`.
 
-### Build for Production
+### Production build
 
 ```bash
 npm run build
 npm start
 ```
 
+---
+
 ## Architecture
 
-### Tech Stack
-- **Next.js 16** (App Router) - React framework with SSR/SSG
-- **React 19** - UI library
-- **TypeScript 5** - Type safety
-- **Tailwind CSS 4** - Utility-first styling
-- **Framer Motion** - Animations
-- **Axios** - HTTP client for Strapi API
+### Tech stack
 
-### Key Features
-- Server-side rendering (SSR) for dynamic content
-- Static site generation (SSG) for internships and blogs
-- 60-second ISR (Incremental Static Regeneration)
-- HubSpot form integration for internship applications
-- Optimized image loading with Next.js Image
+- **Next.js 16** — App Router, RSC, ISR
+- **React 19** + **TypeScript 5**
+- **Tailwind CSS 4**
+- **Framer Motion** — animations on selected components
+- **Native `fetch`** — Strapi calls are implemented in `lib/strapi.ts` (no Axios usage in app code)
 
-### Project Structure
+### Dual Strapi
+
+| Area | Strapi | Helper (typical) |
+|------|--------|------------------|
+| Projects, homepage projects, project images | Content | `getProjects`, `getHomepageProjects`, `getContentStrapiImageUrl` |
+| Blogs | Content | `getBlogPosts`, `getBlogPostBySlug`, `getContentStrapiImageUrl` |
+| Internships (list + detail, `/api/internships`) | Content | `getInternships`, `getInternshipBySlug` |
+| Site settings, sections, benefits, verticals, methodology, pages, **interns (people on About)** | Main | `fetchAPI`, `getStrapiImageUrl` |
+
+Exported helpers in `lib/strapi.ts`:
+
+- **`fetchAPI`** — main Strapi (internal).
+- **`fetchContentAPI`** — content Strapi (exported for advanced use).
+- **`getStrapiImageUrl`** — media URLs on the **main** instance.
+- **`getContentStrapiImageUrl`** — media URLs for **projects / blogs** (and homepage project cards when resolved on the server).
+
+The internships **listing page** loads data from **`GET /api/internships`** (client fetch); that route uses `getInternships({ status: 'Open' })` on the server. Content Strapi may expose status as `internship_status`; the client normalizes it to `status` in code.
+
+### Features
+
+- ISR / revalidation (often `revalidate = 60` on routes).
+- HubSpot forms on internship detail pages when `hubspotFormId` is set.
+- `next/image` with remote patterns driven by `NEXT_PUBLIC_STRAPI_URL` and `CONTENT_STRAPI_URL` in `next.config.ts`.
+
+### Project structure
 
 ```
-app/              # Next.js App Router pages
-├── page.tsx      # Homepage
-├── about/        # About page
-├── internships/  # Internship list & detail pages
-├── projects/     # Projects page
-├── blogs/        # Blog list & detail pages
-└── contact/      # Contact page
-
-components/       # React components
-├── header.tsx    # Navigation (client component)
-├── footer.tsx    # Footer (server component)
-├── hubspot-form.tsx  # HubSpot integration (client)
-└── ...           # Other reusable components
-
-lib/             # Utilities
-├── strapi.ts    # Strapi API client functions
-├── types.ts     # TypeScript interfaces
-└── utils.ts     # Helper functions
-
-public/          # Static assets
+app/
+├── page.tsx                 # Home
+├── about/
+├── contact/
+├── projects/
+├── blogs/                   # List + [slug]
+├── internships/             # List (client) + [slug]
+├── api/internships/route.ts # Open internships JSON for the list page
+├── layout.tsx, globals.css, ...
+components/                  # UI (header, footer, sections, …)
+lib/
+├── strapi.ts                # All Strapi types + fetch helpers
+├── branding.ts
+├── utils.ts
+└── types.ts
+public/
 ```
 
-## API Integration
+---
 
-All content is fetched from Strapi CMS via `lib/strapi.ts`:
+## API integration (`lib/strapi.ts`)
+
+Server Components and route handlers import helpers as needed:
 
 ```typescript
-import { getInternships, getProjects, getBlogPosts } from '@/lib/strapi'
-
-// Fetch data in Server Components
-const internships = await getInternships()
-const projects = await getProjects()
-const posts = await getBlogPosts()
+import {
+  getProjects,
+  getBlogPosts,
+  getInternships,
+  getSiteSettings,
+  getStrapiImageUrl,
+  getContentStrapiImageUrl,
+} from '@/lib/strapi'
 ```
 
-### Available API Functions
+Common functions:
 
-- `getInternships(filters?)` - Fetch internships with optional filters
-- `getInternshipBySlug(slug)` - Single internship by slug
-- `getProjects()` - All projects sorted by order
-- `getHomepageProjects()` - Only projects marked for homepage
-- `getBlogPosts()` - All blog posts sorted by date
-- `getBlogPostBySlug(slug)` - Single blog post
-- `getStrapiImageUrl(url)` - Convert Strapi image URLs
+- **Content Strapi:** `getInternships`, `getInternshipBySlug`, `getProjects`, `getHomepageProjects`, `getProjectById`, `getBlogPosts`, `getBlogPostBySlug`
+- **Main Strapi:** `getTeamMembers`, `getPageBySlug`, `getSiteSettings`, `getBenefits`, `getVerticals`, `getMethodologyItems`, `getSectionContent`, `getInterns`, …
 
-## Development Guidelines
+`getInterns` (people on the About page) uses the main Strapi `interns` collection. If that API returns **404** (collection missing), the app treats it as an empty list without breaking the page.
 
-### Server vs Client Components
+---
 
-Use Server Components by default. Only add `'use client'` when you need:
-- Event handlers (onClick, onChange)
-- React hooks (useState, useEffect, useRef)
-- Browser APIs (window, localStorage)
+## Development notes
 
-**Client Components in this project:**
-- `header.tsx` - Mobile menu interactivity
-- `hubspot-form.tsx` - Form embedding with useEffect
-- `button.tsx` - Click handlers
-- `internship-carousel.tsx` - Image carousel state
-- `projects-showcase.tsx` - Interactive filtering
+### Server vs client components
+
+Prefer Server Components. Use `'use client'` only when you need events, hooks, or browser APIs. Examples: `header.tsx`, `hubspot-form.tsx`, `internships/page.tsx` (list + search), `projects-showcase.tsx`.
 
 ### Revalidation
 
-Add to pages that fetch from Strapi:
-
-```typescript
-export const revalidate = 60 // Revalidate every 60 seconds
+```ts
+export const revalidate = 60
 ```
 
-### Static Generation
+### Dynamic routes
 
-For dynamic routes, implement `generateStaticParams`:
+Use `generateStaticParams` where applicable (e.g. blog and internship slugs).
 
-```typescript
-export async function generateStaticParams() {
-  const items = await getItems()
-  return items.map((item) => ({ slug: item.slug }))
-}
-```
+### Images
 
-### Image Optimization
+- Main Strapi media: `getStrapiImageUrl`
+- Projects / blogs (content Strapi): `getContentStrapiImageUrl`
+- Ensure hostnames are allowed in `next.config.ts` `images.remotePatterns`
 
-Always use Next.js Image component:
-
-```tsx
-import Image from 'next/image'
-import { getStrapiImageUrl } from '@/lib/strapi'
-
-<Image
-  src={getStrapiImageUrl(image.url)!}
-  alt={image.alternativeText || ''}
-  width={800}
-  height={600}
-/>
-```
+---
 
 ## Deployment
 
-### Vercel (Production)
+Set the same four environment variables in your host (Vercel, Railway, etc.):
 
-Auto-deploys from `main` branch.
-
-**Environment Variables (set in Vercel dashboard):**
 - `NEXT_PUBLIC_STRAPI_URL`
 - `STRAPI_API_TOKEN`
+- `CONTENT_STRAPI_URL`
+- `CONTENT_STRAPI_API_TOKEN`
 
-### Manual Deployment
+Redeploy after changing env vars.
 
-```bash
-vercel deploy --prod
-```
+---
 
 ## Troubleshooting
 
-### Build Fails
+| Issue | What to check |
+|-------|----------------|
+| Build fails | `rm -rf .next && npm run build` |
+| Stale content | ISR delay (~60s); content published in Strapi; valid tokens |
+| Images blocked | `next.config.ts` remotePatterns; correct Strapi base URL |
+| Empty internships list | Content Strapi URL/token; entries published; `internship_status` / `status` for “Open” |
+| About page / interns empty | Main Strapi may not expose `interns` — optional; page still loads |
 
-```bash
-rm -rf .next
-npm run build
-```
-
-### Data Not Updating
-
-- Wait 60 seconds (ISR revalidation)
-- Check content is Published in Strapi
-- Verify STRAPI_API_TOKEN is valid
-
-### Images Not Loading
-
-- Check `next.config.ts` remote patterns
-- Verify Strapi URL is correct
-- Check browser console for errors
-
-## Documentation
-
-For detailed guides, see:
-- **[DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md)** - Comprehensive developer documentation
-- **[.github/copilot-instructions.md](../.github/copilot-instructions.md)** - AI coding agent guide
-- **[README.md](../README.md)** - Project overview
+---
 
 ## Scripts
 
 ```bash
-npm run dev       # Development server
-npm run build     # Production build
-npm start         # Start production server
-npm run lint      # Run ESLint
+npm run dev      # Development
+npm run build    # Production build
+npm start        # Production server
+npm run lint     # ESLint
 ```
+
+---
+
+## More docs
+
+- **[DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md)** — broader developer guide (if present)
+- **[README.md](../README.md)** — monorepo overview (if present)
