@@ -1,302 +1,176 @@
-# Hephaestus.International - Modern Website
+# Hephaestus.International
 
-> Modern, high-performance website built with Next.js 16 and Strapi CMS
+Modern marketing site and content hub for **Hephaestus.International** (with optional **Efestos** branding on a second domain). The stack is **Next.js** (App Router) on the frontend and **Strapi v5** for content, with media on **Cloudinary** and deployments on **Vercel** (frontend) and **Railway** (Strapi + PostgreSQL).
 
-## 📋 Project Overview
+**بالعربية:** المشروع عبارة عن موقع وواجهة أمامية بـ Next.js تتصل بنظامي Strapi (رئيسي للمحتوى العام للموقع، وآخر للمشاريع والمدونة وإعلانات التدريب)، مع دعم اسم تجاري يعتمد على النطاق (Hephaestus أو Efestos)، وإعادة تحقق للمحتوى (ISR) على معظم الصفحات.
 
-A complete redesign of hephaestus.international, moving from WordPress to a modern JAMstack architecture using Next.js 16, Strapi v5 (headless CMS), and PostgreSQL.
+---
 
-**Live Site:** https://hephaestus-international.vercel.app (or custom domain TBD)
-**CMS Admin:** https://strapi-production-7ecb.up.railway.app/admin  
-**Original Site:** https://hephaestus.international (WordPress - legacy)
+## Architecture
 
-## ✅ Current Status
+| Layer | Role |
+|--------|------|
+| **Frontend** (`frontend/`) | Next.js 16, React 19, Tailwind CSS 4, Framer Motion |
+| **Main Strapi** | Site settings, homepage sections, benefits, methodology, team, verticals, etc. |
+| **Content Strapi** | Projects, blog posts, internship listings (job posts) |
+| **Media** | Cloudinary (via Strapi upload provider); Next.js allows remote images from Strapi and Cloudinary |
 
-**Status:** ✅ **Production Ready** - Migration Complete  
-**Last Updated:** November 8, 2025
+The homepage uses **server-side rendering with host-based branding** (`dynamic = 'force-dynamic'`). Most other routes use **ISR with a 60-second revalidation** window so CMS updates appear quickly without redeploying.
 
-### What's Live
-- ✅ 8 project pages with descriptions and external links
-- ✅ 39 internship positions with HubSpot application forms
-- ✅ 13 blog posts (5 published, 8 drafts)
-- ✅ Full responsive design matching WordPress exactly
-- ✅ All images and media migrated
-- ✅ SEO metadata on all pages
-- ✅ 60-second ISR (Incremental Static Regeneration)
+---
 
-## 🛠 Technology Stack
+## Main routes
 
-### Frontend
-- **Framework:** Next.js 16 (App Router)
-- **Language:** TypeScript 5
-- **Styling:** Tailwind CSS 4
-- **Animations:** Framer Motion
-- **Forms:** HubSpot Embedded Forms
+| Path | Description |
+|------|-------------|
+| `/` | Homepage (sections from main Strapi, projects from content Strapi) |
+| `/about` | About |
+| `/projects` | Projects listing |
+| `/internships` | Internships list + search |
+| `/internships/[slug]` | Internship detail + HubSpot form (form ID from CMS) |
+| `/blogs` | Blog listing |
+| `/blogs/[slug]` | Blog post |
+| `/contact` | Contact (uses site settings from Strapi) |
 
-### Backend & CMS
-- **CMS:** Strapi v5.31.0 (headless CMS)
-- **Database:** PostgreSQL 16
-- **API:** RESTful API with Bearer token auth
+---
 
-### Hosting & Deployment
-- **Frontend:** Vercel (auto-deploy from main branch)
-- **Backend:** Railway (Strapi + PostgreSQL)
-- **Revalidation:** 60-second ISR for fresh content
+## Branding (multi-domain)
 
-## 📁 Project Structure
+Branding is resolved from the request host (`frontend/lib/branding.ts`):
+
+- **Hephaestus** — default for `localhost` and `hephaestus.*` domains  
+- **Efestos** — when the host contains `efestos`
+
+Copy and metadata can use `getServerBrand()` so the same deployment can serve different institute names on different domains.
+
+---
+
+## Repository layout
 
 ```text
-frontend/          # Next.js application
-├── app/          # App Router pages
-│   ├── page.tsx              # Homepage
-│   ├── about/page.tsx        # About page
-│   ├── projects/page.tsx     # Projects listing
-│   ├── internships/          # Internships pages
-│   │   ├── page.tsx          # List view with search
-│   │   └── [slug]/page.tsx   # Individual internship
-│   └── blogs/                # Blog pages
-│       ├── page.tsx          # Blog listing
-│       └── [slug]/page.tsx   # Individual blog post
-├── components/   # React components
-│   ├── header.tsx           # Navigation & mobile menu
-│   ├── footer.tsx           # Footer with links
-│   ├── hero.tsx             # Hero sections
-│   └── hubspot-form.tsx     # HubSpot form integration
-├── lib/          # Utilities
-│   ├── strapi.ts            # Strapi API client
-│   └── types.ts             # TypeScript interfaces
-└── public/       # Static assets
-
-strapi/app/       # Strapi CMS
-├── src/api/      # Content types
-│   ├── internship/          # 39 internships
-│   ├── project/             # 8 projects  
-│   └── blog-post/           # 13 blog posts
-├── config/       # Strapi configuration
-└── database/     # PostgreSQL migrations
+frontend/          # Next.js app (primary entry for local dev)
+strapi/app/        # Strapi 5 CMS (schema, APIs, admin)
+scripts/           # Utilities (content sync, etc. — see scripts/README.md)
 ```
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
-- Node.js 18+ installed
-- Access to environment variables (contact admin)
+## Prerequisites
 
-### Local Development
+- **Node.js** 18–22 (see `strapi/app/package.json` engines)
+- API tokens for Strapi (from your team or Railway/Vercel env)
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd hephaestus-international
-   ```
+---
 
-2. **Install frontend dependencies**
-   ```bash
-   cd frontend
-   npm install
-   ```
+## Local development
 
-3. **Set up environment variables**
-   Create `frontend/.env.local`:
-   ```env
-   NEXT_PUBLIC_STRAPI_URL=https://strapi-production-7ecb.up.railway.app
-   STRAPI_API_TOKEN=<your-full-access-token>
-   ```
+### Frontend
 
-4. **Run development server**
-   ```bash
-   npm run dev
-   ```
-   
-   Visit http://localhost:3000
+```bash
+cd frontend
+npm install
+```
 
-### Strapi CMS Local Setup (Optional)
+Create `frontend/.env.local` from `frontend/.env.example` (do not commit secrets):
 
-Only needed if modifying Strapi schema:
+```env
+NEXT_PUBLIC_STRAPI_URL=https://your-main-strapi.example.com
+STRAPI_API_TOKEN=<main-strapi-api-token>
+
+CONTENT_STRAPI_URL=https://your-content-strapi.example.com
+CONTENT_STRAPI_API_TOKEN=<content-strapi-api-token>
+```
+
+In development, both URLs may point to the same Strapi instance if your deployment supports it; production often uses two instances as described in `frontend/README.md`.
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Strapi (optional)
+
+Only when changing schemas, plugins, or running the admin locally:
 
 ```bash
 cd strapi/app
 npm install
-# Set DATABASE_URL in .env
 npm run develop
 ```
 
-Visit http://localhost:1337/admin
-
-## 📝 Content Management
-
-### For Content Editors
-See **[CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md)** for detailed instructions on:
-- Adding/editing internships
-- Managing blog posts
-- Updating projects
-- Uploading images
-
-### For Developers  
-See **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** for:
-- Technical setup
-- API integration
-- Component patterns
-- Deployment procedures
-
-## 🎨 Design System
-
-### Colors
-- **Flo Blue:** `#00349B` (primary)
-- **Dark Blue:** `#002775` (hover states)
-- **Light Blue:** `#5ba3ff` (hero text)
-
-### Typography
-- **Headings:** Poppins (600-700 weight)
-- **Body:** Roboto (300-500 weight)
-
-### Components
-- Cards with hover effects
-- Responsive grid layouts
-- HubSpot form integration
-- Mobile-first navigation
-
-## 📊 Content Statistics
-
-| Type | Count | Status |
-|------|-------|--------|
-| Internships | 39 | ✅ All migrated |
-| Projects | 8 | ✅ All migrated |
-| Blog Posts | 13 | ✅ 5 published, 8 drafts |
-| Images | 18+ | ✅ All uploaded |
-| Pages | 8 main | ✅ All functional |
-
-## 🔧 Development Commands
-
-```bash
-# Frontend (from /frontend)
-npm run dev          # Development server
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # Run ESLint
-
-# Strapi (from /strapi/app)  
-npm run develop      # Development with admin UI
-npm run start        # Production mode
-npm run build        # Build admin panel
-```
-
-## 🚢 Deployment
-
-### Frontend (Vercel)
-- **Auto-deploys** from `main` branch
-- Environment variables configured in Vercel dashboard
-- Custom domain: TBD (ready for DNS switch)
-
-### Backend (Railway)
-- **Auto-deploys** from `main` branch
-- PostgreSQL database included
-- Environment variables set in Railway dashboard
-
-## � Documentation
-
-- **[README.md](./README.md)** - This file (project overview)
-- **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** - Technical setup & patterns
-- **[CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md)** - Content editor instructions  
-- **[EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md)** - High-level project summary
-- **[MIGRATION_STRATEGY.md](./MIGRATION_STRATEGY.md)** - Historical migration context
-- **[STRAPI_CMS_STRATEGY.md](./STRAPI_CMS_STRATEGY.md)** - Future CMS enhancements
-- **[UX_ENHANCEMENTS_GUIDE.md](./UX_ENHANCEMENTS_GUIDE.md)** - Modern UI/UX improvements
-- **[QA_CHECKLIST.md](./QA_CHECKLIST.md)** - Testing & validation checklist
-
-## 🔐 Environment Variables
-
-### Frontend (Next.js)
-```env
-NEXT_PUBLIC_STRAPI_URL=https://strapi-production-7ecb.up.railway.app
-STRAPI_API_TOKEN=<full-access-token>
-```
-
-### Backend (Strapi)
-```env
-DATABASE_URL=<railway-postgres-connection-string>
-APP_KEYS=<secret-keys>
-API_TOKEN_SALT=<secret>
-ADMIN_JWT_SECRET=<secret>
-JWT_SECRET=<secret>
-```
-
-## 🎯 Key Features
-
-### Performance
-- ⚡ Static generation with 60s ISR
-- 🖼️ Optimized image loading
-- 📱 Mobile-first responsive design
-- ⚡ Fast page loads (<2s)
-
-### Content Management
-- 📝 Easy Strapi admin interface
-- 🔄 Changes reflect in 60 seconds
-- 📊 No code changes needed for content
-- 🖼️ Built-in media library
-
-### HubSpot Integration
-- 📋 Embedded application forms
-- 🎯 Portal ID: 45023159
-- 🔗 Form ID: 0133caf3-53e5-403f-a894-cd0246642913
-- ✅ Working on all 39 internship pages
-
-### Developer Experience
-- 💻 TypeScript for type safety
-- 🎨 Tailwind CSS for styling
-- ⚛️ Modern React patterns
-- 🔧 Hot module replacement
-- 📦 Modular component architecture
-
-## 🐛 Troubleshooting
-
-### Data not updating?
-- Wait 60 seconds (revalidation period)
-- Check content is Published in Strapi (not Draft)
-- Verify STRAPI_API_TOKEN has correct permissions
-
-### Images not loading?
-- Check image URLs are absolute in Strapi
-- Verify NEXT_PUBLIC_STRAPI_URL is correct
-- Check Network tab for 404s
-
-### Build failures?
-- Ensure all env vars set in Vercel
-- Verify Strapi is accessible at build time
-- Clear Next.js cache: `rm -rf .next && npm run build`
-
-## 📞 Support
-
-### For Content Updates
-- Use Strapi admin panel
-- See [CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md)
-- Contact: [Content Manager Email]
-
-### For Technical Issues
-- Check [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)
-- Create GitHub issue
-- Contact: [Dev Team Email]
-
-### Resources
-- [Next.js Docs](https://nextjs.org/docs)
-- [Strapi Docs](https://docs.strapi.io)
-- [Tailwind CSS Docs](https://tailwindcss.com/docs)
-
-## 📄 License
-
-[Your License Here]
+Admin UI: [http://localhost:1337/admin](http://localhost:1337/admin). Configure `DATABASE_URL` and other secrets per `strapi/app/.env.example`.
 
 ---
 
-**Ready for Production** ✅  
-Last Updated: November 8, 2025  
-Maintained by: Flo Labs Development Team
+## Scripts
 
+| Command | Where |
+|---------|--------|
+| `npm run dev` / `build` / `start` / `lint` | `frontend/` |
+| `npm run develop` / `build` / `start` | `strapi/app/` |
 
-## About Hephaestus.International
+---
 
-Hephaestus.International is powered by Flo Labs International infrastructure and technology. 
+## Documentation
 
-This site maintains the same architecture and capabilities as Flo Labs International but operates as an independent brand focused on [specific focus area to be defined].
+| Document | Purpose |
+|----------|---------|
+| [frontend/README.md](./frontend/README.md) | Frontend env vars, dual Strapi behavior, ISR |
+| [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) | Developer setup and patterns |
+| [CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md) | Content editing in Strapi |
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Deployment (Vercel, Railway) |
+| [DOMAIN_SETUP_GUIDE.md](./DOMAIN_SETUP_GUIDE.md) | DNS and domains |
+| [QUICK_START.md](./QUICK_START.md) | Short onboarding |
+| [QA_CHECKLIST.md](./QA_CHECKLIST.md) | Pre-release checks |
+| [REBRAND_SUMMARY.md](./REBRAND_SUMMARY.md) | Hephaestus rebrand notes |
+| [scripts/README.md](./scripts/README.md) | Scripts folder |
 
+---
 
+## Environment variables (summary)
+
+### Frontend
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_STRAPI_URL` | Main Strapi base URL (public) |
+| `STRAPI_API_TOKEN` | Server-only token for main Strapi |
+| `CONTENT_STRAPI_URL` | Content Strapi base URL (server-only) |
+| `CONTENT_STRAPI_API_TOKEN` | Server-only token for content Strapi |
+
+Never prefix secret tokens with `NEXT_PUBLIC_`.
+
+### Strapi (Railway / self-hosted)
+
+Typical values include `DATABASE_URL`, `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, `JWT_SECRET`, and Cloudinary/transfer settings as required by your Strapi config. See `DEPLOYMENT_GUIDE.md` and `strapi/app/.env.example`.
+
+---
+
+## Features
+
+- **Content**: Strapi v5 REST APIs with bearer tokens; optional split between “main” and “content” backends  
+- **Performance**: ISR (~60s) on listing and detail pages; optimized images via Next.js image config  
+- **Forms**: HubSpot embedded forms on internship pages (`portalId` default in `hubspot-form.tsx`; per-role `formId` from CMS)  
+- **Media**: Cloudinary + Strapi; `next.config.ts` allows Strapi and Cloudinary hostnames  
+
+---
+
+## Troubleshooting
+
+- **Stale content**: Wait up to ~60 seconds for ISR, or confirm items are **Published** in Strapi.  
+- **Missing projects/internships**: Ensure `CONTENT_STRAPI_URL` / `CONTENT_STRAPI_API_TOKEN` are set and match the content instance.  
+- **Images**: Check `NEXT_PUBLIC_STRAPI_URL`, `CONTENT_STRAPI_URL`, and Cloudinary hostnames in `frontend/next.config.ts`.  
+- **Build failures**: Verify all required env vars in Vercel; ensure Strapi is reachable at build time if pages fetch during build.
+
+---
+
+## License
+
+Specify license in this repository as decided by your organization.
+
+---
+
+**Last updated:** April 2026  
+
+Maintained by Flo Labs / Hephaestus.International development.
