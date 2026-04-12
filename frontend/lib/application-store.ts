@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import OpenAI from 'openai';
+import { compare } from 'bcryptjs';
 import stepsData from '@/app/STEPS.json';
 import type { ApplicantProfile, StageStep } from '@/app/application-data';
 import { addApplicantMessage, createApplicant, findUserByEmail, getApplicantConversations, getApplicants, getUserById, updateApplicantProfile, updateApplicantStage } from '@/lib/application-db';
@@ -15,7 +16,14 @@ export async function getSessionUser(): Promise<ApplicantProfile | null> {
 
 export async function loginPreview(email: string, password: string): Promise<ApplicantProfile | null> {
   const user = await findUserByEmail(email);
-  if (!user || user.password !== password) return null;
+  if (!user) return null;
+
+  const passwordMatches = user.password?.startsWith('$2')
+    ? await compare(password, user.password)
+    : user.password === password;
+
+  if (!passwordMatches) return null;
+
   const jar = await cookies();
   jar.set(SESSION_COOKIE, user.id, { httpOnly: true, sameSite: 'lax', path: '/' });
   return user;
