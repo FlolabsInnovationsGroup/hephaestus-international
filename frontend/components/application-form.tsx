@@ -81,12 +81,6 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
         <Field label="First name*"><input required value={form.firstName} onChange={(e) => update('firstName', e.target.value)} className={inputClass} /></Field>
         <Field label="Last name*"><input required value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className={inputClass} /></Field>
         <Field label="Email*"><input type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} className={inputClass} /></Field>
-        <Field label="New password*">
-          <PasswordInput value={form.password} show={showPassword} onToggle={() => setShowPassword((v) => !v)} onChange={(value) => update('password', value)} helper="This password will be used for the new applicant profile you are creating now." />
-        </Field>
-        <Field label="Confirm new password*">
-          <PasswordInput value={form.confirmPassword} show={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)} onChange={(value) => update('confirmPassword', value)} />
-        </Field>
         <Field label="Phone number*">
           <div className="flex gap-2">
             <select value={form.phoneCountryCode} onChange={(e) => update('phoneCountryCode', e.target.value)} className={`${inputClass} max-w-[110px]`}>
@@ -94,6 +88,12 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
             </select>
             <input required value={form.phoneNumber} onChange={(e) => update('phoneNumber', e.target.value)} className={inputClass} />
           </div>
+        </Field>
+        <Field label="New password*">
+          <PasswordInput value={form.password} show={showPassword} onToggle={() => setShowPassword((v) => !v)} onChange={(value) => update('password', value)} helper="This password will be used for the new applicant profile you are creating now." />
+        </Field>
+        <Field label="Confirm new password*">
+          <PasswordInput value={form.confirmPassword} show={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)} onChange={(value) => update('confirmPassword', value)} />
         </Field>
         <Field label="LinkedIn URL*"><input required value={form.linkedinUrl} onChange={(e) => update('linkedinUrl', e.target.value)} className={inputClass} /></Field>
         <Field label="Source*">
@@ -127,6 +127,9 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
               }
               update('cvFileName', data.cvFileName ?? file.name);
               update('cvUrl', data.cvUrl ?? '');
+              if (data.warning) {
+                setError(data.warning);
+              }
               setUploadingCv(false);
             }}
             className={inputClass}

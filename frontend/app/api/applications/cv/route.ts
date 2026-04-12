@@ -9,10 +9,6 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json({ error: 'CV uploads are not configured yet in this environment.' }, { status: 503 });
-  }
-
   const formData = await request.formData();
   const file = formData.get('file');
 
@@ -26,6 +22,18 @@ export async function POST(request: Request) {
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json({ error: 'CV file must be 10MB or smaller' }, { status: 400 });
+  }
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({
+      ok: true,
+      cvFileName: file.name,
+      cvUrl: '',
+      storage: 'deferred',
+      contentType: file.type,
+      size: file.size,
+      warning: 'Blob storage is not configured in this environment yet, so only the file metadata was saved for now.',
+    });
   }
 
   try {
@@ -42,9 +50,10 @@ export async function POST(request: Request) {
       pathname: blob.pathname,
       contentType: file.type,
       size: file.size,
+      storage: 'blob',
     });
   } catch (error) {
     console.error('CV upload failed', error);
-    return NextResponse.json({ error: 'CV upload failed. Please try again in the deployed environment.' }, { status: 500 });
+    return NextResponse.json({ error: 'CV upload failed. The file is valid, but storage is unavailable right now.' }, { status: 500 });
   }
 }
