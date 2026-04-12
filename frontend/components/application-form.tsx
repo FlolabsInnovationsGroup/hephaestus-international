@@ -60,8 +60,8 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
     <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-blue-100 bg-[#f7faff] p-8 shadow-sm">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">Apply directly</p>
-        <h4 className="mt-2 text-2xl font-bold text-gray-900">Internal application form</h4>
-        <p className="mt-2 text-sm text-gray-600">The role is filled automatically from this internship page. After submission, the applicant profile is created and the application dashboard opens immediately.</p>
+        <h4 className="mt-2 text-2xl font-bold text-gray-900">Internship application form</h4>
+        <p className="mt-2 text-sm text-gray-600">After submission, your applicant profile will be created, and your dashboard will open immediately.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -70,9 +70,7 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
         <Field label="Email*"><input type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} className={inputClass} /></Field>
         <Field label="Password*"><input type="password" required minLength={8} value={form.password} onChange={(e) => update('password', e.target.value)} className={inputClass} /></Field>
         <Field label="Phone number*"><input required value={form.phoneNumber} onChange={(e) => update('phoneNumber', e.target.value)} className={inputClass} /></Field>
-        <Field label="Country / Region*"><input required value={form.country} onChange={(e) => update('country', e.target.value)} className={inputClass} /></Field>
         <Field label="State / Region"><input value={form.stateRegion} onChange={(e) => update('stateRegion', e.target.value)} className={inputClass} /></Field>
-        <Field label="City*"><input required value={form.city} onChange={(e) => update('city', e.target.value)} className={inputClass} /></Field>
         <Field label="LinkedIn URL*"><input required value={form.linkedinUrl} onChange={(e) => update('linkedinUrl', e.target.value)} className={inputClass} /></Field>
         <Field label="Source*">
           <select value={form.source} onChange={(e) => update('source', e.target.value)} className={inputClass}>
@@ -117,12 +115,17 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
 
       <div className="rounded-xl border border-blue-100 bg-white p-5">
         <p className="font-semibold text-gray-900">Location picker</p>
-        <p className="mt-1 text-sm text-gray-600">Click on the map to select your location.</p>
+        <p className="mt-1 text-sm text-gray-600">Click the map or drag the marker. We will extract the city and country automatically from the selected point.</p>
         <div className="mt-4 h-48 w-full overflow-hidden rounded-2xl">
           <LocationPicker 
             latitude={Number(form.latitude)} 
             longitude={Number(form.longitude)} 
-            onChange={(lat, lng) => { update('latitude', lat); update('longitude', lng); }} 
+            onChange={(lat, lng, city, country) => {
+              update('latitude', lat);
+              update('longitude', lng);
+              if (city) update('city', city);
+              if (country) update('country', country);
+            }} 
           />
         </div>
       </div>
