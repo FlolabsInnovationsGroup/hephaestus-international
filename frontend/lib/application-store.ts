@@ -50,7 +50,23 @@ export async function getApplicantsForAdmin() {
 }
 
 export async function getConversationForApplicant(applicantId: string) {
-  return await getApplicantConversations(applicantId);
+  const messages = await getApplicantConversations(applicantId);
+  if (messages.length > 0) return messages;
+
+  const applicant = await getUserById(applicantId);
+  if (!applicant) return [];
+
+  return [
+    {
+      id: `welcome-${applicant.id}`,
+      applicantId: applicant.id,
+      author: 'paula' as const,
+      text: applicant.stage === 'joined'
+        ? `Hi ${applicant.firstName}, your FloLabs and Chronos access are active. You are already joined, so this space is now mainly for profile visibility and HR follow-up if needed.`
+        : `Hi ${applicant.firstName}, welcome to FloLabs. Your application dashboard is ready and I can help with process questions here.`,
+      createdAt: new Date().toISOString(),
+    },
+  ];
 }
 
 export async function sendApplicantMessage(applicantId: string, text: string) {
