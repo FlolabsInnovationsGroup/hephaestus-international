@@ -43,7 +43,7 @@ export default async function Home() {
   return (
     <>
       <Hero />
-      <GetRecruited />
+      <GetRecruited id="home-content" />
       <ProjectsShowcase projects={projects} />
       <AmbitiousProjects />
       <Verticals />

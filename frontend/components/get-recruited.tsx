@@ -2,7 +2,11 @@ import { Container, Section } from './layout'
 import { getSectionContent } from '@/lib/strapi'
 import { getServerBrand, transformBrandContent } from '@/lib/branding'
 
-export async function GetRecruited() {
+type GetRecruitedProps = {
+  id?: string
+}
+
+export async function GetRecruited({ id }: GetRecruitedProps) {
   const title = await getSectionContent('get-recruited-title')
   const content = await getSectionContent('get-recruited-content')
   const brand = await getServerBrand()
@@ -14,7 +18,7 @@ export async function GetRecruited() {
     : defaultContent
   
   return (
-    <Section className="bg-white">
+    <Section id={id} className="bg-white">
       <Container>
         <div className="max-w-6xl mx-auto">
           {/* Side-by-side layout matching WordPress: Blue box LEFT, text RIGHT */}
