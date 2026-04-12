@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Container } from './layout'
 import { useState } from 'react'
 import { useBrand } from './brand-provider'
+import { AuthLink } from './auth-link'
 
 const navigation = [
   { name: 'Blogs', href: '/blogs' },
@@ -13,7 +14,7 @@ const navigation = [
   { name: 'Internships', href: '/internships' },
 ]
 
-export function Header() {
+export function Header({ viewer }: { viewer: { firstName: string; profilePictureUrl?: string } | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { brand } = useBrand()
 
@@ -32,7 +33,6 @@ export function Header() {
             />
           </Link>
           
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
               <Link
@@ -44,24 +44,26 @@ export function Header() {
               </Link>
             ))}
           </nav>
-          
-          {/* Mobile menu button */}
-          <button
-            type="button"
-            className="md:hidden p-2 text-white hover:text-blue-400"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
+
+          <div className="flex items-center gap-4">
+            <AuthLink viewer={viewer} />
+            <button
+              type="button"
+              className="md:hidden p-2 text-white hover:text-blue-400"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
                   strokeWidth={2} 
-                  d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+                  d={mobileMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} 
                 />
-            </svg>
-          </button>
-        </div>        {/* Mobile Navigation */}
+              </svg>
+            </button>
+          </div>
+        </div>
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-white/10">
             <nav className="py-4 space-y-2">
@@ -75,6 +77,13 @@ export function Header() {
                   {item.name}
                 </Link>
               ))}
+              <Link
+                href={viewer ? '/me/application' : '/login'}
+                className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {viewer ? 'Profile' : 'Log in'}
+              </Link>
             </nav>
           </div>
         )}

@@ -6,6 +6,7 @@ import { Footer } from "@/components/footer";
 import { BrandProvider } from "@/components/brand-provider";
 import { getServerBrand } from "@/lib/branding";
 import Script from "next/script";
+import { getSessionUser } from '@/lib/application-store';
 
 // Force dynamic rendering for brand detection
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const brand = await getServerBrand()
+  const viewer = await getSessionUser()
   
   return (
     <html lang="en">
@@ -50,7 +52,7 @@ export default async function RootLayout({
           >
             Skip to content
           </a>
-          <Header />
+          <Header viewer={viewer ? { firstName: viewer.firstName, profilePictureUrl: viewer.profilePictureUrl } : null} />
           <main id="content" className="min-h-screen">
             {children}
           </main>

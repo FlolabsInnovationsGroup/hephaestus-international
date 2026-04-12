@@ -1,0 +1,136 @@
+import { cookies } from 'next/headers';
+import OpenAI from 'openai';
+import stepsData from '@/app/STEPS.json';
+import type { ApplicantProfile, StageStep } from '@/app/application-data';
+import { addApplicantMessage, createApplicant, findUserByEmail, getApplicantConversations, getApplicants, getUserById, updateApplicantProfile, updateApplicantStage } from '@/lib/application-db';
+
+const SESSION_COOKIE = 'fl_preview_session';
+
+export async function getSessionUser(): Promise<ApplicantProfile | null> {
+  const jar = await cookies();
+  const userId = jar.get(SESSION_COOKIE)?.value;
+  if (!userId) return null;
+  return await getUserById(userId);
+}
+
+export async function loginPreview(email: string, password: string): Promise<ApplicantProfile | null> {
+  const user = await findUserByEmail(email);
+  if (!user || user.password !== password) return null;
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, user.id, { httpOnly: true, sameSite: 'lax', path: '/' });
+  return user;
+}
+
+export async function logoutPreview() {
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, '', { expires: new Date(0), path: '/' });
+}
+
+export async function createApplicantAccount(input: Omit<ApplicantProfile, 'id' | 'joinedAt' | 'lastVisitedAt'>) {
+  const applicant = await createApplicant(input);
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, applicant.id, { httpOnly: true, sameSite: 'lax', path: '/' });
+  return applicant;
+}
+
+export async function getApplicantById(id: string) {
+  return await getUserById(id);
+}
+
+export async function getApplicantsForAdmin() {
+  const applicants = await getApplicants();
+  return applicants.filter((user) => user.role === 'applicant');
+}
+
+export async function getConversationForApplicant(applicantId: string) {
+  return await getApplicantConversations(applicantId);
+}
+
+export async function sendApplicantMessage(applicantId: string, text: string) {
+  await addApplicantMessage(applicantId, 'applicant', text);
+  const applicant = await getUserById(applicantId);
+  const reply = await buildPaulaReply(text, applicant);
+  return await addApplicantMessage(applicantId, 'paula', reply);
+}
+
+async function buildPaulaReply(userMessage: string, applicant: ApplicantProfile | null) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    return fallbackPaulaReply(userMessage);
+  }
+
+  try {
+    const openai = new OpenAI({ apiKey });
+    const currentStep = applicant ? getStepById(applicant.stage) : null;
+    
+    const systemPrompt = `You are Paula Ferry, a warm and professional HR coordinator at FloLabs Innovations. You help applicants navigate the internship application process.
+
+Your role:
+- Be friendly, encouraging, and professional
+- Answer questions about the application process, stages, and timeline
+- Guide applicants to check their dashboard for current stage progress
+- Never make promises about hiring outcomes
+- Keep responses concise (2-3 sentences max)
+- If you don't know something, say so and suggest contacting HR
+
+Current applicant context (if available):
+${applicant ? `- Applicant name: ${applicant.firstName} ${applicant.lastName}
+- Current stage: ${currentStep?.title || 'Unknown'}
+- Stage description: ${currentStep?.description || 'N/A'}` : '- No applicant context available'}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      max_tokens: 150,
+      temperature: 0.7,
+    });
+
+    return response.choices[0]?.message?.content || fallbackPaulaReply(userMessage);
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    return fallbackPaulaReply(userMessage);
+  }
+}
+
+function fallbackPaulaReply(text: string) {
+  const normalized = text.toLowerCase();
+  if (normalized.includes('paid') || normalized.includes('salary') || normalized.includes('compensation')) {
+    return 'Compensation details depend on the specific program path. HR will confirm that in the appropriate stage, but for now you should keep moving through the current application step shown on the right.';
+  }
+  if (normalized.includes('meeting') || normalized.includes('orientation') || normalized.includes('oliver')) {
+    return 'Before the individual Oliver meeting, the process stays asynchronous until the Saturday Orientation step. The dashboard on the right shows which step you are currently in.';
+  }
+  if (normalized.includes('what next') || normalized.includes('next step') || normalized.includes('timeline')) {
+    return 'Your next step is the one shown on the right panel. If you complete it, HR can move you forward from the admin workspace.';
+  }
+  if (normalized.includes('cv') || normalized.includes('resume') || normalized.includes('file')) {
+    return 'You can update your CV file name in your profile settings. Make sure it matches the filename in your application.';
+  }
+  if (normalized.includes('hello') || normalized.includes('hi') || normalized.includes('hey')) {
+    return 'Hello! I\'m Paula, your HR coordinator. How can I help you today? Feel free to ask about your application status or any questions about the process.';
+  }
+  if (normalized.includes('thank')) {
+    return 'You\'re welcome! Is there anything else I can help you with regarding your application?';
+  }
+  return 'I can answer process questions and I will stay aligned with your current application stage. If your question needs a manual HR decision, John, Oliver, or Paula can pick it up from the lead view.';
+}
+
+export async function saveProfileUpdates(applicantId: string, updates: Partial<ApplicantProfile>) {
+  return await updateApplicantProfile(applicantId, updates);
+}
+
+export async function saveApplicantStage(applicantId: string, stage: ApplicantProfile['stage'], status?: ApplicantProfile['status']) {
+  return await updateApplicantStage(applicantId, stage, status);
+}
+
+export function getStepById(stepId: string) {
+  return ((stepsData as StageStep[]).find((step) => step.id === stepId) ?? (stepsData as StageStep[])[0]);
+}
+
+export function getAllSteps() {
+  return stepsData as StageStep[];
+}
