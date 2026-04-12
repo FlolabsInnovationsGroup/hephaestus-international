@@ -76,6 +76,10 @@ export async function sendApplicantMessage(applicantId: string, text: string) {
   return await addApplicantMessage(applicantId, 'paula', reply);
 }
 
+export async function sendHrMessage(applicantId: string, text: string, author: 'paula' | 'john' | 'oliver' = 'paula') {
+  return await addApplicantMessage(applicantId, author, text);
+}
+
 async function buildPaulaReply(userMessage: string, applicant: ApplicantProfile | null) {
   const apiKey = process.env.OPENAI_API_KEY;
   

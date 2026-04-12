@@ -31,7 +31,7 @@ export default async function ApplicationDashboardPage() {
               <h2 className="text-xl font-semibold text-gray-900">Questions and answers</h2>
               <p className="mt-1 text-sm text-gray-600">Paula answers based on your current application stage.</p>
             </div>
-            <ApplicantChat initialMessages={conversation} />
+            <ApplicantChat initialMessages={conversation} applicantId={viewer.id} />
           </div>
 
           <div className="space-y-6">
@@ -44,15 +44,9 @@ export default async function ApplicationDashboardPage() {
                 <span className="rounded-full bg-[#e9f1ff] px-4 py-2 text-sm font-semibold text-[#00349B]">{step.shortLabel}</span>
               </div>
               <p className="mt-4 text-gray-700">{step.description}</p>
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl bg-[#f7faff] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00349B]">What you need to do</p>
-                  <p className="mt-2 text-sm text-gray-700">{step.applicantAction}</p>
-                </div>
-                <div className="rounded-xl bg-[#f7faff] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00349B]">What the team is doing</p>
-                  <p className="mt-2 text-sm text-gray-700">{step.adminAction}</p>
-                </div>
+              <div className="mt-6 rounded-xl bg-[#f7faff] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00349B]">What you need to do</p>
+                <p className="mt-2 text-sm text-gray-700">{step.applicantAction}</p>
               </div>
             </div>
 

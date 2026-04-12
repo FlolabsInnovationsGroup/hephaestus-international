@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
 import { LogoutButton } from '@/components/logout-button';
+import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
 
@@ -78,13 +79,8 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                 <h2 className="text-xl font-semibold text-gray-900">Lead conversation</h2>
                 <p className="mt-1 text-sm text-gray-600">Admins with the HR binary role can see the full conversation from the profile area.</p>
               </div>
-              <div className="flex max-h-[700px] flex-col gap-4 overflow-y-auto px-6 py-5">
-                {activeLead ? conversation.map((message) => (
-                  <div key={message.id} className={`max-w-[85%] rounded-2xl px-4 py-3 ${message.author === 'applicant' ? 'self-end bg-[#00349B] text-white' : 'bg-[#eef5ff] text-gray-900'}`}>
-                    <p className={`mb-1 text-xs font-semibold ${message.author === 'applicant' ? 'text-white/75' : 'text-[#00349B]'}`}>{message.author}</p>
-                    <p className="text-sm leading-6">{message.text}</p>
-                  </div>
-                )) : <p className="text-sm text-gray-500">No lead selected.</p>}
+              <div className="px-0 py-0">
+                {activeLead ? <ApplicantChat initialMessages={conversation} applicantId={activeLead.id} canReplyAsHr /> : <p className="px-6 py-5 text-sm text-gray-500">No lead selected.</p>}
               </div>
             </div>
 

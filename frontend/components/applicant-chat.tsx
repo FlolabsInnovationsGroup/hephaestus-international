@@ -15,7 +15,7 @@ const authorNames = {
   oliver: 'Oliver Belliard',
 } as const;
 
-export function ApplicantChat({ initialMessages }: { initialMessages: Message[] }) {
+export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = false }: { initialMessages: Message[]; applicantId?: string; canReplyAsHr?: boolean }) {
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export function ApplicantChat({ initialMessages }: { initialMessages: Message[] 
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
     if (!text.trim()) return;
-    const optimistic = { id: `local-${Date.now()}`, author: 'applicant' as const, text: text.trim() };
+    const optimistic: Message = { id: `local-${Date.now()}`, author: canReplyAsHr ? 'paula' : 'applicant', text: text.trim() };
     setMessages((current) => [...current, optimistic]);
     const submittedText = text.trim();
     setText('');
@@ -32,7 +32,7 @@ export function ApplicantChat({ initialMessages }: { initialMessages: Message[] 
       const res = await fetch('/api/applications/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: submittedText }),
+        body: JSON.stringify({ text: submittedText, applicantId, author: canReplyAsHr ? 'paula' : 'applicant' }),
       });
       const data = await res.json();
       if (res.ok && data.reply) {
@@ -58,10 +58,9 @@ export function ApplicantChat({ initialMessages }: { initialMessages: Message[] 
       </div>
       <form onSubmit={sendMessage} className="border-t border-blue-50 px-6 py-4">
         <div className="flex gap-3">
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask Paula about your current stage" className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-          <button disabled={loading} className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Sending...' : 'Send'}</button>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={canReplyAsHr ? 'Reply to the applicant as HR' : 'Ask Paula about your current stage'} className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+          <button disabled={loading} className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Sending...' : canReplyAsHr ? 'Reply' : 'Send'}</button>
         </div>
-        <p className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">The live AI backend is still a staged server reply layer for now, but the UI is now wired to the backend endpoint instead of static-only demo content.</p>
       </form>
     </>
   );
