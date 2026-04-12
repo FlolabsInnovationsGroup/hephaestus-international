@@ -43,11 +43,6 @@ export function LoginForm() {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Logging in...' : 'Log in'}</Button>
-      <div className="rounded-lg bg-blue-50 p-4 text-sm text-gray-700">
-        <p className="font-semibold text-[#00349B]">Preview accounts</p>
-        <p>Applicant: ava.ross@example.com / preview123</p>
-        <p>HR admin: hr@flolabsinnovations.com / preview123</p>
-      </div>
     </form>
   );
 }

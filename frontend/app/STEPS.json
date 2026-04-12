@@ -102,5 +102,13 @@
     "description": "The shared FloLabs and Chronos identity is active.",
     "applicantAction": "Use the same credentials across FloLabs and Chronos.",
     "adminAction": "Confirm the onboarding stack is complete."
+  },
+  {
+    "id": "joined",
+    "title": "Joined",
+    "shortLabel": "Joined",
+    "description": "The applicant is now an active FloLabs team member in Chronos.",
+    "applicantAction": "Use your FloLabs and Chronos access for active work.",
+    "adminAction": "Track the person as fully joined and no longer as a pending lead."
   }
 ]

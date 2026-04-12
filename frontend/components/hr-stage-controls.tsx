@@ -17,9 +17,10 @@ const stageOptions = [
   'agreement_sent',
   'agreement_signed',
   'chronos_synced',
+  'joined',
 ];
 
-const statusOptions = ['active', 'waiting', 'approved', 'rejected', 'signed'];
+const statusOptions = ['active', 'waiting', 'approved', 'rejected', 'signed', 'joined'];
 
 export function HrStageControls({ applicantId, stage, status }: { applicantId: string; stage: string; status: string }) {
   const [nextStage, setNextStage] = useState(stage);

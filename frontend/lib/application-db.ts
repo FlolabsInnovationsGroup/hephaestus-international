@@ -159,8 +159,8 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     cvUrl: '',
     profilePictureUrl: '',
     roleAppliedFor: row.role,
-    stage: 'chronos_synced',
-    status: row.is_active === false ? 'waiting' : 'approved',
+    stage: 'joined',
+    status: row.is_active === false ? 'waiting' : 'joined',
     joinedAt: new Date(row.created_at ?? Date.now()).toISOString(),
     lastVisitedAt: new Date(row.updated_at ?? Date.now()).toISOString(),
     notes: 'Authenticated through shared Chronos users table.',
@@ -238,7 +238,20 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
 
 export async function getApplicants() {
   const db = await readDb();
-  return db.applicants;
+  const byEmail = new Map(db.applicants.map((applicant) => [applicant.email.toLowerCase(), applicant]));
+
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where is_active = true order by created_at desc`;
+
+    for (const row of chronosRows) {
+      const email = String(row.email ?? '').toLowerCase();
+      if (!email || byEmail.has(email)) continue;
+      byEmail.set(email, chronosUserToApplicant(row));
+    }
+  }
+
+  return Array.from(byEmail.values());
 }
 
 export async function getApplicantConversations(applicantId: string) {

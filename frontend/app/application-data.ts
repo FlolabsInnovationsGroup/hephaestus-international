@@ -11,9 +11,10 @@ export type ApplicationStage =
   | 'second_meeting'
   | 'agreement_sent'
   | 'agreement_signed'
-  | 'chronos_synced';
+  | 'chronos_synced'
+  | 'joined';
 
-export type ApplicantStatus = 'active' | 'waiting' | 'approved' | 'rejected' | 'signed';
+export type ApplicantStatus = 'active' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined';
 export type UserRole = 'applicant' | 'admin' | 'hr';
 
 export interface ApplicantProfile {
