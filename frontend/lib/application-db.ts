@@ -138,7 +138,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
   const name = String(row.name ?? '').trim();
   const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
   const chronosRole = String(row.role ?? '').toLowerCase();
-  const hasHrAccess = chronosRole === 'admin' || chronosRole === 'hr';
+  const hasHrAccess = chronosRole === 'hr';
 
   return {
     id: row.id,
@@ -251,6 +251,51 @@ export async function getApplicants() {
       const email = String(row.email ?? '').toLowerCase();
       if (!email || byEmail.has(email)) continue;
       byEmail.set(email, chronosUserToApplicant(row));
+    }
+
+    const chronosApplicants = await sql`
+      select id, email, name, phone, country, state_region, city, linkedin_url, education, current_job_title,
+             role_applied_for, stage, status, joined_at, last_website_visit, source, created_at, updated_at,
+             hubspot_status, hubspot_owner
+      from applicants
+      order by joined_at desc nulls last, created_at desc nulls last
+    `;
+
+    for (const row of chronosApplicants) {
+      const email = String(row.email ?? '').toLowerCase();
+      if (!email || byEmail.has(email)) continue;
+      const name = String(row.name ?? '').trim();
+      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
+      byEmail.set(email, {
+        id: row.id,
+        email: row.email,
+        password: '',
+        role: 'applicant',
+        hrBinaryRole: false,
+        firstName: firstName || row.email,
+        lastName: rest.join(' '),
+        phoneNumber: row.phone ?? '',
+        country: row.country ?? '',
+        stateRegion: row.state_region ?? '',
+        city: row.city ?? '',
+        latitude: 0,
+        longitude: 0,
+        linkedinUrl: row.linkedin_url ?? '',
+        education: row.education ?? row.current_job_title ?? '',
+        source: row.source ?? row.hubspot_owner ?? 'Chronos HubSpot import',
+        referralName: '',
+        cvFileName: '',
+        cvUrl: '',
+        profilePictureUrl: '',
+        roleAppliedFor: row.role_applied_for ?? row.current_job_title ?? 'Imported contact',
+        stage: row.stage ?? 'new',
+        status: row.status === 'closed' ? 'rejected' : row.status === 'joined' ? 'joined' : 'active',
+        joinedAt: new Date(row.joined_at ?? row.created_at ?? Date.now()).toISOString(),
+        lastVisitedAt: new Date(row.last_website_visit ?? row.updated_at ?? row.created_at ?? Date.now()).toISOString(),
+        notes: row.hubspot_status ?? 'Imported from Chronos applicants.',
+        safeSendersConfirmed: false,
+        communicationConsent: true,
+      });
     }
   }
 
