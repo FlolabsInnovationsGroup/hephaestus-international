@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     cvUrl: String(body.cvUrl ?? ''),
     roleAppliedFor: String(body.roleAppliedFor),
     stage: 'application_submitted',
-    status: 'active',
+    status: 'waiting',
     safeSendersConfirmed: Boolean(body.safeSendersConfirmed),
     communicationConsent: Boolean(body.communicationConsent),
   });

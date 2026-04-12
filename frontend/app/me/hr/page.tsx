@@ -5,7 +5,7 @@ import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
 
-export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string }> }) {
+export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (!viewer.hrBinaryRole) redirect('/me/application');
@@ -13,11 +13,17 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   const params = await searchParams;
   const q = (params.q ?? '').toLowerCase();
   const stage = params.stage ?? '';
+  const status = params.status ?? '';
+  const source = params.source ?? '';
   const allApplicants = await getApplicantsForAdmin();
+  const sourceOptions = Array.from(new Set(allApplicants.map((lead) => lead.source).filter(Boolean))).sort();
   const applicants = allApplicants.filter((lead) => {
-    const matchesQ = !q || `${lead.firstName} ${lead.lastName} ${lead.email} ${lead.roleAppliedFor}`.toLowerCase().includes(q);
+    const haystack = [lead.firstName, lead.lastName, lead.email, lead.roleAppliedFor, lead.source, lead.city, lead.country, lead.education, lead.linkedinUrl, lead.notes].join(' ').toLowerCase();
+    const matchesQ = !q || haystack.includes(q);
     const matchesStage = !stage || lead.stage === stage;
-    return matchesQ && matchesStage;
+    const matchesStatus = !status || lead.status === status;
+    const matchesSource = !source || lead.source === source;
+    return matchesQ && matchesStage && matchesStatus && matchesSource;
   });
   const activeLead = applicants.find((lead) => lead.id === params.lead) ?? applicants[0] ?? null;
   const conversation = activeLead ? await getConversationForApplicant(activeLead.id) : [];
@@ -41,9 +47,15 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                 <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                 <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
                   <option value="">All stages</option>
-                  <option value="application_submitted">Application submitted</option>
-                  <option value="before_meeting">Before meeting</option>
-                  <option value="agreement_signed">Agreement signed</option>
+                  {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                  <option value="">All statuses</option>
+                  {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                  <option value="">All sources</option>
+                  {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
                 <button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply filters</button>
               </form>
@@ -52,7 +64,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
               {applicants.map((lead) => {
                 const isActive = activeLead?.id === lead.id;
                 return (
-                  <a key={lead.id} href={`/me/hr?lead=${lead.id}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}${stage ? `&stage=${encodeURIComponent(stage)}` : ''}`} className={`mb-2 block rounded-lg border px-3 py-2.5 ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}>
+                  <a key={lead.id} href={`/me/hr?lead=${lead.id}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}${stage ? `&stage=${encodeURIComponent(stage)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}${source ? `&source=${encodeURIComponent(source)}` : ''}`} className={`mb-2 block rounded-lg border px-3 py-2.5 ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold text-gray-900 leading-tight">{lead.firstName} {lead.lastName}</p>

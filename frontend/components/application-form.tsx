@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/button';
 import { LocationPicker } from '@/components/location-picker';
 
-const sourceOptions = ['LinkedIn', 'University', 'Referral', 'Search engine', 'Social media', 'Other'];
+const sourceOptions = ['LinkedIn', 'AI Referrals', 'University', 'Referral', 'Search engine', 'Social media', 'Website', 'Forms', 'Email', 'WhatsApp', 'Other'];
 const phoneCodes = ['+1', '+33', '+34', '+39', '+44', '+49', '+91', '+971'];
 
 export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
