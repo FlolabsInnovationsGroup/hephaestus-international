@@ -134,11 +134,49 @@ export async function writeDb(data: ApplicationDbShape) {
   await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function chronosUserToApplicant(row: any): ApplicantProfile {
+  const name = String(row.name ?? '').trim();
+  const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
+  return {
+    id: row.id,
+    email: row.email,
+    password: row.password,
+    role: row.role === 'admin' ? 'admin' : 'hr',
+    hrBinaryRole: row.role === 'admin',
+    firstName: firstName || row.email,
+    lastName: rest.join(' '),
+    phoneNumber: '',
+    country: '',
+    stateRegion: '',
+    city: '',
+    latitude: 0,
+    longitude: 0,
+    linkedinUrl: '',
+    education: '',
+    source: 'Chronos',
+    referralName: '',
+    cvFileName: '',
+    cvUrl: '',
+    profilePictureUrl: '',
+    roleAppliedFor: row.role,
+    stage: 'chronos_synced',
+    status: row.is_active === false ? 'waiting' : 'approved',
+    joinedAt: new Date(row.created_at ?? Date.now()).toISOString(),
+    lastVisitedAt: new Date(row.updated_at ?? Date.now()).toISOString(),
+    notes: 'Authenticated through shared Chronos users table.',
+    safeSendersConfirmed: true,
+    communicationConsent: true,
+  };
+}
+
 export async function findUserByEmail(email: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const rows = await sql`select * from website_applicants where lower(email) = lower(${email}) limit 1`;
-    return rows[0] ? rowToApplicant(rows[0]) : null;
+    if (rows[0]) return rowToApplicant(rows[0]);
+
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where lower(email) = lower(${email}) limit 1`;
+    return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
   return db.applicants.find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
@@ -148,7 +186,10 @@ export async function getUserById(id: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const rows = await sql`select * from website_applicants where id = ${id} limit 1`;
-    return rows[0] ? rowToApplicant(rows[0]) : null;
+    if (rows[0]) return rowToApplicant(rows[0]);
+
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where id = ${id} limit 1`;
+    return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
   return db.applicants.find((user) => user.id === id) ?? null;
