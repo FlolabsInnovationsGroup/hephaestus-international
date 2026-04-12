@@ -6,17 +6,22 @@ import { Button } from '@/components/button';
 import { LocationPicker } from '@/components/location-picker';
 
 const sourceOptions = ['LinkedIn', 'University', 'Referral', 'Search engine', 'Social media', 'Other'];
+const phoneCodes = ['+1', '+33', '+34', '+39', '+44', '+49', '+91', '+971'];
 
 export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
+    phoneCountryCode: '+33',
     phoneNumber: '',
     country: 'France',
     stateRegion: '',
@@ -35,6 +40,14 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (form.password.length < 8) {
+      setError('Your new password must be at least 8 characters long.');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('The new password and confirmation do not match.');
+      return;
+    }
     setLoading(true);
     setError('');
     const res = await fetch('/api/applications', {
@@ -68,16 +81,27 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
         <Field label="First name*"><input required value={form.firstName} onChange={(e) => update('firstName', e.target.value)} className={inputClass} /></Field>
         <Field label="Last name*"><input required value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className={inputClass} /></Field>
         <Field label="Email*"><input type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} className={inputClass} /></Field>
-        <Field label="Password*"><input type="password" required minLength={8} value={form.password} onChange={(e) => update('password', e.target.value)} className={inputClass} /></Field>
-        <Field label="Phone number*"><input required value={form.phoneNumber} onChange={(e) => update('phoneNumber', e.target.value)} className={inputClass} /></Field>
-        <Field label="State / Region"><input value={form.stateRegion} onChange={(e) => update('stateRegion', e.target.value)} className={inputClass} /></Field>
+        <Field label="New password*">
+          <PasswordInput value={form.password} show={showPassword} onToggle={() => setShowPassword((v) => !v)} onChange={(value) => update('password', value)} helper="This password will be used for the new applicant profile you are creating now." />
+        </Field>
+        <Field label="Confirm new password*">
+          <PasswordInput value={form.confirmPassword} show={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)} onChange={(value) => update('confirmPassword', value)} />
+        </Field>
+        <Field label="Phone number*">
+          <div className="flex gap-2">
+            <select value={form.phoneCountryCode} onChange={(e) => update('phoneCountryCode', e.target.value)} className={`${inputClass} max-w-[110px]`}>
+              {phoneCodes.map((code) => <option key={code} value={code}>{code}</option>)}
+            </select>
+            <input required value={form.phoneNumber} onChange={(e) => update('phoneNumber', e.target.value)} className={inputClass} />
+          </div>
+        </Field>
         <Field label="LinkedIn URL*"><input required value={form.linkedinUrl} onChange={(e) => update('linkedinUrl', e.target.value)} className={inputClass} /></Field>
         <Field label="Source*">
           <select value={form.source} onChange={(e) => update('source', e.target.value)} className={inputClass}>
             {sourceOptions.map((option) => <option key={option}>{option}</option>)}
           </select>
         </Field>
-        <Field label="Job title*"><input value={roleTitle} disabled className={`${inputClass} bg-gray-100`} /></Field>
+        <Field label="Role*"><input value={roleTitle} disabled className={`${inputClass} bg-gray-100`} /></Field>
         <Field label="Referral name"><input value={form.referralName} onChange={(e) => update('referralName', e.target.value)} className={inputClass} /></Field>
       </div>
 
@@ -95,9 +119,9 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
               const uploadData = new FormData();
               uploadData.append('file', file);
               const res = await fetch('/api/applications/cv', { method: 'POST', body: uploadData });
-              const data = await res.json().catch(() => ({ error: 'Upload failed' }));
+              const data = await res.json().catch(() => ({ error: 'CV upload failed.' }));
               if (!res.ok) {
-                setError(data.error ?? 'Upload failed');
+                setError(data.error ?? 'CV upload failed.');
                 setUploadingCv(false);
                 return;
               }
@@ -115,17 +139,18 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
 
       <div className="rounded-xl border border-blue-100 bg-white p-5">
         <p className="font-semibold text-gray-900">Location picker</p>
-        <p className="mt-1 text-sm text-gray-600">Click the map or drag the marker. We will extract the city and country automatically from the selected point.</p>
+        <p className="mt-1 text-sm text-gray-600">Click the map or drag the marker. We will extract the city, state/region, and country automatically from the selected point.</p>
         <div className="mt-4 h-48 w-full overflow-hidden rounded-2xl">
-          <LocationPicker 
-            latitude={Number(form.latitude)} 
-            longitude={Number(form.longitude)} 
-            onChange={(lat, lng, city, country) => {
+          <LocationPicker
+            latitude={Number(form.latitude)}
+            longitude={Number(form.longitude)}
+            onChange={(lat, lng, city, country, stateRegion) => {
               update('latitude', lat);
               update('longitude', lng);
               if (city) update('city', city);
               if (country) update('country', country);
-            }} 
+              if (stateRegion) update('stateRegion', stateRegion);
+            }}
           />
         </div>
       </div>
@@ -140,7 +165,7 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={loading || !form.safeSendersConfirmed || !form.communicationConsent} className="w-full">
+      <Button type="submit" disabled={loading || uploadingCv || !form.safeSendersConfirmed || !form.communicationConsent} className="w-full">
         {loading ? 'Creating profile...' : 'Submit application'}
       </Button>
     </form>
@@ -153,6 +178,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-2 block text-sm font-semibold text-gray-700">{label}</span>
       {children}
     </label>
+  );
+}
+
+function PasswordInput({ value, onChange, show, onToggle, helper }: { value: string; onChange: (value: string) => void; show: boolean; onToggle: () => void; helper?: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <input type={show ? 'text' : 'password'} required minLength={8} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} pr-20`} />
+        <button type="button" onClick={onToggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#00349B]">{show ? 'Hide' : 'Show'}</button>
+      </div>
+      {helper && <p className="flex items-start gap-2 text-xs text-gray-500"><span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-bold text-[#00349B]">i</span><span>{helper}</span></p>}
+    </div>
   );
 }
 

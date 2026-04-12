@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     role: 'applicant',
     firstName: String(body.firstName),
     lastName: String(body.lastName),
-    phoneNumber: String(body.phoneNumber ?? ''),
+    phoneNumber: `${String(body.phoneCountryCode ?? '')} ${String(body.phoneNumber ?? '')}`.trim(),
     country: String(body.country ?? ''),
     stateRegion: String(body.stateRegion ?? ''),
     city: String(body.city ?? ''),

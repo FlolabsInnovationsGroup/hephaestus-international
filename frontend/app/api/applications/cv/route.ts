@@ -9,6 +9,10 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: Request) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({ error: 'CV uploads are not configured yet in this environment.' }, { status: 503 });
+  }
+
   const formData = await request.formData();
   const file = formData.get('file');
 
@@ -24,18 +28,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'CV file must be 10MB or smaller' }, { status: 400 });
   }
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-  const blob = await put(`applicants/cv/${Date.now()}-${safeName}`, file, {
-    access: 'public',
-    addRandomSuffix: true,
-  });
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const blob = await put(`applicants/cv/${Date.now()}-${safeName}`, file, {
+      access: 'public',
+      addRandomSuffix: true,
+    });
 
-  return NextResponse.json({
-    ok: true,
-    cvFileName: file.name,
-    cvUrl: blob.url,
-    pathname: blob.pathname,
-    contentType: file.type,
-    size: file.size,
-  });
+    return NextResponse.json({
+      ok: true,
+      cvFileName: file.name,
+      cvUrl: blob.url,
+      pathname: blob.pathname,
+      contentType: file.type,
+      size: file.size,
+    });
+  } catch (error) {
+    console.error('CV upload failed', error);
+    return NextResponse.json({ error: 'CV upload failed. Please try again in the deployed environment.' }, { status: 500 });
+  }
 }

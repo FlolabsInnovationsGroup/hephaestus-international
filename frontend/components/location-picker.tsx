@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 interface LocationPickerProps {
   latitude: number;
   longitude: number;
-  onChange: (lat: string, lng: string, city?: string, country?: string) => void;
+  onChange: (lat: string, lng: string, city?: string, country?: string, stateRegion?: string) => void;
 }
 
 export function LocationPicker({ latitude, longitude, onChange }: LocationPickerProps) {
@@ -22,8 +22,9 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
       const address = data.address ?? {};
       const city = address.city || address.town || address.village || address.county || '';
       const country = address.country || '';
-      setResolvedLocation([city, country].filter(Boolean).join(', '));
-      onChange(lat.toFixed(6), lng.toFixed(6), city, country);
+      const stateRegion = address.state || address.region || address.county || '';
+      setResolvedLocation([city, stateRegion, country].filter(Boolean).join(', '));
+      onChange(lat.toFixed(6), lng.toFixed(6), city, country, stateRegion);
     } catch {
       onChange(lat.toFixed(6), lng.toFixed(6));
     }
@@ -97,12 +98,7 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
   return (
     <div className="space-y-2">
       <p className="text-sm font-semibold text-gray-700">Click on the map to select your location</p>
-      <div
-        ref={mapRef}
-        className="h-64 w-full rounded-xl border border-gray-300 z-0 overflow-hidden"
-        style={{ minHeight: '256px' }}
-      />
-      <p className="text-xs text-gray-500">Selected coordinates: {latitude}, {longitude}</p>
+      <div ref={mapRef} className="h-64 w-full rounded-xl border border-gray-300 z-0 overflow-hidden" style={{ minHeight: '256px' }} />
       {resolvedLocation && <p className="text-sm text-[#00349B]">Detected location: {resolvedLocation}</p>}
     </div>
   );

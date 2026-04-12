@@ -46,8 +46,7 @@ export async function getApplicantById(id: string) {
 }
 
 export async function getApplicantsForAdmin() {
-  const applicants = await getApplicants();
-  return applicants.filter((user) => user.role === 'applicant');
+  return await getApplicants();
 }
 
 export async function getConversationForApplicant(applicantId: string) {
