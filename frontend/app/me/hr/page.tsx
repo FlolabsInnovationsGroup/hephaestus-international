@@ -23,7 +23,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
 
   return (
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
-      <Container>
+      <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">HR workspace</p>
@@ -33,7 +33,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
           <LogoutButton />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
           <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div className="border-b border-blue-50 p-4">
               <form className="space-y-3" method="get">
@@ -47,20 +47,20 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                 <button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply filters</button>
               </form>
             </div>
-            <div className="max-h-[720px] overflow-y-auto p-2">
+            <div className="max-h-[760px] overflow-y-auto p-2">
               {applicants.map((lead) => {
                 const isActive = activeLead?.id === lead.id;
                 return (
-                  <a key={lead.id} href={`/me/hr?lead=${lead.id}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}${stage ? `&stage=${encodeURIComponent(stage)}` : ''}`} className={`mb-2 block rounded-xl border px-4 py-3 ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}>
+                  <a key={lead.id} href={`/me/hr?lead=${lead.id}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}${stage ? `&stage=${encodeURIComponent(stage)}` : ''}`} className={`mb-2 block rounded-lg border px-3 py-2.5 ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-gray-900">{lead.firstName} {lead.lastName}</p>
-                        <p className="text-xs text-gray-500">{lead.email}</p>
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">{lead.firstName} {lead.lastName}</p>
+                        <p className="text-[11px] text-gray-500 break-all">{lead.email}</p>
                       </div>
                       <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#00349B]">{lead.status}</span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-600">{lead.roleAppliedFor}</p>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-600">{lead.roleAppliedFor}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
                       <span>Stage: {lead.stage}</span>
                       <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
                       <span>Visited: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
@@ -112,7 +112,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
             </div>
           </div>
         </div>
-      </Container>
+      </div>
     </Section>
   );
 }

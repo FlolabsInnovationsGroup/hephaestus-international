@@ -137,12 +137,15 @@ export async function writeDb(data: ApplicationDbShape) {
 function chronosUserToApplicant(row: any): ApplicantProfile {
   const name = String(row.name ?? '').trim();
   const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
+  const chronosRole = String(row.role ?? '').toLowerCase();
+  const hasHrAccess = chronosRole === 'admin' || chronosRole === 'hr';
+
   return {
     id: row.id,
     email: row.email,
     password: row.password,
-    role: row.role === 'admin' ? 'admin' : 'hr',
-    hrBinaryRole: row.role === 'admin',
+    role: hasHrAccess ? 'admin' : 'applicant',
+    hrBinaryRole: hasHrAccess,
     firstName: firstName || row.email,
     lastName: rest.join(' '),
     phoneNumber: '',
@@ -158,7 +161,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     cvFileName: '',
     cvUrl: '',
     profilePictureUrl: '',
-    roleAppliedFor: row.role,
+    roleAppliedFor: hasHrAccess ? 'FloLabs team member' : row.role,
     stage: 'joined',
     status: row.is_active === false ? 'waiting' : 'joined',
     joinedAt: new Date(row.created_at ?? Date.now()).toISOString(),
