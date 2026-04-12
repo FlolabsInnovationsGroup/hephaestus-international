@@ -7,7 +7,7 @@ import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } fr
 export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
-  if (!(viewer.role === 'admin' || viewer.hrBinaryRole)) redirect('/me/application');
+  if (!viewer.hrBinaryRole) redirect('/me/application');
 
   const params = await searchParams;
   const q = (params.q ?? '').toLowerCase();
