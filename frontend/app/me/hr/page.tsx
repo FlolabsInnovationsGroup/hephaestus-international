@@ -160,7 +160,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                   {activeLead.duplicateCandidates && activeLead.duplicateCandidates.length > 0 && (
                     <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                       <p className="text-sm font-semibold uppercase tracking-[0.14em] text-amber-800">Possible duplicate accounts</p>
-                      <p className="mt-1 text-sm text-amber-900">These profiles look like the same person using different emails. Review before merging.</p>
+                      <p className="mt-1 text-sm text-amber-900">These are only review candidates, not approved merges. HR should approve as duplicate or reject as different people before any merge decision.</p>
                       <div className="mt-3 space-y-3">
                         {activeLead.duplicateCandidates.map((candidate) => (
                           <div key={candidate.id} className="rounded-xl border border-amber-200 bg-white px-3 py-3 text-sm text-gray-700">
@@ -173,6 +173,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                             </div>
                             <p className="mt-2 text-xs text-gray-600">Signals: {candidate.reasons.join(', ')}</p>
                             <p className="mt-1 text-xs text-gray-500">Review status: {candidate.reviewStatus ?? 'pending review'}</p>
+                            <p className="mt-1 text-xs text-gray-500">Current rule: suggestions need a stronger score than before, and one strong signal alone is not enough unless it has more supporting matches.</p>
                             {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
                             {candidate.reviewId && <DuplicateReviewActions reviewId={candidate.reviewId} currentStatus={candidate.reviewStatus} />}
                           </div>

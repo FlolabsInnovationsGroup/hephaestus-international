@@ -228,14 +228,17 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
       if (normalizeValue(other.email) === normalizeValue(applicant.email)) continue;
 
       let score = 0;
+      let strongSignals = 0;
       const reasons: string[] = [];
 
       if (normalizeValue(applicant.phoneNumber) && normalizeValue(applicant.phoneNumber) === normalizeValue(other.phoneNumber)) {
-        score += 5;
+        score += 6;
+        strongSignals += 1;
         reasons.push('same phone number');
       }
       if (normalizeValue(applicant.linkedinUrl) && normalizeValue(applicant.linkedinUrl) === normalizeValue(other.linkedinUrl)) {
-        score += 5;
+        score += 4;
+        strongSignals += 1;
         reasons.push('same LinkedIn URL');
       }
       if (normalizeValue(applicant.firstName) === normalizeValue(other.firstName) && normalizeValue(applicant.lastName) === normalizeValue(other.lastName)) {
@@ -259,7 +262,7 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
         reasons.push('same role applied for');
       }
 
-      if (score >= 5) {
+      if (score >= 7 && strongSignals > 0 && !(strongSignals === 1 && reasons.length < 3)) {
         const review = reviewByPair.get([applicant.id, other.id].sort().join('::'));
         candidates.push({
           id: other.id,

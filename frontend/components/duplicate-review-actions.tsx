@@ -5,9 +5,9 @@ import { useState } from 'react';
 import { Button } from '@/components/button';
 
 const actions = [
-  { value: 'confirmed_duplicate', label: 'Mark duplicate' },
-  { value: 'different_people', label: 'Mark different people' },
-  { value: 'merged', label: 'Mark merged' },
+  { value: 'confirmed_duplicate', label: 'Approve as duplicate' },
+  { value: 'different_people', label: 'Reject, different people' },
+  { value: 'merged', label: 'Already merged' },
 ] as const;
 
 export function DuplicateReviewActions({ reviewId, currentStatus }: { reviewId: string; currentStatus?: string }) {
