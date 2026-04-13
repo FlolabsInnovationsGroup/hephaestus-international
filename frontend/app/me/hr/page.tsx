@@ -163,16 +163,18 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                       <p className="mt-1 text-sm text-amber-900">These are only review candidates, not approved merges. HR should approve as duplicate or reject as different people before any merge decision.</p>
                       <div className="mt-3 space-y-3">
                         {activeLead.duplicateCandidates.map((candidate) => (
-                          <div key={candidate.id} className="rounded-xl border border-amber-200 bg-white px-3 py-3 text-sm text-gray-700">
+                          <div key={candidate.id} className={`rounded-xl border px-3 py-3 text-sm ${candidate.reviewStatus === 'confirmed_duplicate' ? 'border-blue-200 bg-blue-50 text-blue-900' : candidate.reviewStatus === 'merged' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-white text-gray-700'}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-semibold text-gray-900">{candidate.fullName}</p>
                                 <p className="text-xs text-gray-500">{candidate.email}</p>
                               </div>
-                              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">match score {candidate.score}</span>
+                              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${candidate.reviewStatus === 'confirmed_duplicate' ? 'bg-blue-100 text-blue-800' : candidate.reviewStatus === 'merged' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>match score {candidate.score}</span>
                             </div>
                             <p className="mt-2 text-xs text-gray-600">Signals: {candidate.reasons.join(', ')}</p>
                             <p className="mt-1 text-xs text-gray-500">Review status: {candidate.reviewStatus ?? 'pending review'}</p>
+                            {candidate.reviewStatus === 'confirmed_duplicate' && <p className="mt-1 text-xs text-blue-700">Approved as duplicate. You can merge when ready.</p>}
+                            {candidate.reviewStatus === 'merged' && <p className="mt-1 text-xs text-emerald-700">Marked as merged. Alias/login consolidation should follow the selected canonical account.</p>}
                             <p className="mt-1 text-xs text-gray-500">Current rule: suggestions need a stronger score than before, and one strong signal alone is not enough unless it has more supporting matches.</p>
                             {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
                             <DuplicateReviewActions reviewId={candidate.reviewId} candidateId={candidate.id} currentStatus={candidate.reviewStatus} />

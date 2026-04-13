@@ -264,6 +264,10 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
 
       if (score >= 7 && strongSignals > 0 && !(strongSignals === 1 && reasons.length < 3)) {
         const review = reviewByPair.get([applicant.id, other.id].sort().join('::'));
+        const reviewStatus = review?.status;
+        if (reviewStatus === 'different_people') {
+          continue;
+        }
         candidates.push({
           id: other.id,
           email: other.email,
@@ -271,7 +275,7 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
           score: review ? Number(review.confidence_score ?? score) : score,
           reasons: review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons,
           reviewId: review?.id,
-          reviewStatus: review?.status,
+          reviewStatus,
           reviewNotes: review?.notes ?? undefined,
         });
       }
