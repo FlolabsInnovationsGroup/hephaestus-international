@@ -68,20 +68,17 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   return (
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
       <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">HR workspace</p>
-            <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Applicants and conversations</h1>
-            <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
-          <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
-            <div className="border-b border-blue-50 p-4">
-              <form className="space-y-3" method="get">
-                <input type="hidden" name="lead" value={params.lead ?? ''} />
-                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_auto]">
+        <div className="mb-8 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <form className="space-y-4" method="get">
+            <input type="hidden" name="lead" value={params.lead ?? ''} />
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+              <div className="xl:max-w-md">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">HR workspace</p>
+                <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Applicants and conversations</h1>
+                <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
+              </div>
+              <div className="flex-1 xl:max-w-[1100px]">
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto_auto]">
                   <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                   <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
                     <option value="">All stages</option>
@@ -104,9 +101,10 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                     <option value="name_desc">Name Z-A</option>
                   </select>
                   <button name="more" value={more ? '0' : '1'} className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button>
+                  <button className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button>
                 </div>
                 {more && (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <select name="country" defaultValue={country} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
                       <option value="">All countries</option>
                       {countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
@@ -119,14 +117,16 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                     <input type="date" name="joinedTo" defaultValue={joinedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                     <input type="date" name="visitedFrom" defaultValue={visitedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                     <input type="date" name="visitedTo" defaultValue={visitedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    <a href="/me/hr" className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset filters</a>
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply filters</button>
-                  <a href="/me/hr" className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</a>
-                </div>
-              </form>
+              </div>
             </div>
+          </form>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
+          <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div className="border-b border-blue-50 px-4 py-3 text-sm font-semibold text-gray-700">
               {applicants.length} lead{applicants.length === 1 ? '' : 's'} match the current filters
             </div>
