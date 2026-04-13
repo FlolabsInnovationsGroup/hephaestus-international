@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
-import { LogoutButton } from '@/components/logout-button';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { getAllSteps, getConversationForApplicant, getSessionUser, getStepById } from '@/lib/application-store';
 
@@ -22,7 +21,6 @@ export default async function ApplicationDashboardPage() {
             <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Welcome back, {viewer.firstName}</h1>
             <p className="mt-2 text-gray-600">Your FloLabs Innovations application process now lives here instead of email threads.</p>
           </div>
-          <LogoutButton />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">

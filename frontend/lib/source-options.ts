@@ -1,4 +1,5 @@
 const FALLBACK_SOURCE_OPTIONS = ['LinkedIn', 'AI Referrals', 'University', 'Referral', 'Search engine', 'Social media', 'Website', 'Forms', 'Email', 'WhatsApp', 'Other'];
+const SOURCE_PROPERTY_CANDIDATES = ['Name', 'Source', 'Label', 'Title'];
 
 function parseTitle(value: unknown) {
   if (!value) return '';
@@ -32,39 +33,50 @@ function parseRichText(value: unknown) {
     .trim();
 }
 
+function extractPropertyValue(property: any) {
+  if (!property || typeof property !== 'object') return '';
+  const type = typeof property.type === 'string' ? property.type : '';
+
+  if (type === 'title') {
+    return parseTitle(property.title);
+  }
+
+  if (type === 'rich_text') {
+    return parseRichText(property.rich_text);
+  }
+
+  if (type === 'select' && property.select?.name) {
+    return String(property.select.name).trim();
+  }
+
+  if (type === 'formula') {
+    const formula = property.formula;
+    if (typeof formula?.string === 'string' && formula.string.trim()) return formula.string.trim();
+  }
+
+  return '';
+}
+
 function extractSourceName(properties: Record<string, any>) {
+  for (const key of SOURCE_PROPERTY_CANDIDATES) {
+    const value = extractPropertyValue(properties?.[key]);
+    if (value) return value;
+  }
+
   const candidates = Object.values(properties ?? {});
 
   for (const property of candidates) {
     if (!property || typeof property !== 'object') continue;
-    const type = typeof property.type === 'string' ? property.type : '';
-
-    if (type === 'title') {
-      const value = parseTitle(property.title);
-      if (value) return value;
-    }
-
-    if (type === 'rich_text') {
-      const value = parseRichText(property.rich_text);
-      if (value) return value;
-    }
-
-    if (type === 'select' && property.select?.name) {
-      return String(property.select.name).trim();
-    }
-
-    if (type === 'formula') {
-      const formula = property.formula;
-      if (typeof formula?.string === 'string' && formula.string.trim()) return formula.string.trim();
-    }
+    const value = extractPropertyValue(property);
+    if (value) return value;
   }
 
   return '';
 }
 
 export async function getApplicationSourceOptions(): Promise<string[]> {
-  const databaseId = process.env.NOTION_SOURCES_DATABASE_ID || process.env.NOTION_SOURCE_DATABASE_ID || process.env.NOTION_APPLICANT_SOURCES_DATABASE_ID || '';
-  const token = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY || process.env.NOTION_SECRET || '';
+  const databaseId = process.env.NOTION_SOURCES_DATABASE_ID || process.env.NOTION_SOURCE_DATABASE_ID || process.env.NOTION_APPLICANT_SOURCES_DATABASE_ID || process.env.NEXT_PUBLIC_NOTION_SOURCES_DATABASE_ID || '';
+  const token = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY || process.env.NOTION_SECRET || process.env.NOTION_INTEGRATION_TOKEN || '';
 
   if (!databaseId || !token) {
     return FALLBACK_SOURCE_OPTIONS;

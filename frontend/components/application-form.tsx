@@ -8,6 +8,7 @@ import { LocationPicker } from '@/components/location-picker';
 const phoneCodes = ['+1', '+33', '+34', '+39', '+44', '+49', '+91', '+971'];
 
 export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: string; sourceOptions: string[] }) {
+  const normalizedSourceOptions = sourceOptions.length > 0 ? sourceOptions : ['Other'];
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: strin
     longitude: '2.3522',
     linkedinUrl: '',
     education: '',
-    source: 'LinkedIn',
+    source: normalizedSourceOptions[0] ?? 'Other',
     referralName: '',
     cvFileName: '',
     cvUrl: '',
@@ -97,7 +98,7 @@ export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: strin
         <Field label="LinkedIn URL*"><input required value={form.linkedinUrl} onChange={(e) => update('linkedinUrl', e.target.value)} className={inputClass} /></Field>
         <Field label="Source*">
           <select value={form.source} onChange={(e) => update('source', e.target.value)} className={inputClass}>
-            {sourceOptions.map((option) => <option key={option}>{option}</option>)}
+            {normalizedSourceOptions.map((option) => <option key={option}>{option}</option>)}
           </select>
         </Field>
         <Field label="Role*"><input value={roleTitle} disabled className={`${inputClass} bg-gray-100`} /></Field>

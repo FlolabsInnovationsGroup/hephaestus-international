@@ -1,11 +1,14 @@
 import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
-import { LogoutButton } from '@/components/logout-button';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
 
-export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string }> }) {
+function sameDayValue(dateString: string) {
+  return new Date(dateString).toISOString().slice(0, 10);
+}
+
+export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; more?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (!viewer.hrBinaryRole) redirect('/me/application');
@@ -15,15 +18,49 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   const stage = params.stage ?? '';
   const status = params.status ?? '';
   const source = params.source ?? '';
+  const country = params.country ?? '';
+  const city = params.city ?? '';
+  const sort = params.sort ?? 'joined_desc';
+  const joinedFrom = params.joinedFrom ?? '';
+  const joinedTo = params.joinedTo ?? '';
+  const visitedFrom = params.visitedFrom ?? '';
+  const visitedTo = params.visitedTo ?? '';
+  const more = params.more === '1';
   const allApplicants = await getApplicantsForAdmin();
   const sourceOptions = Array.from(new Set(allApplicants.map((lead) => lead.source).filter(Boolean))).sort();
+  const countryOptions = Array.from(new Set(allApplicants.map((lead) => lead.country).filter(Boolean))).sort();
+  const cityOptions = Array.from(new Set(allApplicants.map((lead) => lead.city).filter(Boolean))).sort();
   const applicants = allApplicants.filter((lead) => {
     const haystack = [lead.firstName, lead.lastName, lead.email, lead.roleAppliedFor, lead.source, lead.city, lead.country, lead.education, lead.linkedinUrl, lead.notes].join(' ').toLowerCase();
     const matchesQ = !q || haystack.includes(q);
     const matchesStage = !stage || lead.stage === stage;
     const matchesStatus = !status || lead.status === status;
     const matchesSource = !source || lead.source === source;
-    return matchesQ && matchesStage && matchesStatus && matchesSource;
+    const matchesCountry = !country || lead.country === country;
+    const matchesCity = !city || lead.city === city;
+    const joinedDay = sameDayValue(lead.joinedAt);
+    const visitedDay = sameDayValue(lead.lastVisitedAt);
+    const matchesJoinedFrom = !joinedFrom || joinedDay >= joinedFrom;
+    const matchesJoinedTo = !joinedTo || joinedDay <= joinedTo;
+    const matchesVisitedFrom = !visitedFrom || visitedDay >= visitedFrom;
+    const matchesVisitedTo = !visitedTo || visitedDay <= visitedTo;
+    return matchesQ && matchesStage && matchesStatus && matchesSource && matchesCountry && matchesCity && matchesJoinedFrom && matchesJoinedTo && matchesVisitedFrom && matchesVisitedTo;
+  }).sort((a, b) => {
+    switch (sort) {
+      case 'name_asc':
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      case 'name_desc':
+        return `${b.firstName} ${b.lastName}`.localeCompare(`${a.firstName} ${a.lastName}`);
+      case 'visited_asc':
+        return new Date(a.lastVisitedAt).getTime() - new Date(b.lastVisitedAt).getTime();
+      case 'visited_desc':
+        return new Date(b.lastVisitedAt).getTime() - new Date(a.lastVisitedAt).getTime();
+      case 'joined_asc':
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      case 'joined_desc':
+      default:
+        return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
+    }
   });
   const activeLead = applicants.find((lead) => lead.id === params.lead) ?? applicants[0] ?? null;
   const conversation = activeLead ? await getConversationForApplicant(activeLead.id) : [];
@@ -37,28 +74,61 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
             <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Applicants and conversations</h1>
             <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
           </div>
-          <LogoutButton />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
           <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div className="border-b border-blue-50 p-4">
               <form className="space-y-3" method="get">
-                <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                  <option value="">All stages</option>
-                  {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-                <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                  <option value="">All statuses</option>
-                  {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-                <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                  <option value="">All sources</option>
-                  {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-                <button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply filters</button>
+                <input type="hidden" name="lead" value={params.lead ?? ''} />
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_auto]">
+                  <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                  <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                    <option value="">All stages</option>
+                    {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                  <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                    <option value="">All statuses</option>
+                    {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                  <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                    <option value="">All sources</option>
+                    {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                  <select name="sort" defaultValue={sort} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                    <option value="joined_desc">Newest joined</option>
+                    <option value="joined_asc">Oldest joined</option>
+                    <option value="visited_desc">Recently visited</option>
+                    <option value="visited_asc">Least recently visited</option>
+                    <option value="name_asc">Name A-Z</option>
+                    <option value="name_desc">Name Z-A</option>
+                  </select>
+                  <button name="more" value={more ? '0' : '1'} className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button>
+                </div>
+                {more && (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <select name="country" defaultValue={country} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="">All countries</option>
+                      {countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                    <select name="city" defaultValue={city} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="">All cities</option>
+                      {cityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                    <input type="date" name="joinedFrom" defaultValue={joinedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    <input type="date" name="joinedTo" defaultValue={joinedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    <input type="date" name="visitedFrom" defaultValue={visitedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    <input type="date" name="visitedTo" defaultValue={visitedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply filters</button>
+                  <a href="/me/hr" className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</a>
+                </div>
               </form>
+            </div>
+            <div className="border-b border-blue-50 px-4 py-3 text-sm font-semibold text-gray-700">
+              {applicants.length} lead{applicants.length === 1 ? '' : 's'} match the current filters
             </div>
             <div className="max-h-[760px] overflow-y-auto p-2">
               {applicants.map((lead) => {
