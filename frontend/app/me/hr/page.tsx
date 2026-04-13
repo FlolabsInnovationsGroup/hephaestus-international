@@ -3,6 +3,7 @@ import { Container, Section } from '@/components/layout';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { HrFilters } from '@/components/hr-filters';
+import { DuplicateReviewActions } from '@/components/duplicate-review-actions';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
 
 function sameDayValue(dateString: string) {
@@ -152,6 +153,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                             <p className="mt-2 text-xs text-gray-600">Signals: {candidate.reasons.join(', ')}</p>
                             <p className="mt-1 text-xs text-gray-500">Review status: {candidate.reviewStatus ?? 'pending review'}</p>
                             {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
+                            {candidate.reviewId && <DuplicateReviewActions reviewId={candidate.reviewId} currentStatus={candidate.reviewStatus} />}
                           </div>
                         ))}
                       </div>
