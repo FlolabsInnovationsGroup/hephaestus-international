@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
+import { HrFilters } from '@/components/hr-filters';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
 
 function sameDayValue(dateString: string) {
@@ -69,102 +70,14 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
       <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <form className="space-y-4" method="get">
-            <input type="hidden" name="lead" value={params.lead ?? ''} />
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-              <div className="xl:max-w-md">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">HR workspace</p>
-                <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Applicants and conversations</h1>
-                <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
-              </div>
-              <div className="flex-1 xl:max-w-[1100px]">
-                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto_auto]">
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Search</span>
-                    <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Stage</span>
-                    <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="">All stages</option>
-                      {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Status</span>
-                    <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="">All statuses</option>
-                      {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Source</span>
-                    <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="">All sources</option>
-                      {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Sort by</span>
-                    <select name="sort" defaultValue={sort} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="joined_desc">Newest joined</option>
-                      <option value="joined_asc">Oldest joined</option>
-                      <option value="visited_desc">Recently visited</option>
-                      <option value="visited_asc">Least recently visited</option>
-                      <option value="name_asc">Name A-Z</option>
-                      <option value="name_desc">Name Z-A</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">More</span>
-                    <button name="more" value={more ? '0' : '1'} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button>
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Apply</span>
-                    <button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button>
-                  </label>
-                </div>
-                {more && (
-                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Country</span>
-                      <select name="country" defaultValue={country} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                        <option value="">All countries</option>
-                        {countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                      </select>
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">City</span>
-                      <select name="city" defaultValue={city} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                        <option value="">All cities</option>
-                        {cityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                      </select>
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Joined from</span>
-                      <input type="date" name="joinedFrom" defaultValue={joinedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Joined to</span>
-                      <input type="date" name="joinedTo" defaultValue={joinedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Visited from</span>
-                      <input type="date" name="visitedFrom" defaultValue={visitedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Visited to</span>
-                      <input type="date" name="visitedTo" defaultValue={visitedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Reset</span>
-                      <a href="/me/hr" className="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset filters</a>
-                    </label>
-                  </div>
-                )}
-              </div>
-            </div>
-          </form>
+          <HrFilters
+            params={params}
+            stageOptions={Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort()}
+            statusOptions={Array.from(new Set(allApplicants.map((lead) => lead.status))).sort()}
+            sourceOptions={sourceOptions}
+            countryOptions={countryOptions}
+            cityOptions={cityOptions}
+          />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
