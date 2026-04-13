@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { hash } from 'bcryptjs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage } from '@/app/application-data';
@@ -63,6 +64,16 @@ async function ensurePostgresSchema() {
       applicant_id uuid not null references website_applicants(id) on delete cascade,
       author text not null,
       text text not null,
+      created_at timestamptz not null default now()
+    );
+  `;
+  await sql`
+    create table if not exists website_password_reset_tokens (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null,
+      token text not null unique,
+      expires_at timestamptz not null,
+      used_at timestamptz,
       created_at timestamptz not null default now()
     );
   `;
@@ -351,6 +362,59 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
   if (status) applicant.status = status;
   await writeDb(db);
   return applicant;
+}
+
+export async function createPasswordResetTokenForUser(userId: string, token: string, expiresAt: Date) {
+  if (!(USE_POSTGRES && sql)) {
+    throw new Error('Password reset tokens require postgres storage');
+  }
+  await ensurePostgresSchema();
+  await sql`delete from website_password_reset_tokens where user_id = ${userId} and used_at is null and expires_at > now()`;
+  const rows = await sql`
+    insert into website_password_reset_tokens (user_id, token, expires_at)
+    values (${userId}, ${token}, ${expiresAt})
+    returning id, user_id, token, expires_at, used_at
+  `;
+  return rows[0];
+}
+
+export async function getActivePasswordResetTokenForUser(userId: string) {
+  if (!(USE_POSTGRES && sql)) {
+    throw new Error('Password reset tokens require postgres storage');
+  }
+  await ensurePostgresSchema();
+  const rows = await sql`
+    select id, user_id, token, expires_at, used_at
+    from website_password_reset_tokens
+    where user_id = ${userId} and used_at is null and expires_at > now()
+    order by created_at desc
+    limit 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function getValidPasswordResetToken(token: string) {
+  if (!(USE_POSTGRES && sql)) {
+    throw new Error('Password reset tokens require postgres storage');
+  }
+  await ensurePostgresSchema();
+  const rows = await sql`
+    select id, user_id, token, expires_at, used_at
+    from website_password_reset_tokens
+    where token = ${token} and used_at is null and expires_at > now()
+    limit 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function resetApplicantPassword(userId: string, password: string, tokenId: string) {
+  if (!(USE_POSTGRES && sql)) {
+    throw new Error('Password reset requires postgres storage');
+  }
+  await ensurePostgresSchema();
+  const hashedPassword = await hash(password, 12);
+  await sql`update website_applicants set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
+  await sql`update website_password_reset_tokens set used_at = now() where id = ${tokenId}`;
 }
 
 export async function updateApplicantProfile(applicantId: string, updates: Partial<ApplicantProfile>) {

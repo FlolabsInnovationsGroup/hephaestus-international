@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/button';
 import { LocationPicker } from '@/components/location-picker';
+import { SourceSelect } from '@/components/source-select';
 
 const phoneCodes = ['+1', '+33', '+34', '+39', '+44', '+49', '+91', '+971'];
 
@@ -97,9 +98,7 @@ export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: strin
         </Field>
         <Field label="LinkedIn URL*"><input required value={form.linkedinUrl} onChange={(e) => update('linkedinUrl', e.target.value)} className={inputClass} /></Field>
         <Field label="Source*">
-          <select value={form.source} onChange={(e) => update('source', e.target.value)} className={inputClass}>
-            {normalizedSourceOptions.map((option) => <option key={option}>{option}</option>)}
-          </select>
+          <SourceSelect options={normalizedSourceOptions} value={form.source} onChange={(value) => update('source', value)} />
         </Field>
         <Field label="Role*"><input value={roleTitle} disabled className={`${inputClass} bg-gray-100`} /></Field>
         <Field label="Referral name"><input value={form.referralName} onChange={(e) => update('referralName', e.target.value)} className={inputClass} /></Field>

@@ -75,7 +75,7 @@ function extractSourceName(properties: Record<string, any>) {
 }
 
 export async function getApplicationSourceOptions(): Promise<string[]> {
-  const databaseId = process.env.NOTION_SOURCES_DATABASE_ID || process.env.NOTION_SOURCE_DATABASE_ID || process.env.NOTION_APPLICANT_SOURCES_DATABASE_ID || process.env.NEXT_PUBLIC_NOTION_SOURCES_DATABASE_ID || '';
+  const databaseId = process.env.NOTION_SOURCES_DATABASE_ID || process.env.NOTION_SOURCE_DATABASE_ID || process.env.NOTION_APPLICANT_SOURCES_DATABASE_ID || process.env.NEXT_PUBLIC_NOTION_SOURCES_DATABASE_ID || '340a157695518043a641eb72cc21cbb7';
   const token = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY || process.env.NOTION_SECRET || process.env.NOTION_INTEGRATION_TOKEN || '';
 
   if (!databaseId || !token) {
