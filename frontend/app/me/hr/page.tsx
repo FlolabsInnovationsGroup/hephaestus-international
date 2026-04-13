@@ -79,45 +79,87 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
               </div>
               <div className="flex-1 xl:max-w-[1100px]">
                 <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto_auto]">
-                  <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                  <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                    <option value="">All stages</option>
-                    {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                  <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                    <option value="">All statuses</option>
-                    {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                  <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                    <option value="">All sources</option>
-                    {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                  <select name="sort" defaultValue={sort} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                    <option value="joined_desc">Newest joined</option>
-                    <option value="joined_asc">Oldest joined</option>
-                    <option value="visited_desc">Recently visited</option>
-                    <option value="visited_asc">Least recently visited</option>
-                    <option value="name_asc">Name A-Z</option>
-                    <option value="name_desc">Name Z-A</option>
-                  </select>
-                  <button name="more" value={more ? '0' : '1'} className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button>
-                  <button className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Search</span>
+                    <input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Stage</span>
+                    <select name="stage" defaultValue={stage} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="">All stages</option>
+                      {Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Status</span>
+                    <select name="status" defaultValue={status} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="">All statuses</option>
+                      {Array.from(new Set(allApplicants.map((lead) => lead.status))).sort().map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Source</span>
+                    <select name="source" defaultValue={source} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="">All sources</option>
+                      {sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Sort by</span>
+                    <select name="sort" defaultValue={sort} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                      <option value="joined_desc">Newest joined</option>
+                      <option value="joined_asc">Oldest joined</option>
+                      <option value="visited_desc">Recently visited</option>
+                      <option value="visited_asc">Least recently visited</option>
+                      <option value="name_asc">Name A-Z</option>
+                      <option value="name_desc">Name Z-A</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">More</span>
+                    <button name="more" value={more ? '0' : '1'} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Apply</span>
+                    <button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button>
+                  </label>
                 </div>
                 {more && (
                   <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <select name="country" defaultValue={country} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="">All countries</option>
-                      {countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                    <select name="city" defaultValue={city} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-                      <option value="">All cities</option>
-                      {cityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                    <input type="date" name="joinedFrom" defaultValue={joinedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    <input type="date" name="joinedTo" defaultValue={joinedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    <input type="date" name="visitedFrom" defaultValue={visitedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    <input type="date" name="visitedTo" defaultValue={visitedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-                    <a href="/me/hr" className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset filters</a>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Country</span>
+                      <select name="country" defaultValue={country} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                        <option value="">All countries</option>
+                        {countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">City</span>
+                      <select name="city" defaultValue={city} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+                        <option value="">All cities</option>
+                        {cityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Joined from</span>
+                      <input type="date" name="joinedFrom" defaultValue={joinedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Joined to</span>
+                      <input type="date" name="joinedTo" defaultValue={joinedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Visited from</span>
+                      <input type="date" name="visitedFrom" defaultValue={visitedFrom} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Visited to</span>
+                      <input type="date" name="visitedTo" defaultValue={visitedTo} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Reset</span>
+                      <a href="/me/hr" className="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset filters</a>
+                    </label>
                   </div>
                 )}
               </div>
