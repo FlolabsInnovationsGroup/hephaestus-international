@@ -177,7 +177,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                             {candidate.reviewStatus === 'merged' && <p className="mt-1 text-xs text-emerald-700">Marked as merged. Alias/login consolidation should follow the selected canonical account.</p>}
                             <p className="mt-1 text-xs text-gray-500">Current rule: suggestions need a stronger score than before, and one strong signal alone is not enough unless it has more supporting matches.</p>
                             {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
-                            <DuplicateReviewActions reviewId={candidate.reviewId} candidateId={candidate.id} currentStatus={candidate.reviewStatus} />
+                            <DuplicateReviewActions reviewId={candidate.reviewId} leadId={activeLead.id} candidateId={candidate.id} currentStatus={candidate.reviewStatus} />
                           </div>
                         ))}
                       </div>
