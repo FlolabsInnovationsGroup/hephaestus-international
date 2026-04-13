@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { hash } from 'bcryptjs';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage } from '@/app/application-data';
+import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage, type DuplicateCandidate } from '@/app/application-data';
 import { sql } from '@/lib/db';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
@@ -143,6 +143,70 @@ export async function writeDb(data: ApplicationDbShape) {
     throw new Error('writeDb is not supported for postgres mode, use specific helpers');
   }
   await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function normalizeValue(value: string | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function buildDuplicateCandidates(applicants: ApplicantProfile[]) {
+  const byId = new Map<string, DuplicateCandidate[]>();
+
+  for (const applicant of applicants) {
+    const candidates: DuplicateCandidate[] = [];
+
+    for (const other of applicants) {
+      if (other.id === applicant.id) continue;
+      if (normalizeValue(other.email) === normalizeValue(applicant.email)) continue;
+
+      let score = 0;
+      const reasons: string[] = [];
+
+      if (normalizeValue(applicant.phoneNumber) && normalizeValue(applicant.phoneNumber) === normalizeValue(other.phoneNumber)) {
+        score += 5;
+        reasons.push('same phone number');
+      }
+      if (normalizeValue(applicant.linkedinUrl) && normalizeValue(applicant.linkedinUrl) === normalizeValue(other.linkedinUrl)) {
+        score += 5;
+        reasons.push('same LinkedIn URL');
+      }
+      if (normalizeValue(applicant.firstName) === normalizeValue(other.firstName) && normalizeValue(applicant.lastName) === normalizeValue(other.lastName)) {
+        score += 3;
+        reasons.push('same full name');
+      }
+      if (normalizeValue(applicant.city) && normalizeValue(applicant.city) === normalizeValue(other.city)) {
+        score += 1;
+        reasons.push('same city');
+      }
+      if (normalizeValue(applicant.country) && normalizeValue(applicant.country) === normalizeValue(other.country)) {
+        score += 1;
+        reasons.push('same country');
+      }
+      if (normalizeValue(applicant.education) && normalizeValue(applicant.education) === normalizeValue(other.education)) {
+        score += 1;
+        reasons.push('same education');
+      }
+      if (normalizeValue(applicant.roleAppliedFor) && normalizeValue(applicant.roleAppliedFor) === normalizeValue(other.roleAppliedFor)) {
+        score += 1;
+        reasons.push('same role applied for');
+      }
+
+      if (score >= 5) {
+        candidates.push({
+          id: other.id,
+          email: other.email,
+          fullName: `${other.firstName} ${other.lastName}`.trim(),
+          score,
+          reasons,
+        });
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score || a.fullName.localeCompare(b.fullName));
+    byId.set(applicant.id, candidates.slice(0, 5));
+  }
+
+  return byId;
 }
 
 function chronosUserToApplicant(row: any): ApplicantProfile {
@@ -310,7 +374,13 @@ export async function getApplicants() {
     }
   }
 
-  return Array.from(byEmail.values());
+  const applicants = Array.from(byEmail.values());
+  const duplicateCandidates = buildDuplicateCandidates(applicants);
+
+  return applicants.map((applicant) => ({
+    ...applicant,
+    duplicateCandidates: duplicateCandidates.get(applicant.id) ?? [],
+  }));
 }
 
 export async function getApplicantConversations(applicantId: string) {

@@ -17,6 +17,14 @@ export type ApplicationStage =
 export type ApplicantStatus = 'active' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined';
 export type UserRole = 'applicant' | 'admin' | 'hr';
 
+export interface DuplicateCandidate {
+  id: string;
+  email: string;
+  fullName: string;
+  score: number;
+  reasons: string[];
+}
+
 export interface ApplicantProfile {
   id: string;
   email: string;
@@ -46,6 +54,7 @@ export interface ApplicantProfile {
   notes?: string;
   safeSendersConfirmed?: boolean;
   communicationConsent?: boolean;
+  duplicateCandidates?: DuplicateCandidate[];
 }
 
 export interface ConversationMessage {

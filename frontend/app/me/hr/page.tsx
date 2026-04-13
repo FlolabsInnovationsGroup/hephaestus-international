@@ -135,6 +135,26 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                     <p><strong>Source:</strong> {activeLead.source}</p>
                     <p><strong>Education:</strong> {activeLead.education}</p>
                   </div>
+                  {activeLead.duplicateCandidates && activeLead.duplicateCandidates.length > 0 && (
+                    <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-amber-800">Possible duplicate accounts</p>
+                      <p className="mt-1 text-sm text-amber-900">These profiles look like the same person using different emails. Review before merging.</p>
+                      <div className="mt-3 space-y-3">
+                        {activeLead.duplicateCandidates.map((candidate) => (
+                          <div key={candidate.id} className="rounded-xl border border-amber-200 bg-white px-3 py-3 text-sm text-gray-700">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-gray-900">{candidate.fullName}</p>
+                                <p className="text-xs text-gray-500">{candidate.email}</p>
+                              </div>
+                              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">match score {candidate.score}</span>
+                            </div>
+                            <p className="mt-2 text-xs text-gray-600">Signals: {candidate.reasons.join(', ')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-5 flex flex-wrap gap-3">
                     {activeLead.cvUrl && (
                       <a
