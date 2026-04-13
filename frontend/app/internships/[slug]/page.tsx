@@ -4,6 +4,7 @@ import { Container, Section } from '@/components/layout'
 import { ApplicationForm } from '@/components/application-form'
 import { getInternshipBySlug, getInternships } from '@/lib/strapi'
 import { getServerBrand } from '@/lib/branding'
+import { getApplicationSourceOptions } from '@/lib/source-options'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -122,6 +123,7 @@ export default async function InternshipPage(props: PageProps) {
   if (!internship) notFound()
 
   const parsed = parseInternshipContent(internship.description)
+  const sourceOptions = await getApplicationSourceOptions()
 
   return (
     <Section className="bg-white pt-24 pb-16">
@@ -201,7 +203,7 @@ export default async function InternshipPage(props: PageProps) {
                 Complete the application form below to get started.
               </p>
             </div>
-            <ApplicationForm roleTitle={internship.title} />
+            <ApplicationForm roleTitle={internship.title} sourceOptions={sourceOptions} />
           </div>
         </article>
       </Container>

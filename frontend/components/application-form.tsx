@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/button';
 import { LocationPicker } from '@/components/location-picker';
 
-const sourceOptions = ['LinkedIn', 'AI Referrals', 'University', 'Referral', 'Search engine', 'Social media', 'Website', 'Forms', 'Email', 'WhatsApp', 'Other'];
 const phoneCodes = ['+1', '+33', '+34', '+39', '+44', '+49', '+91', '+971'];
 
-export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
+export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: string; sourceOptions: string[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -134,7 +133,7 @@ export function ApplicationForm({ roleTitle }: { roleTitle: string }) {
             }}
             className={inputClass}
           />
-          <p className="text-xs text-gray-500">Accepted formats: PDF, DOC, DOCX. Stored in Vercel Blob.</p>
+          <p className="text-xs text-gray-500">Accepted formats: PDF, DOC, DOCX.</p>
           {uploadingCv && <p className="text-sm text-[#00349B]">Uploading CV...</p>}
           {form.cvFileName && <p className="text-sm text-green-700">Uploaded: {form.cvFileName}</p>}
         </div>

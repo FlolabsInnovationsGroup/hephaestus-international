@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     city: body.city ?? viewer.city,
     linkedinUrl: body.linkedinUrl ?? viewer.linkedinUrl,
     education: body.education ?? viewer.education,
+    profilePictureUrl: body.profilePictureUrl ?? viewer.profilePictureUrl,
   });
   return NextResponse.json({ ok: true, applicant: updated });
 }

@@ -1,6 +1,10 @@
 import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
+function getBlobToken() {
+  return process.env.BLOB_READ_WRITE_TOKEN || process.env.NEXT_PUBLIC_BLOB_READ_WRITE_TOKEN || '';
+}
+
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   'application/pdf',
@@ -24,7 +28,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'CV file must be 10MB or smaller' }, { status: 400 });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const token = getBlobToken();
+
+  if (!token) {
     return NextResponse.json({
       ok: true,
       cvFileName: file.name,
@@ -41,6 +47,7 @@ export async function POST(request: Request) {
     const blob = await put(`applicants/cv/${Date.now()}-${safeName}`, file, {
       access: 'public',
       addRandomSuffix: true,
+      token,
     });
 
     return NextResponse.json({

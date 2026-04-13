@@ -1,6 +1,10 @@
 import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
+function getBlobToken() {
+  return process.env.BLOB_READ_WRITE_TOKEN || process.env.NEXT_PUBLIC_BLOB_READ_WRITE_TOKEN || '';
+}
+
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -20,10 +24,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Profile picture must be 5MB or smaller' }, { status: 400 });
   }
 
+  const token = getBlobToken();
+  if (!token) {
+    return NextResponse.json({ error: 'Profile picture upload is unavailable right now because blob storage is not configured.' }, { status: 500 });
+  }
+
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const blob = await put(`applicants/profile-pictures/${Date.now()}-${safeName}`, file, {
     access: 'public',
     addRandomSuffix: true,
+    token,
   });
 
   return NextResponse.json({ ok: true, profilePictureUrl: blob.url, fileName: file.name });

@@ -110,6 +110,30 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                     <p><strong>Source:</strong> {activeLead.source}</p>
                     <p><strong>Education:</strong> {activeLead.education}</p>
                   </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {activeLead.cvUrl && (
+                      <a
+                        href={activeLead.cvUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={activeLead.cvFileName || true}
+                        className="inline-flex items-center rounded-xl border border-[#00349B] px-4 py-2 text-sm font-semibold text-[#00349B] transition hover:bg-[#eef5ff]"
+                      >
+                        Download CV
+                      </a>
+                    )}
+                    {activeLead.profilePictureUrl && (
+                      <a
+                        href={activeLead.profilePictureUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download
+                        className="inline-flex items-center rounded-xl border border-[#00349B] px-4 py-2 text-sm font-semibold text-[#00349B] transition hover:bg-[#eef5ff]"
+                      >
+                        Download profile picture
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
               {activeLead && <HrStageControls applicantId={activeLead.id} stage={activeLead.stage} status={activeLead.status} />}
