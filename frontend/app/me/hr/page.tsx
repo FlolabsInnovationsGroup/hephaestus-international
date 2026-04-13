@@ -150,6 +150,8 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                               <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">match score {candidate.score}</span>
                             </div>
                             <p className="mt-2 text-xs text-gray-600">Signals: {candidate.reasons.join(', ')}</p>
+                            <p className="mt-1 text-xs text-gray-500">Review status: {candidate.reviewStatus ?? 'pending review'}</p>
+                            {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
                           </div>
                         ))}
                       </div>

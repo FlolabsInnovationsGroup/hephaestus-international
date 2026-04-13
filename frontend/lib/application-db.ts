@@ -5,6 +5,16 @@ import path from 'path';
 import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage, type DuplicateCandidate } from '@/app/application-data';
 import { sql } from '@/lib/db';
 
+interface DuplicateReviewRow {
+  id: string;
+  primary_applicant_id: string;
+  duplicate_applicant_id: string;
+  status: 'pending' | 'confirmed_duplicate' | 'different_people' | 'merged';
+  confidence_score: number;
+  reasons: string[] | string;
+  notes?: string | null;
+}
+
 const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
 const USE_POSTGRES = process.env.APPLICANT_STORAGE_DRIVER === 'postgres' || process.env.NODE_ENV === 'production';
 
@@ -149,8 +159,38 @@ function normalizeValue(value: string | null | undefined) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-function buildDuplicateCandidates(applicants: ApplicantProfile[]) {
+async function getDuplicateReviewRows() {
+  if (!(USE_POSTGRES && sql)) return [] as DuplicateReviewRow[];
+
+  await sql`
+    create table if not exists applicant_duplicate_reviews (
+      id uuid primary key default gen_random_uuid(),
+      primary_applicant_id uuid not null,
+      duplicate_applicant_id uuid not null,
+      status text not null default 'pending',
+      confidence_score bigint not null default 0,
+      reasons jsonb not null default '[]'::jsonb,
+      reviewed_by_id uuid,
+      reviewed_at timestamptz,
+      notes text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now(),
+      constraint applicant_duplicate_reviews_pair_unique unique (primary_applicant_id, duplicate_applicant_id)
+    );
+  `;
+
+  const rows = await sql`select id, primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes from applicant_duplicate_reviews`;
+  return rows as DuplicateReviewRow[];
+}
+
+function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: DuplicateReviewRow[] = []) {
   const byId = new Map<string, DuplicateCandidate[]>();
+  const reviewByPair = new Map<string, DuplicateReviewRow>();
+
+  for (const review of reviews) {
+    const key = [review.primary_applicant_id, review.duplicate_applicant_id].sort().join('::');
+    reviewByPair.set(key, review);
+  }
 
   for (const applicant of applicants) {
     const candidates: DuplicateCandidate[] = [];
@@ -192,12 +232,16 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[]) {
       }
 
       if (score >= 5) {
+        const review = reviewByPair.get([applicant.id, other.id].sort().join('::'));
         candidates.push({
           id: other.id,
           email: other.email,
           fullName: `${other.firstName} ${other.lastName}`.trim(),
-          score,
-          reasons,
+          score: review ? Number(review.confidence_score ?? score) : score,
+          reasons: review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons,
+          reviewId: review?.id,
+          reviewStatus: review?.status,
+          reviewNotes: review?.notes ?? undefined,
         });
       }
     }
@@ -375,7 +419,8 @@ export async function getApplicants() {
   }
 
   const applicants = Array.from(byEmail.values());
-  const duplicateCandidates = buildDuplicateCandidates(applicants);
+  const duplicateReviewRows = await getDuplicateReviewRows();
+  const duplicateCandidates = buildDuplicateCandidates(applicants, duplicateReviewRows);
 
   return applicants.map((applicant) => ({
     ...applicant,

@@ -23,6 +23,9 @@ export interface DuplicateCandidate {
   fullName: string;
   score: number;
   reasons: string[];
+  reviewId?: string;
+  reviewStatus?: 'pending' | 'confirmed_duplicate' | 'different_people' | 'merged';
+  reviewNotes?: string;
 }
 
 export interface ApplicantProfile {
