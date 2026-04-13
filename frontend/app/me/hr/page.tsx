@@ -10,6 +10,12 @@ function sameDayValue(dateString: string) {
   return new Date(dateString).toISOString().slice(0, 10);
 }
 
+function displayJoined(values: Array<string | undefined> | undefined, fallback?: string) {
+  const cleaned = Array.from(new Set((values ?? []).map((value) => String(value ?? '').trim()).filter(Boolean)));
+  if (cleaned.length > 0) return cleaned.join(', ');
+  return fallback ?? '—';
+}
+
 export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; duplicateReview?: string; more?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
@@ -132,13 +138,22 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
               {activeLead && (
                 <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-semibold text-gray-900">Lead details</h2>
+                  {activeLead.duplicateNeedsReview && (
+                    <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+                      <p className="font-semibold uppercase tracking-[0.14em] text-orange-800">Verification recommended</p>
+                      <p className="mt-1">Some matched information is still unsure. Please verify that the details being merged really belong to this person before confirming the duplicate.</p>
+                    </div>
+                  )}
                   <div className="mt-4 grid gap-3 text-sm text-gray-700">
                     <p><strong>Status:</strong> {activeLead.status}</p>
                     <p><strong>Stage:</strong> {activeLead.stage}</p>
                     <p><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
                     <p><strong>Last website visit:</strong> {new Date(activeLead.lastVisitedAt).toLocaleString()}</p>
-                    <p><strong>LinkedIn:</strong> {activeLead.linkedinUrl}</p>
-                    <p><strong>Location:</strong> {activeLead.city}, {activeLead.country}</p>
+                    <p><strong>Emails:</strong> {displayJoined([activeLead.email, ...(activeLead.alternateEmails ?? [])], activeLead.email)}</p>
+                    <p><strong>Phone numbers:</strong> {displayJoined(activeLead.mergedPhoneNumbers, activeLead.phoneNumber)}</p>
+                    <p><strong>LinkedIn:</strong> {displayJoined(activeLead.mergedLinkedinUrls, activeLead.linkedinUrl)}</p>
+                    <p><strong>Cities:</strong> {displayJoined(activeLead.mergedCities, activeLead.city)}</p>
+                    <p><strong>Countries:</strong> {displayJoined(activeLead.mergedCountries, activeLead.country)}</p>
                     <p><strong>Source:</strong> {activeLead.source}</p>
                     <p><strong>Education:</strong> {activeLead.education}</p>
                   </div>

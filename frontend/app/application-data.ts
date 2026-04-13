@@ -31,6 +31,11 @@ export interface DuplicateCandidate {
 export interface ApplicantProfile {
   id: string;
   email: string;
+  alternateEmails?: string[];
+  mergedPhoneNumbers?: string[];
+  mergedLinkedinUrls?: string[];
+  mergedCountries?: string[];
+  mergedCities?: string[];
   password: string;
   role: UserRole;
   hrBinaryRole?: boolean;
@@ -58,6 +63,7 @@ export interface ApplicantProfile {
   safeSendersConfirmed?: boolean;
   communicationConsent?: boolean;
   duplicateCandidates?: DuplicateCandidate[];
+  duplicateNeedsReview?: boolean;
 }
 
 export interface ConversationMessage {

@@ -15,6 +15,11 @@ interface DuplicateReviewRow {
   notes?: string | null;
 }
 
+interface UserEmailAliasRow {
+  user_id: string;
+  email: string;
+}
+
 const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
 const USE_POSTGRES = process.env.APPLICANT_STORAGE_DRIVER === 'postgres' || process.env.NODE_ENV === 'production';
 
@@ -93,6 +98,11 @@ function rowToApplicant(row: any): ApplicantProfile {
   return {
     id: row.id,
     email: row.email,
+    alternateEmails: [],
+    mergedPhoneNumbers: row.phone_number ? [row.phone_number] : [],
+    mergedLinkedinUrls: row.linkedin_url ? [row.linkedin_url] : [],
+    mergedCountries: row.country ? [row.country] : [],
+    mergedCities: row.city ? [row.city] : [],
     password: row.password,
     role: row.role,
     hrBinaryRole: row.hr_binary_role ?? false,
@@ -157,6 +167,24 @@ export async function writeDb(data: ApplicationDbShape) {
 
 function normalizeValue(value: string | null | undefined) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+async function getUserEmailAliasRows() {
+  if (!(USE_POSTGRES && sql)) return [] as UserEmailAliasRow[];
+
+  await sql`
+    create table if not exists user_email_aliases (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null,
+      email text not null unique,
+      is_primary boolean not null default false,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+  `;
+
+  const rows = await sql`select user_id, email from user_email_aliases`;
+  return rows as UserEmailAliasRow[];
 }
 
 async function getDuplicateReviewRows() {
@@ -253,6 +281,10 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
   return byId;
 }
 
+function uniqueNonEmpty(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)));
+}
+
 function chronosUserToApplicant(row: any): ApplicantProfile {
   const name = String(row.name ?? '').trim();
   const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
@@ -262,6 +294,11 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
   return {
     id: row.id,
     email: row.email,
+    alternateEmails: [],
+    mergedPhoneNumbers: [],
+    mergedLinkedinUrls: [],
+    mergedCountries: [],
+    mergedCities: [],
     password: row.password,
     role: hasHrAccess ? 'admin' : 'applicant',
     hrBinaryRole: hasHrAccess,
@@ -296,6 +333,26 @@ export async function findUserByEmail(email: string) {
     await ensurePostgresSchema();
     const rows = await sql`select * from website_applicants where lower(email) = lower(${email}) limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
+
+    await sql`
+      create table if not exists user_email_aliases (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null,
+        email text not null unique,
+        is_primary boolean not null default false,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      );
+    `;
+
+    const aliasRows = await sql`
+      select u.id, u.email, u.name, u.password, u.role, u.is_active, u.created_at, u.updated_at
+      from user_email_aliases a
+      inner join users u on u.id = a.user_id
+      where lower(a.email) = lower(${email})
+      limit 1
+    `;
+    if (aliasRows[0]) return chronosUserToApplicant(aliasRows[0]);
 
     const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where lower(email) = lower(${email}) limit 1`;
     return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
@@ -421,11 +478,33 @@ export async function getApplicants() {
   const applicants = Array.from(byEmail.values());
   const duplicateReviewRows = await getDuplicateReviewRows();
   const duplicateCandidates = buildDuplicateCandidates(applicants, duplicateReviewRows);
+  const aliasRows = await getUserEmailAliasRows();
+  const aliasMap = new Map<string, string[]>();
 
-  return applicants.map((applicant) => ({
-    ...applicant,
-    duplicateCandidates: duplicateCandidates.get(applicant.id) ?? [],
-  }));
+  for (const row of aliasRows) {
+    const list = aliasMap.get(row.user_id) ?? [];
+    list.push(row.email);
+    aliasMap.set(row.user_id, list);
+  }
+
+  return applicants.map((applicant) => {
+    const candidates = duplicateCandidates.get(applicant.id) ?? [];
+    const pendingCandidates = candidates.filter((candidate) => !candidate.reviewStatus || candidate.reviewStatus === 'pending');
+    const related = pendingCandidates
+      .map((candidate) => applicants.find((other) => other.id === candidate.id))
+      .filter((value): value is ApplicantProfile => Boolean(value));
+
+    return {
+      ...applicant,
+      alternateEmails: uniqueNonEmpty([...(aliasMap.get(applicant.id) ?? []), ...(applicant.alternateEmails ?? []), ...related.map((item) => item.email)]),
+      mergedPhoneNumbers: uniqueNonEmpty([applicant.phoneNumber, ...related.map((item) => item.phoneNumber)]),
+      mergedLinkedinUrls: uniqueNonEmpty([applicant.linkedinUrl, ...related.map((item) => item.linkedinUrl)]),
+      mergedCountries: uniqueNonEmpty([applicant.country, ...related.map((item) => item.country)]),
+      mergedCities: uniqueNonEmpty([applicant.city, ...related.map((item) => item.city)]),
+      duplicateCandidates: candidates,
+      duplicateNeedsReview: pendingCandidates.some((candidate) => candidate.score < 7 || candidate.reasons.length < 2),
+    };
+  });
 }
 
 export async function getApplicantConversations(applicantId: string) {
