@@ -10,7 +10,7 @@ const actions = [
   { value: 'merged', label: 'Already merged' },
 ] as const;
 
-export function DuplicateReviewActions({ reviewId, currentStatus }: { reviewId: string; currentStatus?: string }) {
+export function DuplicateReviewActions({ reviewId, candidateId, currentStatus }: { reviewId?: string; candidateId: string; currentStatus?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -19,7 +19,7 @@ export function DuplicateReviewActions({ reviewId, currentStatus }: { reviewId: 
     await fetch('/api/admin/leads/duplicate-review', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reviewId, status }),
+      body: JSON.stringify({ reviewId, candidateId, status }),
     });
     setLoading(null);
     router.refresh();

@@ -13,11 +13,13 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const reviewId = String(body.reviewId ?? '');
+  const candidateId = String(body.candidateId ?? '');
+  const leadId = String(body.leadId ?? '');
   const status = String(body.status ?? '');
   const notes = typeof body.notes === 'string' ? body.notes : '';
 
-  if (!reviewId || !['pending', 'confirmed_duplicate', 'different_people', 'merged'].includes(status)) {
-    return NextResponse.json({ error: 'Missing reviewId or invalid status' }, { status: 400 });
+  if (!candidateId || !['pending', 'confirmed_duplicate', 'different_people', 'merged'].includes(status)) {
+    return NextResponse.json({ error: 'Missing candidateId or invalid status' }, { status: 400 });
   }
 
   await sql`
@@ -37,10 +39,35 @@ export async function POST(request: Request) {
     );
   `;
 
+  let effectiveReviewId = reviewId;
+
+  if (!effectiveReviewId) {
+    const existing = await sql`
+      select id
+      from applicant_duplicate_reviews
+      where (
+        (primary_applicant_id = ${leadId} and duplicate_applicant_id = ${candidateId})
+        or (primary_applicant_id = ${candidateId} and duplicate_applicant_id = ${leadId})
+      )
+      limit 1
+    `;
+
+    if (existing[0]?.id) {
+      effectiveReviewId = existing[0].id;
+    } else {
+      const inserted = await sql`
+        insert into applicant_duplicate_reviews (primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons)
+        values (${leadId}, ${candidateId}, 'pending', 0, '[]'::jsonb)
+        returning id
+      `;
+      effectiveReviewId = inserted[0]?.id ?? '';
+    }
+  }
+
   const rows = await sql`
     update applicant_duplicate_reviews
     set status = ${status}, notes = ${notes || null}, reviewed_at = now(), updated_at = now()
-    where id = ${reviewId}
+    where id = ${effectiveReviewId}
     returning id, status, notes, reviewed_at
   `;
 

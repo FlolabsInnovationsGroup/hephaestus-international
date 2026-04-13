@@ -175,7 +175,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
                             <p className="mt-1 text-xs text-gray-500">Review status: {candidate.reviewStatus ?? 'pending review'}</p>
                             <p className="mt-1 text-xs text-gray-500">Current rule: suggestions need a stronger score than before, and one strong signal alone is not enough unless it has more supporting matches.</p>
                             {candidate.reviewNotes && <p className="mt-1 text-xs text-gray-500">Notes: {candidate.reviewNotes}</p>}
-                            {candidate.reviewId && <DuplicateReviewActions reviewId={candidate.reviewId} currentStatus={candidate.reviewStatus} />}
+                            <DuplicateReviewActions reviewId={candidate.reviewId} candidateId={candidate.id} currentStatus={candidate.reviewStatus} />
                           </div>
                         ))}
                       </div>
