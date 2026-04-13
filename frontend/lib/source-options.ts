@@ -1,5 +1,5 @@
 const FALLBACK_SOURCE_OPTIONS = ['LinkedIn', 'AI Referrals', 'University', 'Referral', 'Search engine', 'Social media', 'Website', 'Forms', 'Email', 'WhatsApp', 'Other'];
-const SOURCE_PROPERTY_CANDIDATES = ['Name', 'Source', 'Label', 'Title'];
+const SOURCE_PROPERTY_CANDIDATES = ['Name', 'Source', 'Sources', 'Label', 'Title'];
 
 function parseTitle(value: unknown) {
   if (!value) return '';
@@ -47,6 +47,17 @@ function extractPropertyValue(property: any) {
 
   if (type === 'select' && property.select?.name) {
     return String(property.select.name).trim();
+  }
+
+  if (type === 'multi_select' && Array.isArray(property.multi_select)) {
+    return property.multi_select
+      .map((entry: any) => String(entry?.name ?? '').trim())
+      .filter(Boolean)
+      .join(' || ');
+  }
+
+  if (type === 'status' && property.status?.name) {
+    return String(property.status.name).trim();
   }
 
   if (type === 'formula') {
@@ -107,7 +118,8 @@ export async function getApplicationSourceOptions(): Promise<string[]> {
     const options = Array.from(
       new Set(
         (payload.results ?? [])
-          .map((page: any) => extractSourceName(page.properties ?? {}))
+          .flatMap((page: any) => extractSourceName(page.properties ?? {}).split(' || '))
+          .map((value: string) => value.trim())
           .filter((value: string) => Boolean(value)),
       ),
     ) as string[];
