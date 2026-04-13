@@ -120,7 +120,7 @@ export function ApplicationForm({ roleTitle, sourceOptions }: { roleTitle: strin
               const res = await fetch('/api/applications/cv', { method: 'POST', body: uploadData });
               const data = await res.json().catch(() => ({ error: 'CV upload failed.' }));
               if (!res.ok) {
-                setError(data.error ?? 'CV upload failed.');
+                setError(data.details ? `${data.error} (${data.details})` : (data.error ?? 'CV upload failed.'));
                 setUploadingCv(false);
                 return;
               }

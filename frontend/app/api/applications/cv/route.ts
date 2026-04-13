@@ -34,14 +34,9 @@ export async function POST(request: Request) {
 
   if (!token) {
     return NextResponse.json({
-      ok: true,
-      cvFileName: file.name,
-      cvUrl: '',
-      storage: 'deferred',
-      contentType: file.type,
-      size: file.size,
-      warning: 'Blob storage is not configured in this environment yet, so only the file metadata was saved for now.',
-    });
+      error: 'CV upload is unavailable because BLOB_READ_WRITE_TOKEN is missing in this deployment environment.',
+      code: 'BLOB_TOKEN_MISSING',
+    }, { status: 503 });
   }
 
   try {
@@ -55,8 +50,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       cvFileName: file.name,
-      cvUrl: blob.url,
+      cvUrl: blob.downloadUrl || `${blob.url}?download=1`,
       pathname: blob.pathname,
+      blobUrl: blob.url,
+      downloadUrl: blob.downloadUrl || `${blob.url}?download=1`,
       contentType: file.type,
       size: file.size,
       storage: 'blob',

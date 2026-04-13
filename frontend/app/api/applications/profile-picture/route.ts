@@ -28,7 +28,10 @@ export async function POST(request: Request) {
 
   const token = getBlobToken();
   if (!token) {
-    return NextResponse.json({ error: 'Profile picture upload is unavailable right now because blob storage is not configured.' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Profile picture upload is unavailable because BLOB_READ_WRITE_TOKEN is missing in this deployment environment.',
+      code: 'BLOB_TOKEN_MISSING',
+    }, { status: 503 });
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
@@ -39,7 +42,13 @@ export async function POST(request: Request) {
       token,
     });
 
-    return NextResponse.json({ ok: true, profilePictureUrl: blob.url, fileName: file.name });
+    return NextResponse.json({
+      ok: true,
+      profilePictureUrl: blob.downloadUrl || `${blob.url}?download=1`,
+      blobUrl: blob.url,
+      downloadUrl: blob.downloadUrl || `${blob.url}?download=1`,
+      fileName: file.name,
+    });
   } catch (error) {
     console.error('Profile picture upload failed', {
       message: error instanceof Error ? error.message : String(error),
