@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 type Viewer = {
   firstName: string;
@@ -15,8 +15,10 @@ type Viewer = {
 
 export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
   const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -37,6 +39,10 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
     };
   }, []);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   if (!viewer) {
     return (
       <Link href="/login" className="hidden md:inline-flex items-center text-sm font-medium text-white hover:text-blue-300 transition-colors">
@@ -48,27 +54,39 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
   const dashboardHref = viewer.hrBinaryRole || viewer.role === 'admin' ? '/me/hr' : '/me/application';
   const initials = viewer.firstName.slice(0, 1).toUpperCase();
 
+  const navigateTo = (href: string) => {
+    setOpen(false);
+    startTransition(() => {
+      router.push(href);
+      router.refresh();
+    });
+  };
+
   return (
-    <div ref={ref} className="relative hidden md:block">
+    <div ref={ref} className="relative hidden md:flex items-center gap-2">
+      {viewer.profilePictureUrl ? (
+        <Image src={viewer.profilePictureUrl} alt={viewer.firstName} width={32} height={32} className="rounded-full object-cover" />
+      ) : (
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">
+          {initials}
+        </span>
+      )}
+
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-blue-300 transition-colors"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 hover:text-blue-300 transition-colors"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Open profile menu"
       >
-        {viewer.profilePictureUrl ? (
-          <Image src={viewer.profilePictureUrl} alt={viewer.firstName} width={28} height={28} className="rounded-full object-cover" />
-        ) : (
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs font-semibold">
-            {initials}
-          </span>
-        )}
-        <span>Profile</span>
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
+        <div className="absolute right-0 top-full mt-3 w-72 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
           <div className="border-b border-blue-50 px-4 py-4">
             <div className="flex items-center gap-3">
               {viewer.profilePictureUrl ? (
@@ -86,12 +104,12 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
           </div>
 
           <div className="p-2">
-            <Link href="/profile" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-[#f7faff]">
-              My info
-            </Link>
-            <Link href={dashboardHref} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-[#f7faff]">
+            <button type="button" onClick={() => navigateTo('/profile')} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f7faff]">
+              Profile
+            </button>
+            <button type="button" onClick={() => navigateTo(dashboardHref)} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f7faff]">
               Dashboard
-            </Link>
+            </button>
             <button
               type="button"
               onClick={async () => {
@@ -107,6 +125,8 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
           </div>
         </div>
       )}
+
+      {isPending && <span className="sr-only">Loading</span>}
     </div>
   );
 }
