@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Container } from './layout'
 import { useState } from 'react'
 import { useBrand } from './brand-provider'
-import { AuthLink } from './auth-link'
+import { ProfileMenu } from './profile-menu'
 
 const navigation = [
   { name: 'Blogs', href: '/blogs' },
@@ -14,7 +14,7 @@ const navigation = [
   { name: 'Internships', href: '/internships' },
 ]
 
-export function Header({ viewer }: { viewer: { firstName: string; profilePictureUrl?: string } | null }) {
+export function Header({ viewer }: { viewer: { firstName: string; email?: string; role?: string; hrBinaryRole?: boolean; profilePictureUrl?: string } | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { brand } = useBrand()
 
@@ -46,7 +46,7 @@ export function Header({ viewer }: { viewer: { firstName: string; profilePicture
           </nav>
 
           <div className="flex items-center gap-4">
-            <AuthLink viewer={viewer} />
+            <ProfileMenu viewer={viewer} />
             <button
               type="button"
               className="md:hidden p-2 text-white hover:text-blue-400"

@@ -52,7 +52,7 @@ export default async function RootLayout({
           >
             Skip to content
           </a>
-          <Header viewer={viewer ? { firstName: viewer.firstName, profilePictureUrl: viewer.profilePictureUrl } : null} />
+          <Header viewer={viewer ? { firstName: viewer.firstName, email: viewer.email, role: viewer.role, hrBinaryRole: viewer.hrBinaryRole, profilePictureUrl: viewer.profilePictureUrl } : null} />
           <main id="content" className="min-h-screen">
             {children}
           </main>
