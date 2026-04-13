@@ -8,6 +8,8 @@ function getBlobToken() {
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get('file');
@@ -30,11 +32,24 @@ export async function POST(request: Request) {
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-  const blob = await put(`applicants/profile-pictures/${Date.now()}-${safeName}`, file, {
-    access: 'public',
-    addRandomSuffix: true,
-    token,
-  });
+  try {
+    const blob = await put(`applicants/profile-pictures/${Date.now()}-${safeName}`, file, {
+      access: 'private',
+      addRandomSuffix: true,
+      token,
+    });
 
-  return NextResponse.json({ ok: true, profilePictureUrl: blob.url, fileName: file.name });
+    return NextResponse.json({ ok: true, profilePictureUrl: blob.url, fileName: file.name });
+  } catch (error) {
+    console.error('Profile picture upload failed', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      hasToken: Boolean(token),
+      env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',
+    });
+    return NextResponse.json({
+      error: 'Profile picture upload failed. Storage is unavailable right now.',
+      details: error instanceof Error ? error.message : String(error),
+    }, { status: 500 });
+  }
 }

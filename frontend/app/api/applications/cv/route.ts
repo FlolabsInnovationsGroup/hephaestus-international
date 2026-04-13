@@ -12,6 +12,8 @@ const ALLOWED_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get('file');
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
   try {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
     const blob = await put(`applicants/cv/${Date.now()}-${safeName}`, file, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
       token,
     });
@@ -60,7 +62,15 @@ export async function POST(request: Request) {
       storage: 'blob',
     });
   } catch (error) {
-    console.error('CV upload failed', error);
-    return NextResponse.json({ error: 'CV upload failed. The file is valid, but storage is unavailable right now.' }, { status: 500 });
+    console.error('CV upload failed', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      hasToken: Boolean(token),
+      env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',
+    });
+    return NextResponse.json({
+      error: 'CV upload failed. The file is valid, but storage is unavailable right now.',
+      details: error instanceof Error ? error.message : String(error),
+    }, { status: 500 });
   }
 }
