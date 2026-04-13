@@ -10,7 +10,7 @@ function sameDayValue(dateString: string) {
   return new Date(dateString).toISOString().slice(0, 10);
 }
 
-export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; more?: string }> }) {
+export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; duplicateReview?: string; more?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (!viewer.hrBinaryRole) redirect('/me/application');
@@ -27,6 +27,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   const joinedTo = params.joinedTo ?? '';
   const visitedFrom = params.visitedFrom ?? '';
   const visitedTo = params.visitedTo ?? '';
+  const duplicateReview = params.duplicateReview ?? '';
   const more = params.more === '1';
   const allApplicants = await getApplicantsForAdmin();
   const sourceOptions = Array.from(new Set(allApplicants.map((lead) => lead.source).filter(Boolean))).sort();
@@ -46,7 +47,12 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
     const matchesJoinedTo = !joinedTo || joinedDay <= joinedTo;
     const matchesVisitedFrom = !visitedFrom || visitedDay >= visitedFrom;
     const matchesVisitedTo = !visitedTo || visitedDay <= visitedTo;
-    return matchesQ && matchesStage && matchesStatus && matchesSource && matchesCountry && matchesCity && matchesJoinedFrom && matchesJoinedTo && matchesVisitedFrom && matchesVisitedTo;
+    const reviewStatuses = (lead.duplicateCandidates ?? []).map((candidate) => candidate.reviewStatus ?? 'pending');
+    const matchesDuplicateReview = !duplicateReview
+      || (duplicateReview === 'has_pending' && reviewStatuses.includes('pending'))
+      || (duplicateReview === 'none' && reviewStatuses.length === 0)
+      || reviewStatuses.includes(duplicateReview as 'confirmed_duplicate' | 'different_people' | 'merged');
+    return matchesQ && matchesStage && matchesStatus && matchesSource && matchesCountry && matchesCity && matchesJoinedFrom && matchesJoinedTo && matchesVisitedFrom && matchesVisitedTo && matchesDuplicateReview;
   }).sort((a, b) => {
     switch (sort) {
       case 'name_asc':

@@ -16,6 +16,7 @@ type HrFiltersProps = {
     joinedTo?: string;
     visitedFrom?: string;
     visitedTo?: string;
+    duplicateReview?: string;
     more?: string;
   };
   stageOptions: string[];
@@ -39,12 +40,13 @@ export function HrFilters({ params, stageOptions, statusOptions, sourceOptions, 
           <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
         </div>
         <div className="flex-1 xl:max-w-[1100px]">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto_auto]">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))_auto_auto]">
             <FilterField label="Search"><input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className={inputClass} /></FilterField>
             <FilterField label="Stage"><select name="stage" defaultValue={params.stage ?? ''} className={inputClass}><option value="">All stages</option>{stageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Status"><select name="status" defaultValue={params.status ?? ''} className={inputClass}><option value="">All statuses</option>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Source"><select name="source" defaultValue={params.source ?? ''} className={inputClass}><option value="">All sources</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Sort by"><select name="sort" defaultValue={params.sort ?? 'joined_desc'} className={inputClass}><option value="joined_desc">Newest joined</option><option value="joined_asc">Oldest joined</option><option value="visited_desc">Recently visited</option><option value="visited_asc">Least recently visited</option><option value="name_asc">Name A-Z</option><option value="name_desc">Name Z-A</option></select></FilterField>
+            <FilterField label="Duplicate review"><select name="duplicateReview" defaultValue={params.duplicateReview ?? ''} className={inputClass}><option value="">Any</option><option value="has_pending">Has pending review</option><option value="confirmed_duplicate">Confirmed duplicate</option><option value="different_people">Different people</option><option value="merged">Merged</option><option value="none">No duplicate review</option></select></FilterField>
             <FilterField label="More"><button type="button" onClick={() => setMoreOpen((v) => !v)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button></FilterField>
             <FilterField label="Apply"><button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button></FilterField>
           </div>
