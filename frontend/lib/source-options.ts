@@ -79,6 +79,10 @@ export async function getApplicationSourceOptions(): Promise<string[]> {
   const token = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY || process.env.NOTION_SECRET || process.env.NOTION_INTEGRATION_TOKEN || '';
 
   if (!databaseId || !token) {
+    console.warn('Falling back to default source options because NOTION source database env is missing.', {
+      hasDatabaseId: Boolean(databaseId),
+      hasToken: Boolean(token),
+    });
     return FALLBACK_SOURCE_OPTIONS;
   }
 
@@ -107,6 +111,10 @@ export async function getApplicationSourceOptions(): Promise<string[]> {
           .filter((value: string) => Boolean(value)),
       ),
     ) as string[];
+
+    if (options.length === 0) {
+      console.warn('Notion sources database returned no usable source names, falling back to defaults.');
+    }
 
     options.sort((a, b) => a.localeCompare(b));
 
