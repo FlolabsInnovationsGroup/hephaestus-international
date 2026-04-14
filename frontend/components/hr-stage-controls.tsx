@@ -21,6 +21,7 @@ const stageOptions = [
 ];
 
 const statusOptions = ['active', 'waiting', 'approved', 'rejected', 'signed', 'joined'];
+const blacklistedCountries = ['Afghanistan', 'Belarus', 'Iran', 'North Korea', 'Russia', 'Syria'];
 
 export function HrStageControls({ applicantId, stage, status }: { applicantId: string; stage: string; status: string }) {
   const [nextStage, setNextStage] = useState(stage);
@@ -55,6 +56,17 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
             {statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
           </select>
         </label>
+        {nextStage === 'new' && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            <p className="font-semibold uppercase tracking-[0.14em] text-red-800">New outreach screening</p>
+            <p className="mt-1">Applicants from these countries should be declined at this stage:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {blacklistedCountries.map((country) => (
+                <li key={country}>{country}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <button onClick={save} disabled={loading} className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Saving...' : 'Save stage and status'}</button>
       </div>
     </div>

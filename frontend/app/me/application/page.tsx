@@ -10,6 +10,10 @@ export default async function ApplicationDashboardPage() {
 
   const step = getStepById(viewer.stage);
   const steps = getAllSteps();
+  const currentStepIndex = steps.findIndex((candidate) => candidate.id === viewer.stage);
+  const nextStep = currentStepIndex >= 0 && currentStepIndex < steps.length - 1
+    ? steps[currentStepIndex + 1]
+    : null;
   const conversation = await getConversationForApplicant(viewer.id);
 
   return (
@@ -19,7 +23,7 @@ export default async function ApplicationDashboardPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">My application</p>
             <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Welcome back, {viewer.firstName}</h1>
-            <p className="mt-2 text-gray-600">Your FloLabs Innovations application process now lives here instead of email threads.</p>
+            <p className="mt-2 text-gray-600">This dashboard shows what you need to do now and what comes next in your application.</p>
           </div>
         </div>
 
@@ -36,35 +40,32 @@ export default async function ApplicationDashboardPage() {
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">Current step</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">Your current step</p>
                   <h2 className="mt-2 text-2xl font-bold text-gray-900">{step.title}</h2>
                 </div>
                 <span className="rounded-full bg-[#e9f1ff] px-4 py-2 text-sm font-semibold text-[#00349B]">{step.shortLabel}</span>
               </div>
-              <p className="mt-4 text-gray-700">{step.description}</p>
+              <p className="mt-4 text-gray-700">What this means: {step.description}</p>
               <div className="mt-6 rounded-xl bg-[#f7faff] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00349B]">What you need to do</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00349B]">What to do now</p>
                 <p className="mt-2 text-sm text-gray-700">{step.applicantAction}</p>
               </div>
             </div>
 
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
-              <h3 className="text-xl font-semibold text-gray-900">Timeline</h3>
-              <div className="mt-5 space-y-4">
-                {steps.map((candidate, index) => {
-                  const isCurrent = candidate.id === viewer.stage;
-                  const isCompleted = steps.findIndex((s) => s.id === viewer.stage) > index;
-                  return (
-                    <div key={candidate.id} className="flex gap-3">
-                      <div className={`mt-1 h-3.5 w-3.5 rounded-full ${isCurrent ? 'bg-[#00349B]' : isCompleted ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      <div>
-                        <p className={`font-semibold ${isCurrent ? 'text-[#00349B]' : 'text-gray-900'}`}>{candidate.title}</p>
-                        <p className="text-sm text-gray-600">{candidate.description}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Next step</h3>
+              {nextStep ? (
+                <div className="mt-4 rounded-xl bg-[#f7faff] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-gray-900">{nextStep.title}</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#00349B]">{nextStep.shortLabel}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-700">{nextStep.description}</p>
+                  <p className="mt-3 text-sm text-gray-700"><strong>After your current step:</strong> {nextStep.applicantAction}</p>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-gray-700">You are already at the final step. HR will share any next updates directly here.</p>
+              )}
             </div>
 
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
