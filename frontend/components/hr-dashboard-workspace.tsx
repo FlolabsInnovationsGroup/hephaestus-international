@@ -204,57 +204,72 @@ export function HrDashboardWorkspace({
       <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="border-b border-blue-50 px-4 py-3 text-sm font-semibold text-gray-700">
           {uniqueProfilesCount} unique profile{uniqueProfilesCount === 1 ? '' : 's'} match the current filters
-          {selectedLeadIds.length > 0 && (
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-500">{selectedLeadIds.length} selected</span>
-              <button
-                type="button"
-                disabled={selectedLeadIds.length < 2}
-                onClick={() => setMergeOpen(true)}
-                className="rounded-lg bg-[#00349B] px-2.5 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Merge selected
-              </button>
+          <div className="mt-2 rounded-lg border border-blue-100 bg-[#f7faff] px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B]">Selection mode</p>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-600">{selectedLeadIds.length} selected</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadIds([])}
+                  disabled={selectedLeadIds.length === 0}
+                  className="rounded-md border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedLeadIds.length < 2}
+                  onClick={() => setMergeOpen(true)}
+                  className="rounded-md bg-[#00349B] px-2.5 py-1 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Merge selected
+                </button>
+              </div>
             </div>
-          )}
+          </div>
         </div>
         <div className="max-h-[760px] overflow-y-auto p-2">
           {applicants.map((lead) => {
             const isActive = activeLead?.id === lead.id;
             const checked = selectedLeadIds.includes(lead.id);
             return (
-              <button
+              <div
                 key={lead.id}
-                type="button"
-                onClick={() => setSelectedLeadId(lead.id)}
-                className={`mb-2 block w-full rounded-lg border px-3 py-2.5 text-left ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}
+                className={`mb-2 rounded-lg border px-3 py-2.5 ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}
               >
-                <div className="mb-2">
-                  <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-[#00349B]">
                     <input
                       type="checkbox"
                       checked={checked}
-                      onClick={(event) => event.stopPropagation()}
                       onChange={(event) => toggleLeadSelection(lead.id, event.target.checked)}
                     />
-                    Select for merge
+                    Select profile
                   </label>
+                  {checked && <span className="rounded-full bg-[#00349B] px-2 py-1 text-[10px] font-semibold text-white">Selected</span>}
                 </div>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 leading-tight">{lead.firstName} {lead.lastName}</p>
-                    <p className="text-[11px] text-gray-500 break-all">{lead.email}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadId(lead.id)}
+                  className="block w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 leading-tight">{lead.firstName} {lead.lastName}</p>
+                      <p className="text-[11px] text-gray-500 break-all">{lead.email}</p>
+                    </div>
+                    <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#00349B]">{lead.status}</span>
                   </div>
-                  <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#00349B]">{lead.status}</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-600">{lead.roleAppliedFor}</p>
-                <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
-                  <span>Stage: {lead.stage}</span>
-                  <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
-                  <span>Visited: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
-                  <span>City: {lead.city}</span>
-                </div>
-              </button>
+                  <p className="mt-1 text-xs text-gray-600">{lead.roleAppliedFor}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                    <span>Stage: {lead.stage}</span>
+                    <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
+                    <span>Visited: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
+                    <span>City: {lead.city}</span>
+                  </div>
+                </button>
+              </div>
             );
           })}
         </div>
