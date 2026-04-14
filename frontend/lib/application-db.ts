@@ -22,6 +22,7 @@ interface UserEmailAliasRow {
 
 const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
 const USE_POSTGRES = process.env.APPLICANT_STORAGE_DRIVER === 'postgres' || process.env.NODE_ENV === 'production';
+const AUTO_MERGE_SCORE_THRESHOLD = 9;
 
 interface ApplicationDbShape {
   applicants: ApplicantProfile[];
@@ -298,6 +299,9 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
       if (reviewStatus === 'different_people') continue;
       const scoreValue = review ? Number(review.confidence_score ?? score) : score;
       const reasonsValue = review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons;
+      const effectiveReviewStatus = (!reviewStatus || reviewStatus === 'pending') && scoreValue >= AUTO_MERGE_SCORE_THRESHOLD
+        ? 'merged'
+        : reviewStatus;
 
       const applicantCandidates = byId.get(applicant.id) ?? [];
       applicantCandidates.push({
@@ -307,7 +311,7 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
         score: scoreValue,
         reasons: reasonsValue,
         reviewId: review?.id,
-        reviewStatus,
+        reviewStatus: effectiveReviewStatus,
         reviewNotes: review?.notes ?? undefined,
       });
       byId.set(applicant.id, applicantCandidates);
@@ -320,7 +324,7 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
         score: scoreValue,
         reasons: reasonsValue,
         reviewId: review?.id,
-        reviewStatus,
+        reviewStatus: effectiveReviewStatus,
         reviewNotes: review?.notes ?? undefined,
       });
       byId.set(other.id, otherCandidates);
