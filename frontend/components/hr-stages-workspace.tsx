@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Step = {
   id: string;
@@ -42,18 +42,23 @@ function toEmbedUrl(url: string) {
 }
 
 export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: Step[]; initialResources: Resource[]; stats: Stat[] }) {
+  const [localSteps, setLocalSteps] = useState<Step[]>(steps);
   const [activeStageId, setActiveStageId] = useState(steps[0]?.id ?? '');
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [applicantPrompt, setApplicantPrompt] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingStage, setSavingStage] = useState(false);
   const [error, setError] = useState('');
 
-  const stage = steps.find((item) => item.id === activeStageId) ?? steps[0];
+  const stage = localSteps.find((item) => item.id === activeStageId) ?? localSteps[0];
   const stageResources = resources.filter((item) => item.stage === stage?.id);
   const statByStage = useMemo(() => new Map(stats.map((item) => [item.stageId, item])), [stats]);
   const activeStat = stage ? statByStage.get(stage.id) : null;
+  const [editName, setEditName] = useState(stage?.shortLabel ?? '');
+  const [editTitle, setEditTitle] = useState(stage?.title ?? '');
+  const [editDescription, setEditDescription] = useState(stage?.description ?? '');
 
   async function addResource() {
     setError('');
@@ -85,6 +90,47 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
     setResources((current) => current.filter((item) => item.id !== id));
   }
 
+  async function saveStageDetails() {
+    if (!stage) return;
+    setSavingStage(true);
+    setError('');
+    const res = await fetch('/api/admin/stages/definitions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stageId: stage.id,
+        shortLabel: editName.trim(),
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+      }),
+    });
+    setSavingStage(false);
+    if (!res.ok) {
+      setError('Could not save stage details.');
+      return;
+    }
+    setLocalSteps((current) => current.map((item) => item.id === stage.id ? { ...item, shortLabel: editName.trim(), title: editTitle.trim(), description: editDescription.trim() } : item));
+  }
+
+  async function deleteStage() {
+    if (!stage) return;
+    const res = await fetch(`/api/admin/stages/definitions?stageId=${encodeURIComponent(stage.id)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setError('Could not delete stage.');
+      return;
+    }
+    const next = localSteps.filter((item) => item.id !== stage.id);
+    setLocalSteps(next);
+    if (next.length > 0) setActiveStageId(next[0].id);
+  }
+
+  useEffect(() => {
+    if (!stage) return;
+    setEditName(stage.shortLabel);
+    setEditTitle(stage.title);
+    setEditDescription(stage.description);
+  }, [stage?.id]);
+
   if (!stage) return null;
 
   return (
@@ -92,7 +138,7 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
       <aside className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
         <h1 className="px-2 py-2 text-lg font-semibold text-gray-900">Stages</h1>
         <div className="mt-1 space-y-1">
-          {steps.map((item, index) => (
+          {localSteps.map((item, index) => (
             <button
               key={item.id}
               type="button"
@@ -125,6 +171,19 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#00349B]">Average time in stage</p>
               <p className="mt-2 text-2xl font-bold text-gray-900">{(activeStat?.averageHours ?? 0).toFixed(1)} hours</p>
               <p className="text-xs text-gray-500">Based on {activeStat?.samples ?? 0} timeline sample(s)</p>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+              <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+            </div>
+            <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+            <div className="mt-3 flex gap-3">
+              <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                {savingStage ? 'Saving...' : 'Save stage details'}
+              </button>
+              <button type="button" onClick={() => void deleteStage()} className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+                Delete stage
+              </button>
             </div>
           </div>
         </div>

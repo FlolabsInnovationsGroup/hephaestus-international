@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { hash } from 'bcryptjs';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage, type DuplicateCandidate } from '@/app/application-data';
+import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage, type DuplicateCandidate, type StageStep } from '@/app/application-data';
 import { sql } from '@/lib/db';
 
 interface DuplicateReviewRow {
@@ -30,6 +30,7 @@ interface ApplicationDbShape {
   stageTransitions?: StageTransitionRecord[];
   stageResources?: StageResourceRecord[];
   stageResponses?: StageResourceResponseRecord[];
+  stageDefinitions?: StageDefinitionRecord[];
 }
 
 export interface StageTransitionRecord {
@@ -66,6 +67,17 @@ export interface HrStageResponseRecord extends StageResourceResponseRecord {
   resourceTitle: string;
 }
 
+export interface StageDefinitionRecord {
+  stageId: string;
+  shortLabel: string;
+  title: string;
+  description: string;
+  applicantAction: string;
+  adminAction: string;
+  active: boolean;
+  updatedAt: string;
+}
+
 async function ensureDb() {
   try {
     await fs.access(DB_PATH);
@@ -73,7 +85,7 @@ async function ensureDb() {
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
     await fs.writeFile(
       DB_PATH,
-      JSON.stringify({ applicants: demoApplicants, conversations: demoConversations, stageTransitions: [], stageResources: [], stageResponses: [] }, null, 2),
+      JSON.stringify({ applicants: demoApplicants, conversations: demoConversations, stageTransitions: [], stageResources: [], stageResponses: [], stageDefinitions: [] }, null, 2),
       'utf8',
     );
   }
@@ -169,6 +181,18 @@ async function ensureStageFeatureSchema() {
         submitted_at timestamptz not null default now()
       );
     `;
+    await sql`
+      create table if not exists website_stage_definitions (
+        stage_id text primary key,
+        short_label text not null,
+        title text not null,
+        description text not null,
+        applicant_action text not null,
+        admin_action text not null,
+        active boolean not null default true,
+        updated_at timestamptz not null default now()
+      );
+    `;
     return true;
   } catch (error) {
     console.error('Stage feature schema unavailable:', error);
@@ -244,6 +268,7 @@ export async function readDb(): Promise<ApplicationDbShape> {
     stageTransitions: parsed.stageTransitions ?? [],
     stageResources: parsed.stageResources ?? [],
     stageResponses: parsed.stageResponses ?? [],
+    stageDefinitions: parsed.stageDefinitions ?? [],
   };
 }
 
@@ -1330,4 +1355,102 @@ export async function getStageResponsesForHr() {
       };
     })
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()) as HrStageResponseRecord[];
+}
+
+export async function getStageDefinitions(baseSteps: StageStep[]) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) {
+      return baseSteps.map((step) => ({
+        stageId: step.id,
+        shortLabel: step.shortLabel,
+        title: step.title,
+        description: step.description,
+        applicantAction: step.applicantAction,
+        adminAction: step.adminAction,
+        active: true,
+        updatedAt: new Date().toISOString(),
+      })) as StageDefinitionRecord[];
+    }
+    const rows = await sql`
+      select stage_id, short_label, title, description, applicant_action, admin_action, active, updated_at
+      from website_stage_definitions
+    `;
+    const byId = new Map(
+      rows.map((row) => [String(row.stage_id), {
+        stageId: String(row.stage_id),
+        shortLabel: String(row.short_label),
+        title: String(row.title),
+        description: String(row.description),
+        applicantAction: String(row.applicant_action),
+        adminAction: String(row.admin_action),
+        active: Boolean(row.active),
+        updatedAt: new Date(row.updated_at).toISOString(),
+      } as StageDefinitionRecord]),
+    );
+    return baseSteps.map((step) => byId.get(step.id) ?? {
+      stageId: step.id,
+      shortLabel: step.shortLabel,
+      title: step.title,
+      description: step.description,
+      applicantAction: step.applicantAction,
+      adminAction: step.adminAction,
+      active: true,
+      updatedAt: new Date().toISOString(),
+    }) as StageDefinitionRecord[];
+  }
+
+  const db = await readDb();
+  const byId = new Map((db.stageDefinitions ?? []).map((item) => [item.stageId, item]));
+  return baseSteps.map((step) => byId.get(step.id) ?? {
+    stageId: step.id,
+    shortLabel: step.shortLabel,
+    title: step.title,
+    description: step.description,
+    applicantAction: step.applicantAction,
+    adminAction: step.adminAction,
+    active: true,
+    updatedAt: new Date().toISOString(),
+  }) as StageDefinitionRecord[];
+}
+
+export async function saveStageDefinition(input: {
+  stageId: string;
+  shortLabel: string;
+  title: string;
+  description: string;
+  applicantAction: string;
+  adminAction: string;
+  active: boolean;
+}) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) throw new Error('Stage definitions are unavailable in this environment');
+    await sql`
+      insert into website_stage_definitions (stage_id, short_label, title, description, applicant_action, admin_action, active, updated_at)
+      values (${input.stageId}, ${input.shortLabel}, ${input.title}, ${input.description}, ${input.applicantAction}, ${input.adminAction}, ${input.active}, now())
+      on conflict (stage_id)
+      do update set
+        short_label = excluded.short_label,
+        title = excluded.title,
+        description = excluded.description,
+        applicant_action = excluded.applicant_action,
+        admin_action = excluded.admin_action,
+        active = excluded.active,
+        updated_at = now()
+    `;
+    return;
+  }
+
+  const db = await readDb();
+  const current = db.stageDefinitions ?? [];
+  const next = current.filter((item) => item.stageId !== input.stageId);
+  next.push({
+    ...input,
+    updatedAt: new Date().toISOString(),
+  });
+  db.stageDefinitions = next;
+  await writeDb(db);
 }

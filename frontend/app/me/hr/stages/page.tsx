@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Section } from '@/components/layout';
 import { HrStagesWorkspace } from '@/components/hr-stages-workspace';
-import { getAllSteps, getSessionUser, getStageResourcesForHr, getStageStats } from '@/lib/application-store';
+import { getManagedSteps, getSessionUser, getStageResourcesForHr, getStageStats } from '@/lib/application-store';
 
 export default async function HrStagesPage() {
   const viewer = await getSessionUser();
@@ -9,7 +9,7 @@ export default async function HrStagesPage() {
   if (!viewer.hrBinaryRole) redirect('/me/application');
 
   const [steps, resources, stats] = await Promise.all([
-    getAllSteps(),
+    getManagedSteps(),
     getStageResourcesForHr(),
     getStageStats(),
   ]);

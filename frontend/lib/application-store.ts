@@ -16,6 +16,8 @@ import {
   getStageResponsesForApplicant,
   getStageTransitions,
   getUserById,
+  getStageDefinitions,
+  saveStageDefinition,
   saveStageResourceResponse,
   touchApplicantWebsiteVisit,
   updateApplicantProfile,
@@ -182,6 +184,60 @@ export function getStepById(stepId: string) {
 
 export function getAllSteps() {
   return stepsData as StageStep[];
+}
+
+export async function getManagedSteps(options?: { includeInactive?: boolean }) {
+  const definitions = await getStageDefinitions(stepsData as StageStep[]);
+  const mapped = definitions.map((item) => ({
+    id: item.stageId,
+    title: item.title,
+    shortLabel: item.shortLabel,
+    description: item.description,
+    applicantAction: item.applicantAction,
+    adminAction: item.adminAction,
+    active: item.active,
+  }));
+  return options?.includeInactive ? mapped : mapped.filter((item) => item.active);
+}
+
+export async function getManagedStepById(stepId: string) {
+  const all = await getManagedSteps({ includeInactive: true });
+  return all.find((step) => step.id === stepId) ?? all[0];
+}
+
+export async function updateManagedStep(input: {
+  stageId: string;
+  shortLabel: string;
+  title: string;
+  description: string;
+}) {
+  const all = await getManagedSteps({ includeInactive: true });
+  const existing = all.find((item) => item.id === input.stageId);
+  if (!existing) throw new Error('Stage not found');
+  await saveStageDefinition({
+    stageId: input.stageId,
+    shortLabel: input.shortLabel,
+    title: input.title,
+    description: input.description,
+    applicantAction: existing.applicantAction,
+    adminAction: existing.adminAction,
+    active: existing.active,
+  });
+}
+
+export async function deleteManagedStep(stageId: string) {
+  const all = await getManagedSteps({ includeInactive: true });
+  const existing = all.find((item) => item.id === stageId);
+  if (!existing) throw new Error('Stage not found');
+  await saveStageDefinition({
+    stageId,
+    shortLabel: existing.shortLabel,
+    title: existing.title,
+    description: existing.description,
+    applicantAction: existing.applicantAction,
+    adminAction: existing.adminAction,
+    active: false,
+  });
 }
 
 export async function getStageResourcesForHr(stage?: string) {

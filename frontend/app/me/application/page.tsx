@@ -2,15 +2,15 @@ import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { ApplicantStageContent } from '@/components/applicant-stage-content';
-import { getAllSteps, getConversationForApplicant, getSessionUser, getStageResourcesForApplicant, getStepById } from '@/lib/application-store';
+import { getConversationForApplicant, getManagedStepById, getManagedSteps, getSessionUser, getStageResourcesForApplicant } from '@/lib/application-store';
 
 export default async function ApplicationDashboardPage() {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (viewer.role !== 'applicant') redirect('/me/hr');
 
-  const step = getStepById(viewer.stage);
-  const steps = getAllSteps();
+  const steps = await getManagedSteps();
+  const step = (await getManagedStepById(viewer.stage)) ?? steps[0];
   const currentStepIndex = steps.findIndex((candidate) => candidate.id === viewer.stage);
   const nextStep = currentStepIndex >= 0 && currentStepIndex < steps.length - 1
     ? steps[currentStepIndex + 1]
@@ -56,6 +56,8 @@ export default async function ApplicationDashboardPage() {
               </div>
             </div>
 
+            <ApplicantStageContent resources={stageResources} />
+
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
               <h3 className="text-xl font-semibold text-gray-900">What comes next</h3>
               {nextStep ? (
@@ -71,20 +73,6 @@ export default async function ApplicationDashboardPage() {
                 <p className="mt-4 text-sm text-gray-700">You made it to the final step. We will share any new updates with you right here.</p>
               )}
             </div>
-
-            <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
-              <h3 className="text-xl font-semibold text-gray-900">Profile data shared with Chronos</h3>
-              <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-2">
-                <p><strong>Name:</strong> {viewer.firstName} {viewer.lastName}</p>
-                <p><strong>Email:</strong> {viewer.email}</p>
-                <p><strong>Phone:</strong> {viewer.phoneNumber}</p>
-                <p><strong>Role applied for:</strong> {viewer.roleAppliedFor}</p>
-                <p><strong>Location:</strong> {viewer.city}, {viewer.country}</p>
-                <p><strong>LinkedIn:</strong> {viewer.linkedinUrl}</p>
-              </div>
-            </div>
-
-            <ApplicantStageContent resources={stageResources} />
           </div>
         </div>
       </Container>
