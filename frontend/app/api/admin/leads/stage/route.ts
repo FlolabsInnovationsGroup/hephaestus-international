@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing applicantId or stage' }, { status: 400 });
   }
   const applicant = await saveApplicantStage(String(body.applicantId), body.stage, body.status);
-  const chronosSync = applicant && (body.stage === 'agreement_signed' || body.stage === 'chronos_synced')
+  const chronosSync = applicant && (body.stage === 'agreement_signed' || body.stage === 'chronos_synced' || body.stage === 'joined')
     ? await syncApplicantToChronos(applicant)
     : null;
   return NextResponse.json({ ok: true, applicant, chronosSync });

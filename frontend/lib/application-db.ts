@@ -169,6 +169,18 @@ function normalizeValue(value: string | null | undefined) {
   return String(value ?? '').trim().toLowerCase();
 }
 
+interface NormalizedApplicantSignals {
+  email: string;
+  phone: string;
+  linkedin: string;
+  firstName: string;
+  lastName: string;
+  city: string;
+  country: string;
+  education: string;
+  roleAppliedFor: string;
+}
+
 async function getUserEmailAliasRows() {
   if (!(USE_POSTGRES && sql)) return [] as UserEmailAliasRow[];
 
@@ -213,6 +225,19 @@ async function getDuplicateReviewRows() {
 
 function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: DuplicateReviewRow[] = []) {
   const byId = new Map<string, DuplicateCandidate[]>();
+  const normalizedById = new Map<string, NormalizedApplicantSignals>(
+    applicants.map((applicant) => [applicant.id, {
+      email: normalizeValue(applicant.email),
+      phone: normalizeValue(applicant.phoneNumber),
+      linkedin: normalizeValue(applicant.linkedinUrl),
+      firstName: normalizeValue(applicant.firstName),
+      lastName: normalizeValue(applicant.lastName),
+      city: normalizeValue(applicant.city),
+      country: normalizeValue(applicant.country),
+      education: normalizeValue(applicant.education),
+      roleAppliedFor: normalizeValue(applicant.roleAppliedFor),
+    }]),
+  );
   const reviewByPair = new Map<string, DuplicateReviewRow>();
 
   for (const review of reviews) {
@@ -220,67 +245,90 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
     reviewByPair.set(key, review);
   }
 
-  for (const applicant of applicants) {
-    const candidates: DuplicateCandidate[] = [];
+  for (const applicant of applicants) byId.set(applicant.id, []);
 
-    for (const other of applicants) {
-      if (other.id === applicant.id) continue;
-      if (normalizeValue(other.email) === normalizeValue(applicant.email)) continue;
-
+  for (let i = 0; i < applicants.length; i += 1) {
+    for (let j = i + 1; j < applicants.length; j += 1) {
+      const applicant = applicants[i];
+      const other = applicants[j];
+      const applicantSignals = normalizedById.get(applicant.id);
+      const otherSignals = normalizedById.get(other.id);
+      if (!applicantSignals || !otherSignals) continue;
+      if (otherSignals.email === applicantSignals.email) continue;
       let score = 0;
       let strongSignals = 0;
       const reasons: string[] = [];
 
-      if (normalizeValue(applicant.phoneNumber) && normalizeValue(applicant.phoneNumber) === normalizeValue(other.phoneNumber)) {
+      if (applicantSignals.phone && applicantSignals.phone === otherSignals.phone) {
         score += 6;
         strongSignals += 1;
         reasons.push('same phone number');
       }
-      if (normalizeValue(applicant.linkedinUrl) && normalizeValue(applicant.linkedinUrl) === normalizeValue(other.linkedinUrl)) {
+      if (applicantSignals.linkedin && applicantSignals.linkedin === otherSignals.linkedin) {
         score += 4;
         strongSignals += 1;
         reasons.push('same LinkedIn URL');
       }
-      if (normalizeValue(applicant.firstName) === normalizeValue(other.firstName) && normalizeValue(applicant.lastName) === normalizeValue(other.lastName)) {
+      if (applicantSignals.firstName === otherSignals.firstName && applicantSignals.lastName === otherSignals.lastName) {
         score += 3;
         reasons.push('same full name');
       }
-      if (normalizeValue(applicant.city) && normalizeValue(applicant.city) === normalizeValue(other.city)) {
+      if (applicantSignals.city && applicantSignals.city === otherSignals.city) {
         score += 1;
         reasons.push('same city');
       }
-      if (normalizeValue(applicant.country) && normalizeValue(applicant.country) === normalizeValue(other.country)) {
+      if (applicantSignals.country && applicantSignals.country === otherSignals.country) {
         score += 1;
         reasons.push('same country');
       }
-      if (normalizeValue(applicant.education) && normalizeValue(applicant.education) === normalizeValue(other.education)) {
+      if (applicantSignals.education && applicantSignals.education === otherSignals.education) {
         score += 1;
         reasons.push('same education');
       }
-      if (normalizeValue(applicant.roleAppliedFor) && normalizeValue(applicant.roleAppliedFor) === normalizeValue(other.roleAppliedFor)) {
+      if (applicantSignals.roleAppliedFor && applicantSignals.roleAppliedFor === otherSignals.roleAppliedFor) {
         score += 1;
         reasons.push('same role applied for');
       }
 
-      if (score >= 7 && strongSignals > 0 && !(strongSignals === 1 && reasons.length < 3)) {
-        const review = reviewByPair.get([applicant.id, other.id].sort().join('::'));
-        const reviewStatus = review?.status;
-        if (reviewStatus === 'different_people') {
-          continue;
-        }
-        candidates.push({
-          id: other.id,
-          email: other.email,
-          fullName: `${other.firstName} ${other.lastName}`.trim(),
-          score: review ? Number(review.confidence_score ?? score) : score,
-          reasons: review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons,
-          reviewId: review?.id,
-          reviewStatus,
-          reviewNotes: review?.notes ?? undefined,
-        });
+      if (score < 7 || strongSignals === 0 || (strongSignals === 1 && reasons.length < 3)) {
+        continue;
       }
-    }
+      const review = reviewByPair.get([applicant.id, other.id].sort().join('::'));
+      const reviewStatus = review?.status;
+      if (reviewStatus === 'different_people') continue;
+      const scoreValue = review ? Number(review.confidence_score ?? score) : score;
+      const reasonsValue = review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons;
 
+      const applicantCandidates = byId.get(applicant.id) ?? [];
+      applicantCandidates.push({
+        id: other.id,
+        email: other.email,
+        fullName: `${other.firstName} ${other.lastName}`.trim(),
+        score: scoreValue,
+        reasons: reasonsValue,
+        reviewId: review?.id,
+        reviewStatus,
+        reviewNotes: review?.notes ?? undefined,
+      });
+      byId.set(applicant.id, applicantCandidates);
+
+      const otherCandidates = byId.get(other.id) ?? [];
+      otherCandidates.push({
+        id: applicant.id,
+        email: applicant.email,
+        fullName: `${applicant.firstName} ${applicant.lastName}`.trim(),
+        score: scoreValue,
+        reasons: reasonsValue,
+        reviewId: review?.id,
+        reviewStatus,
+        reviewNotes: review?.notes ?? undefined,
+      });
+      byId.set(other.id, otherCandidates);
+    }
+  }
+
+  for (const applicant of applicants) {
+    const candidates = byId.get(applicant.id) ?? [];
     candidates.sort((a, b) => b.score - a.score || a.fullName.localeCompare(b.fullName));
     byId.set(applicant.id, candidates.slice(0, 5));
   }
@@ -483,6 +531,7 @@ export async function getApplicants() {
   }
 
   const applicants = Array.from(byEmail.values());
+  const applicantById = new Map(applicants.map((applicant) => [applicant.id, applicant]));
   const duplicateReviewRows = await getDuplicateReviewRows();
   const duplicateCandidates = buildDuplicateCandidates(applicants, duplicateReviewRows);
   const aliasRows = await getUserEmailAliasRows();
@@ -498,7 +547,7 @@ export async function getApplicants() {
     const candidates = duplicateCandidates.get(applicant.id) ?? [];
     const pendingCandidates = candidates.filter((candidate) => !candidate.reviewStatus || candidate.reviewStatus === 'pending');
     const related = pendingCandidates
-      .map((candidate) => applicants.find((other) => other.id === candidate.id))
+      .map((candidate) => applicantById.get(candidate.id))
       .filter((value): value is ApplicantProfile => Boolean(value));
 
     return {

@@ -86,7 +86,7 @@ export async function syncApplicantToChronos(applicant: ApplicantProfile) {
           joinedAt: applicant.joinedAt,
           lastWebsiteVisit: applicant.lastVisitedAt,
           source: applicant.source,
-          syncedToTeamMembers: applicant.stage === 'agreement_signed' || applicant.stage === 'chronos_synced',
+          syncedToTeamMembers: applicant.stage === 'agreement_signed' || applicant.stage === 'chronos_synced' || applicant.stage === 'joined',
         }),
       });
       remote = response.ok ? { ok: true, status: response.status } : { ok: false, status: response.status, error: await response.text() };
