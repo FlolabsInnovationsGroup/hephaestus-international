@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createApplicantAccount, getApplicantById, getSessionUser } from '@/lib/application-store';
+import { syncApplicantToChronos } from '@/lib/chronos-sync';
 
 export async function GET() {
   const viewer = await getSessionUser();
@@ -44,5 +45,12 @@ export async function POST(request: Request) {
     communicationConsent: Boolean(body.communicationConsent),
   });
 
-  return NextResponse.json({ ok: true, applicantId: applicant.id, created: true });
+  let syncWarning: string | null = null;
+  try {
+    await syncApplicantToChronos(applicant);
+  } catch (error) {
+    syncWarning = error instanceof Error ? error.message : 'Chronos sync failed';
+  }
+
+  return NextResponse.json({ ok: true, applicantId: applicant.id, created: true, syncWarning });
 }
