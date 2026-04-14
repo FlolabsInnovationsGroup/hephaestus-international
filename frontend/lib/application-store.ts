@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import OpenAI from 'openai';
 import { compare } from 'bcryptjs';
 import stepsData from '@/app/STEPS.json';
-import type { ApplicantProfile, StageStep } from '@/app/application-data';
+import type { ApplicantProfile, ApplicationStage, StageStep } from '@/app/application-data';
 import {
   addApplicantMessage,
   createApplicant,
@@ -25,8 +25,260 @@ import {
   updateApplicantStage,
 } from '@/lib/application-db';
 import { orderedStageIds } from '@/lib/stage-definitions';
+import { reviewStagesBatch, type StageReviewBlock, type StageReviewOutcome } from '@/lib/openai-stage-review';
+import type { StageResourceResponseRecord } from '@/lib/application-db';
+import { getOpenAIApiKey, getOpenAIChatModel } from '@/lib/openai-app-config';
 
 const SESSION_COOKIE = 'fl_preview_session';
+
+function isStageResponseAutoAdvanceEnabled() {
+  const v = process.env.STAGE_RESPONSE_AUTO_ADVANCE;
+  if (v === undefined || v === '') return true;
+  return v !== 'false' && v !== '0';
+}
+
+function latestResponseByResourceId(responses: StageResourceResponseRecord[]) {
+  const map = new Map<string, StageResourceResponseRecord>();
+  for (const row of responses) {
+    const prev = map.get(row.resourceId);
+    const t = new Date(row.submittedAt).getTime();
+    if (!prev || t > new Date(prev.submittedAt).getTime()) {
+      map.set(row.resourceId, row);
+    }
+  }
+  return map;
+}
+
+function resolveNextActiveStage(current: ApplicationStage, activeIds: Set<string>): ApplicationStage | null {
+  const idx = orderedStageIds.indexOf(current);
+  if (idx < 0) return null;
+  for (let i = idx + 1; i < orderedStageIds.length; i += 1) {
+    const id = orderedStageIds[i] as ApplicationStage;
+    if (activeIds.has(id)) return id;
+  }
+  return null;
+}
+
+function resolvePreviousActiveStage(current: ApplicationStage, activeIds: Set<string>): ApplicationStage | null {
+  const idx = orderedStageIds.indexOf(current);
+  if (idx <= 0) return null;
+  for (let i = idx - 1; i >= 0; i -= 1) {
+    const id = orderedStageIds[i] as ApplicationStage;
+    if (activeIds.has(id)) return id;
+  }
+  return null;
+}
+
+async function buildBatchStageReviewBlocks(
+  currentStage: ApplicationStage,
+  managed: Awaited<ReturnType<typeof getManagedSteps>>,
+  activeIds: Set<string>,
+  responses: StageResourceResponseRecord[],
+): Promise<StageReviewBlock[]> {
+  const latest = latestResponseByResourceId(responses);
+  const currentIdx = orderedStageIds.indexOf(currentStage);
+  if (currentIdx < 0) return [];
+
+  const stageIdsToScan = orderedStageIds
+    .slice(0, currentIdx + 1)
+    .filter((id) => activeIds.has(id)) as ApplicationStage[];
+  const resourceLists = await Promise.all(stageIdsToScan.map((stageId) => getStageResources(stageId)));
+
+  const stages: StageReviewBlock[] = [];
+  for (let i = 0; i < stageIdsToScan.length; i += 1) {
+    const stageId = stageIdsToScan[i];
+    const resources = resourceLists[i];
+    const activeResources = resources.filter((r) => r.active);
+    const required = activeResources.filter((r) => r.applicantPrompt?.trim());
+    if (required.length === 0) continue;
+
+    let allAnswered = true;
+    const items: { title: string; prompt: string; response: string }[] = [];
+    for (const r of required) {
+      const text = latest.get(r.id)?.responseText?.trim() ?? '';
+      if (!text) {
+        allAnswered = false;
+        break;
+      }
+      items.push({ title: r.title, prompt: r.applicantPrompt.trim(), response: text });
+    }
+    if (!allAnswered) continue;
+
+    const stepMeta = managed.find((s) => s.id === stageId);
+    stages.push({
+      stageId,
+      stageTitle: stepMeta?.title ?? stageId,
+      stageDescription: stepMeta?.description ?? '',
+      items,
+    });
+  }
+  return stages;
+}
+
+export type StageCompleteReviewResult = {
+  evaluated: boolean;
+  /** Tri-state for the applicant's current stage after review */
+  outcome?: StageReviewOutcome;
+  newStage?: ApplicationStage;
+  newStageTitle?: string;
+  reason?: string;
+  applicantMessage?: string;
+  /** How many stages were included in the single OpenAI batch call */
+  batchStageCount?: number;
+  incomplete?: boolean;
+  /** True when the step has no written prompts (nothing to run AI on) */
+  noReviewablePrompts?: boolean;
+};
+
+/**
+ * Applicant-triggered: batch-evaluates every active stage up to the current one that has
+ * all required answers (one model call), then applies the verdict for {@link currentStage} only.
+ */
+export async function completeApplicantStageReviewBatch(applicantId: string): Promise<StageCompleteReviewResult> {
+  if (!isStageResponseAutoAdvanceEnabled()) {
+    return { evaluated: false };
+  }
+
+  const user = await getUserById(applicantId);
+  if (!user || user.role !== 'applicant') {
+    return { evaluated: false };
+  }
+
+  const stageAtStart = user.stage;
+  const managed = await getManagedSteps();
+  const activeIds = new Set(managed.map((s) => s.id));
+  const responses = await getStageResponsesForApplicant(applicantId);
+
+  const currentResources = await getStageResources(stageAtStart);
+  const currentRequired = currentResources.filter((r) => r.active && r.applicantPrompt?.trim());
+  if (currentRequired.length === 0) {
+    return {
+      evaluated: false,
+      noReviewablePrompts: true,
+      applicantMessage:
+        'This step does not ask for written reflections here. When you are ready, our team will move you forward.',
+    };
+  }
+
+  const latest = latestResponseByResourceId(responses);
+  for (const r of currentRequired) {
+    if (!latest.get(r.id)?.responseText?.trim()) {
+      return {
+        evaluated: false,
+        incomplete: true,
+        applicantMessage: 'Please write and save an answer for every prompt above before requesting a review.',
+      };
+    }
+  }
+
+  const stages = await buildBatchStageReviewBlocks(stageAtStart, managed, activeIds, responses);
+  if (stages.length === 0) {
+    return {
+      evaluated: false,
+      incomplete: true,
+      applicantMessage: 'Please write and save an answer for every prompt above before requesting a review.',
+    };
+  }
+
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    console.warn('[completeApplicantStageReviewBatch] Missing OPENAI_API_KEY; skipping review.');
+    return {
+      evaluated: true,
+      outcome: 'stay',
+      applicantMessage:
+        'Your answers are saved. Automatic review is not configured yet; our team will move you forward when appropriate.',
+    };
+  }
+
+  const batch = await reviewStagesBatch(stages);
+  if (batch.error || batch.decisions.length === 0) {
+    console.warn('[completeApplicantStageReviewBatch]', batch.error ?? 'no decisions');
+    return {
+      evaluated: true,
+      outcome: 'stay',
+      applicantMessage: 'We could not complete an automatic review just now. Your answers are saved — please try again later or wait for HR.',
+    };
+  }
+
+  const currentDecision = batch.decisions.find((d) => d.stageId === stageAtStart);
+  if (!currentDecision) {
+    return {
+      evaluated: true,
+      outcome: 'stay',
+      applicantMessage: 'Review did not return a result for your current step. Your answers are saved.',
+    };
+  }
+
+  const userAgain = await getUserById(applicantId);
+  if (!userAgain || userAgain.stage !== stageAtStart) {
+    return {
+      evaluated: true,
+      outcome: 'stay',
+      applicantMessage: 'Your stage changed while we were reviewing. Refresh the page to see the latest step.',
+    };
+  }
+
+  const nextStageId = resolveNextActiveStage(stageAtStart, activeIds);
+  const previousStageId = resolvePreviousActiveStage(stageAtStart, activeIds);
+
+  let newStage: ApplicationStage = stageAtStart;
+  let outcome: StageReviewOutcome = currentDecision.outcome;
+
+  if (outcome === 'next') {
+    if (!nextStageId) {
+      outcome = 'stay';
+    } else {
+      newStage = nextStageId;
+    }
+  } else if (outcome === 'previous') {
+    if (!previousStageId) {
+      outcome = 'stay';
+    } else {
+      newStage = previousStageId;
+    }
+  }
+
+  if (newStage !== stageAtStart) {
+    await updateApplicantStage(applicantId, newStage);
+  }
+
+  const newMeta = managed.find((s) => s.id === newStage);
+  const newTitle = newMeta?.title ?? newStage;
+
+  let applicantMessage: string;
+  if (outcome === 'next' && newStage !== stageAtStart) {
+    applicantMessage = `You're now on: ${newTitle}. Refresh if the dashboard still shows the previous step.`;
+  } else if (outcome === 'previous' && newStage !== stageAtStart) {
+    applicantMessage = `Based on your answers, you have been moved one step back so you can revisit that part of the process. You are now on: ${newTitle}.`;
+  } else if (currentDecision.outcome === 'next' && !nextStageId) {
+    applicantMessage =
+      'Great work — your answers are recorded. You are already at the last active step in the pipeline; HR will take it from here.';
+  } else {
+    applicantMessage =
+      'Your responses are saved. Add more specific detail where the prompts ask for it, then try "I\'ve completed this stage" again, or wait for HR to follow up.';
+  }
+
+  console.log('[completeApplicantStageReviewBatch]', {
+    applicantId,
+    stageAtStart,
+    appliedOutcome: outcome,
+    modelOutcome: currentDecision.outcome,
+    modelReason: currentDecision.reason,
+    batchStageIds: stages.map((s) => s.stageId),
+    allDecisions: batch.decisions.map((d) => ({ stageId: d.stageId, outcome: d.outcome })),
+  });
+
+  return {
+    evaluated: true,
+    outcome,
+    newStage,
+    newStageTitle: newTitle,
+    reason: currentDecision.reason,
+    applicantMessage,
+    batchStageCount: stages.length,
+  };
+}
 
 export async function getSessionUser(): Promise<ApplicantProfile | null> {
   const jar = await cookies();
@@ -106,8 +358,8 @@ export async function sendHrMessage(applicantId: string, text: string, author: '
 }
 
 async function buildPaulaReply(userMessage: string, applicant: ApplicantProfile | null) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  
+  const apiKey = getOpenAIApiKey();
+
   if (!apiKey) {
     return fallbackPaulaReply(userMessage);
   }
@@ -132,7 +384,7 @@ ${applicant ? `- Applicant name: ${applicant.firstName} ${applicant.lastName}
 - Stage description: ${currentStep?.description || 'N/A'}` : '- No applicant context available'}`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getOpenAIChatModel(),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
@@ -287,7 +539,7 @@ export async function getStageResourcesForApplicant(stage: string, applicantId: 
     getStageResources(stage),
     getStageResponsesForApplicant(applicantId),
   ]);
-  const responseByResourceId = new Map(responses.map((item) => [item.resourceId, item]));
+  const responseByResourceId = latestResponseByResourceId(responses);
   return resources
     .filter((resource) => resource.active)
     .map((resource) => ({

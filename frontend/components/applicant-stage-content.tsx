@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toEmbedUrl } from '@/lib/embed-url';
 
 type StageResource = {
@@ -11,22 +12,75 @@ type StageResource = {
   latestResponse?: { responseText: string } | null;
 };
 
-export function ApplicantStageContent({ resources }: { resources: StageResource[] }) {
+type StageCompleteReviewPayload = {
+  evaluated?: boolean;
+  outcome?: string;
+  newStageTitle?: string;
+  applicantMessage?: string;
+  incomplete?: boolean;
+  noReviewablePrompts?: boolean;
+  batchStageCount?: number;
+};
+
+export function ApplicantStageContent({
+  resources,
+  currentStepTitle,
+}: {
+  resources: StageResource[];
+  /** Shown next to the completion CTA for context */
+  currentStepTitle?: string;
+}) {
+  const router = useRouter();
   const [responses, setResponses] = useState<Record<string, string>>(
     Object.fromEntries(resources.map((item) => [item.id, item.latestResponse?.responseText ?? ''])),
   );
   const [savingId, setSavingId] = useState<string>('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [completing, setCompleting] = useState(false);
+
+  const { hasReviewablePrompts, allPromptsFilledInUi } = useMemo(() => {
+    const prompted = resources.filter((r) => r.applicantPrompt?.trim());
+    const allFilled =
+      prompted.length > 0 &&
+      prompted.every((r) => (responses[r.id] ?? '').trim().length > 0);
+    return { hasReviewablePrompts: prompted.length > 0, allPromptsFilledInUi: allFilled };
+  }, [resources, responses]);
 
   async function submit(resourceId: string) {
     const value = (responses[resourceId] ?? '').trim();
     if (!value) return;
     setSavingId(resourceId);
-    await fetch('/api/applications/stage-responses', {
+    setNotice(null);
+    const res = await fetch('/api/applications/stage-responses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resourceId, responseText: value }),
     });
     setSavingId('');
+    if (!res.ok) {
+      setNotice('Could not save that answer. Please try again.');
+      return;
+    }
+  }
+
+  async function completeStage() {
+    setCompleting(true);
+    setNotice(null);
+    try {
+      const res = await fetch('/api/applications/stage-complete-review', { method: 'POST' });
+      const data = (await res.json()) as { ok?: boolean; review?: StageCompleteReviewPayload; error?: string };
+      if (!res.ok) {
+        setNotice(data.error ?? 'Something went wrong. Please try again.');
+        return;
+      }
+      const rev = data.review;
+      if (rev?.applicantMessage) setNotice(rev.applicantMessage);
+      if (rev?.evaluated) {
+        router.refresh();
+      }
+    } finally {
+      setCompleting(false);
+    }
   }
 
   if (resources.length === 0) {
@@ -40,6 +94,12 @@ export function ApplicantStageContent({ resources }: { resources: StageResource[
 
   return (
     <div className="space-y-4">
+      {notice && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-gray-800" role="status">
+          {notice}
+        </div>
+      )}
+
       {resources.map((resource) => (
         <div key={resource.id} className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
           <h3 className="text-xl font-semibold text-gray-900">{resource.title}</h3>
@@ -69,6 +129,37 @@ export function ApplicantStageContent({ resources }: { resources: StageResource[
           )}
         </div>
       ))}
+
+      {hasReviewablePrompts && (
+        <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">Ready for review</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            Save each answer with <strong>Save response</strong>, then press the button when you want your work on
+            {currentStepTitle ? (
+              <>
+                {' '}
+                <span className="font-medium text-gray-800">{currentStepTitle}</span>
+              </>
+            ) : (
+              ' this step'
+            )}{' '}
+            reviewed. Earlier steps with completed answers may be included in the same review to save time; only your{' '}
+            <strong>current</strong> step is moved forward, held here, or moved one step back if the overall effort is
+            clearly too low.
+          </p>
+          <button
+            type="button"
+            onClick={() => void completeStage()}
+            disabled={completing || !allPromptsFilledInUi || savingId !== ''}
+            className="mt-4 rounded-xl bg-[#00349B] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {completing ? 'Reviewing…' : "I've completed this stage"}
+          </button>
+          {!allPromptsFilledInUi && (
+            <p className="mt-2 text-xs text-gray-500">Fill every prompt above (and save) to enable this button.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
