@@ -65,6 +65,7 @@ export function HrStagesWorkspace({
   const [editName, setEditName] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editApplicantAction, setEditApplicantAction] = useState('');
   const inactiveStages = useMemo(
     () => allSteps.filter((item) => !localSteps.some((active) => active.id === item.id)),
     [allSteps, localSteps],
@@ -151,6 +152,7 @@ export function HrStagesWorkspace({
         shortLabel: editName.trim(),
         title: editTitle.trim(),
         description: editDescription.trim(),
+        applicantAction: editApplicantAction.trim(),
       }),
     });
     setSavingStage(false);
@@ -158,7 +160,13 @@ export function HrStagesWorkspace({
       setError('Could not save stage details.');
       return;
     }
-    setLocalSteps((current) => current.map((item) => item.id === editingStageId ? { ...item, shortLabel: editName.trim(), title: editTitle.trim(), description: editDescription.trim() } : item));
+    setLocalSteps((current) => current.map((item) => item.id === editingStageId ? {
+      ...item,
+      shortLabel: editName.trim(),
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      applicantAction: editApplicantAction.trim(),
+    } : item));
     setPendingAction(null);
   }
 
@@ -213,6 +221,7 @@ export function HrStagesWorkspace({
     setEditName(stageToEdit.shortLabel);
     setEditTitle(stageToEdit.title);
     setEditDescription(stageToEdit.description);
+    setEditApplicantAction(stageToEdit.applicantAction);
     setPendingAction('edit');
   }
 
@@ -466,12 +475,15 @@ export function HrStagesWorkspace({
             ) : (
               <>
                 <h3 className="text-lg font-semibold text-gray-900">Edit stage</h3>
-                <p className="mt-1 text-sm text-gray-600">Update name, title, and description for this stage.</p>
+                <p className="mt-1 text-sm text-gray-600">Update name, title, description, and the applicant “What to do now” message.</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                   <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                 </div>
-                <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#00349B]">What to do now (applicant dashboard)</p>
+                <textarea value={editApplicantAction} onChange={(event) => setEditApplicantAction(event.target.value)} placeholder="Instructions shown under “What to do now” on the applicant’s application page" className="mt-2 min-h-20 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Stage description</p>
+                <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
                 <div className="mt-5 flex justify-end gap-2">
                   <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
                   <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">

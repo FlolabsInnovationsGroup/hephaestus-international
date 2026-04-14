@@ -211,6 +211,7 @@ export async function updateManagedStep(input: {
   shortLabel: string;
   title: string;
   description: string;
+  applicantAction: string;
 }) {
   const all = await getManagedSteps({ includeInactive: true });
   const existing = all.find((item) => item.id === input.stageId);
@@ -220,7 +221,7 @@ export async function updateManagedStep(input: {
     shortLabel: input.shortLabel,
     title: input.title,
     description: input.description,
-    applicantAction: existing.applicantAction,
+    applicantAction: input.applicantAction,
     adminAction: existing.adminAction,
     active: existing.active,
   });

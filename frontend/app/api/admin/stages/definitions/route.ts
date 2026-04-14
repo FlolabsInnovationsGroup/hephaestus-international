@@ -26,13 +26,14 @@ export async function PATCH(request: Request) {
   const shortLabel = String(body?.shortLabel ?? '').trim();
   const title = String(body?.title ?? '').trim();
   const description = String(body?.description ?? '').trim();
+  const applicantAction = String(body?.applicantAction ?? '');
 
   if (!stageId || !shortLabel || !title || !description) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
-    await updateManagedStep({ stageId, shortLabel, title, description });
+    await updateManagedStep({ stageId, shortLabel, title, description, applicantAction });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 404 });
