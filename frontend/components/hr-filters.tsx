@@ -40,7 +40,7 @@ export function HrFilters({ params, stageOptions, statusOptions, sourceOptions, 
           <p className="mt-2 text-gray-600">Preview of the lead management area for Chronos admins with the HR binary role.</p>
         </div>
         <div className="flex-1 xl:max-w-[1100px]">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))_auto_auto]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <FilterField label="Search"><input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className={inputClass} /></FilterField>
             <FilterField label="Stage"><select name="stage" defaultValue={params.stage ?? ''} className={inputClass}><option value="">All stages</option>{stageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Status"><select name="status" defaultValue={params.status ?? ''} className={inputClass}><option value="">All statuses</option>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
