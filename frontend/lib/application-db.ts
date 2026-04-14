@@ -1249,6 +1249,48 @@ export async function deleteStageResource(resourceId: string) {
   await writeDb(db);
 }
 
+export async function updateStageResource(input: {
+  id: string;
+  title: string;
+  url: string;
+  applicantPrompt: string;
+}) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
+    const rows = await sql`
+      update website_stage_resources
+      set title = ${input.title}, url = ${input.url}, applicant_prompt = ${input.applicantPrompt}, updated_at = now()
+      where id = ${input.id}
+      returning id, stage, title, url, applicant_prompt, sort_order, active, created_at, updated_at
+    `;
+    const row = rows[0];
+    if (!row) throw new Error('Resource not found');
+    return {
+      id: String(row.id),
+      stage: String(row.stage),
+      title: String(row.title),
+      url: String(row.url),
+      applicantPrompt: String(row.applicant_prompt ?? ''),
+      sortOrder: Number(row.sort_order ?? 0),
+      active: Boolean(row.active),
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+    } as StageResourceRecord;
+  }
+  const db = await readDb();
+  const list = db.stageResources ?? [];
+  const index = list.findIndex((item) => item.id === input.id);
+  if (index < 0) throw new Error('Resource not found');
+  const prev = list[index];
+  const next = { ...prev, title: input.title, url: input.url, applicantPrompt: input.applicantPrompt, updatedAt: new Date().toISOString() };
+  list[index] = next;
+  db.stageResources = list;
+  await writeDb(db);
+  return next;
+}
+
 export async function saveStageResourceResponse(input: { resourceId: string; applicantId: string; responseText: string }) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();

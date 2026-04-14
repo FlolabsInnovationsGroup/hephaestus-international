@@ -66,6 +66,11 @@ export function HrStagesWorkspace({
   const [candidateAddStageId, setCandidateAddStageId] = useState('');
   const [editingStageId, setEditingStageId] = useState('');
   const [removingStageId, setRemovingStageId] = useState('');
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [resEditTitle, setResEditTitle] = useState('');
+  const [resEditUrl, setResEditUrl] = useState('');
+  const [resEditPrompt, setResEditPrompt] = useState('');
+  const [savingResourceEdit, setSavingResourceEdit] = useState(false);
 
   const stage = localSteps.find((item) => item.id === activeStageId) ?? localSteps[0];
   const stageResources = resources.filter((item) => item.stage === stage?.id);
@@ -107,6 +112,45 @@ export function HrStagesWorkspace({
     const res = await fetch(`/api/admin/stages/resources?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) return;
     setResources((current) => current.filter((item) => item.id !== id));
+  }
+
+  function openResourceEdit(resource: Resource) {
+    setError('');
+    setEditingResourceId(resource.id);
+    setResEditTitle(resource.title);
+    setResEditUrl(resource.url);
+    setResEditPrompt(resource.applicantPrompt);
+  }
+
+  async function saveResourceEdit() {
+    if (!editingResourceId) return;
+    if (!resEditTitle.trim() || !resEditUrl.trim()) {
+      setError('Title and URL are required.');
+      return;
+    }
+    setSavingResourceEdit(true);
+    setError('');
+    const res = await fetch('/api/admin/stages/resources', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingResourceId,
+        title: resEditTitle.trim(),
+        url: resEditUrl.trim(),
+        applicantPrompt: resEditPrompt.trim(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSavingResourceEdit(false);
+    if (!res.ok) {
+      setError(data.error ?? 'Could not update content.');
+      return;
+    }
+    const updated = data.resource as Resource | undefined;
+    if (updated) {
+      setResources((current) => current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+    }
+    setEditingResourceId(null);
   }
 
   async function saveStageDetails() {
@@ -308,9 +352,14 @@ export function HrStagesWorkspace({
                   <p className="mt-1 text-sm text-gray-600 break-all">{resource.url}</p>
                   {resource.applicantPrompt && <p className="mt-2 text-sm text-gray-700"><strong>Applicant input:</strong> {resource.applicantPrompt}</p>}
                 </div>
-                <button type="button" onClick={() => void deleteResource(resource.id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
-                  Remove
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button type="button" onClick={() => openResourceEdit(resource)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => void deleteResource(resource.id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+                    Remove
+                  </button>
+                </div>
               </div>
               <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
                 <iframe src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" />
@@ -319,6 +368,40 @@ export function HrStagesWorkspace({
           ))}
         </div>
       </section>
+      {editingResourceId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Edit content URL</h3>
+            <p className="mt-1 text-sm text-gray-600">Update title, link, and applicant prompt for this item.</p>
+            <div className="mt-4 grid gap-3">
+              <input value={resEditTitle} onChange={(event) => setResEditTitle(event.target.value)} placeholder="Content title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+              <input value={resEditUrl} onChange={(event) => setResEditUrl(event.target.value)} placeholder="https://..." className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+              <input value={resEditPrompt} onChange={(event) => setResEditPrompt(event.target.value)} placeholder="Prompt for applicant response" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingResourceId(null);
+                  setError('');
+                }}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingResourceEdit}
+                onClick={() => void saveResourceEdit()}
+                className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {savingResourceEdit ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {pendingAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">

@@ -8,6 +8,7 @@ import {
   createApplicant,
   createStageResource,
   deleteStageResource,
+  updateStageResource,
   findUserByEmail,
   getApplicantConversations,
   getApplicants,
@@ -270,6 +271,10 @@ export async function addStageResource(input: { stage: string; title: string; ur
 
 export async function removeStageResource(resourceId: string) {
   return await deleteStageResource(resourceId);
+}
+
+export async function saveStageResource(input: { id: string; title: string; url: string; applicantPrompt: string }) {
+  return await updateStageResource(input);
 }
 
 export async function submitStageResponse(input: { resourceId: string; applicantId: string; responseText: string }) {

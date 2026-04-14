@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addStageResource, getSessionUser, getStageResourcesForHr, removeStageResource } from '@/lib/application-store';
+import { addStageResource, getSessionUser, getStageResourcesForHr, removeStageResource, saveStageResource } from '@/lib/application-store';
 
 export async function GET(request: Request) {
   const viewer = await getSessionUser();
@@ -24,6 +24,25 @@ export async function POST(request: Request) {
     applicantPrompt: String(body.applicantPrompt ?? ''),
   });
   return NextResponse.json({ ok: true, resource });
+}
+
+export async function PATCH(request: Request) {
+  const viewer = await getSessionUser();
+  if (!viewer?.hrBinaryRole) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const body = await request.json();
+  const id = String(body?.id ?? '').trim();
+  const title = String(body?.title ?? '').trim();
+  const url = String(body?.url ?? '').trim();
+  const applicantPrompt = String(body?.applicantPrompt ?? '').trim();
+  if (!id || !title || !url) {
+    return NextResponse.json({ error: 'Missing id, title, or url' }, { status: 400 });
+  }
+  try {
+    const resource = await saveStageResource({ id, title, url, applicantPrompt });
+    return NextResponse.json({ ok: true, resource });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 404 });
+  }
 }
 
 export async function DELETE(request: Request) {
