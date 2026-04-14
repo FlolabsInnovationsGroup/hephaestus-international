@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { DuplicateReviewActions } from '@/components/duplicate-review-actions';
@@ -58,6 +59,10 @@ function displayJoined(values: Array<string | undefined> | undefined, fallback?:
   return fallback ?? '—';
 }
 
+function unique(values: Array<string | undefined>) {
+  return Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)));
+}
+
 export function HrDashboardWorkspace({
   applicants,
   initialLeadId,
@@ -72,11 +77,52 @@ export function HrDashboardWorkspace({
   const [selectedLeadId, setSelectedLeadId] = useState(initialLeadId ?? applicants[0]?.id ?? null);
   const [conversation, setConversation] = useState<Message[]>(initialConversation);
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeSaving, setMergeSaving] = useState(false);
+  const [mergeError, setMergeError] = useState('');
+  const router = useRouter();
 
   const activeLead = useMemo(
     () => applicants.find((lead) => lead.id === selectedLeadId) ?? applicants[0] ?? null,
     [applicants, selectedLeadId],
   );
+
+  const selectedLeads = useMemo(
+    () => applicants.filter((lead) => selectedLeadIds.includes(lead.id)),
+    [applicants, selectedLeadIds],
+  );
+  const [canonicalLeadId, setCanonicalLeadId] = useState<string>('');
+
+  const [keep, setKeep] = useState({
+    emails: [] as string[],
+    phoneNumbers: [] as string[],
+    linkedinUrls: [] as string[],
+    cities: [] as string[],
+    countries: [] as string[],
+    rolesAppliedFor: [] as string[],
+    education: [] as string[],
+    sources: [] as string[],
+    firstNames: [] as string[],
+    lastNames: [] as string[],
+  });
+
+  useEffect(() => {
+    if (!mergeOpen || selectedLeads.length < 2) return;
+    setCanonicalLeadId((current) => current && selectedLeads.some((lead) => lead.id === current) ? current : selectedLeads[0].id);
+    setKeep({
+      emails: unique(selectedLeads.flatMap((lead) => [lead.email, ...(lead.alternateEmails ?? [])])),
+      phoneNumbers: unique(selectedLeads.flatMap((lead) => [lead.phoneNumber, ...(lead.mergedPhoneNumbers ?? [])])),
+      linkedinUrls: unique(selectedLeads.flatMap((lead) => [lead.linkedinUrl, ...(lead.mergedLinkedinUrls ?? [])])),
+      cities: unique(selectedLeads.flatMap((lead) => [lead.city, ...(lead.mergedCities ?? [])])),
+      countries: unique(selectedLeads.flatMap((lead) => [lead.country, ...(lead.mergedCountries ?? [])])),
+      rolesAppliedFor: unique(selectedLeads.map((lead) => lead.roleAppliedFor)),
+      education: unique(selectedLeads.map((lead) => lead.education)),
+      sources: unique(selectedLeads.map((lead) => lead.source)),
+      firstNames: unique(selectedLeads.map((lead) => lead.firstName)),
+      lastNames: unique(selectedLeads.map((lead) => lead.lastName)),
+    });
+  }, [mergeOpen, selectedLeads]);
 
   useEffect(() => {
     if (!activeLead) {
@@ -104,15 +150,78 @@ export function HrDashboardWorkspace({
     };
   }, [activeLead, initialLeadId]);
 
+  function toggleLeadSelection(leadId: string, checked: boolean) {
+    setSelectedLeadIds((current) => checked ? unique([...current, leadId]) : current.filter((id) => id !== leadId));
+  }
+
+  function toggleKeepValue(field: keyof typeof keep, value: string, checked: boolean) {
+    setKeep((current) => ({
+      ...current,
+      [field]: checked ? unique([...(current[field] as string[]), value]) : (current[field] as string[]).filter((item) => item !== value),
+    }));
+  }
+
+  async function mergeSelectedLeads() {
+    if (selectedLeadIds.length < 2 || !canonicalLeadId) return;
+    setMergeSaving(true);
+    setMergeError('');
+    const res = await fetch('/api/admin/leads/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leadIds: selectedLeadIds,
+        canonicalLeadId,
+        keep,
+      }),
+    });
+    const data = await res.json().catch(() => ({ error: 'Merge failed' }));
+    setMergeSaving(false);
+    if (!res.ok) {
+      setMergeError(data.error ?? 'Merge failed');
+      return;
+    }
+    setMergeOpen(false);
+    setSelectedLeadIds([]);
+    setSelectedLeadId(canonicalLeadId);
+    router.refresh();
+  }
+
+  const differing = {
+    emails: keep.emails.length > 1,
+    phoneNumbers: keep.phoneNumbers.length > 1,
+    linkedinUrls: keep.linkedinUrls.length > 1,
+    cities: keep.cities.length > 1,
+    countries: keep.countries.length > 1,
+    rolesAppliedFor: keep.rolesAppliedFor.length > 1,
+    education: keep.education.length > 1,
+    sources: keep.sources.length > 1,
+    firstNames: keep.firstNames.length > 1,
+    lastNames: keep.lastNames.length > 1,
+  };
+
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
       <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="border-b border-blue-50 px-4 py-3 text-sm font-semibold text-gray-700">
           {uniqueProfilesCount} unique profile{uniqueProfilesCount === 1 ? '' : 's'} match the current filters
+          {selectedLeadIds.length > 0 && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">{selectedLeadIds.length} selected</span>
+              <button
+                type="button"
+                disabled={selectedLeadIds.length < 2}
+                onClick={() => setMergeOpen(true)}
+                className="rounded-lg bg-[#00349B] px-2.5 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Merge selected
+              </button>
+            </div>
+          )}
         </div>
         <div className="max-h-[760px] overflow-y-auto p-2">
           {applicants.map((lead) => {
             const isActive = activeLead?.id === lead.id;
+            const checked = selectedLeadIds.includes(lead.id);
             return (
               <button
                 key={lead.id}
@@ -120,6 +229,17 @@ export function HrDashboardWorkspace({
                 onClick={() => setSelectedLeadId(lead.id)}
                 className={`mb-2 block w-full rounded-lg border px-3 py-2.5 text-left ${isActive ? 'border-[#00349B] bg-[#eef5ff]' : 'border-transparent hover:bg-gray-50'}`}
               >
+                <div className="mb-2">
+                  <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => toggleLeadSelection(lead.id, event.target.checked)}
+                    />
+                    Select for merge
+                  </label>
+                </div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-gray-900 leading-tight">{lead.firstName} {lead.lastName}</p>
@@ -234,6 +354,103 @@ export function HrDashboardWorkspace({
             <p className="mt-3 text-sm leading-6 text-gray-700">When a lead reaches <code>agreement_signed</code> or <code>chronos_synced</code>, the backend now writes a Chronos sync payload into the preview sync layer so the shared identity contract is no longer only UI text.</p>
           </div>
         </div>
+      </div>
+
+      {mergeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Merge profiles</h3>
+                <p className="mt-1 text-sm text-gray-600">Choose what to keep from the selected profiles. You can keep multiple values where useful.</p>
+              </div>
+              <button type="button" onClick={() => setMergeOpen(false)} className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100">Close</button>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-gray-900">Canonical profile</p>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {selectedLeads.map((lead) => (
+                  <label key={lead.id} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                    <input type="radio" name="canonical" value={lead.id} checked={canonicalLeadId === lead.id} onChange={() => setCanonicalLeadId(lead.id)} />
+                    <span>{lead.firstName} {lead.lastName} ({lead.email})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {differing.emails && (
+                <MergeOptionsField
+                  label="Emails (final profile can log in with any kept email)"
+                  values={keep.emails}
+                  selected={keep.emails}
+                  field="emails"
+                  onToggle={toggleKeepValue}
+                />
+              )}
+              {differing.phoneNumbers && <MergeOptionsField label="Phone numbers" values={keep.phoneNumbers} selected={keep.phoneNumbers} field="phoneNumbers" onToggle={toggleKeepValue} />}
+              {differing.linkedinUrls && <MergeOptionsField label="LinkedIn URLs" values={keep.linkedinUrls} selected={keep.linkedinUrls} field="linkedinUrls" onToggle={toggleKeepValue} />}
+              {differing.cities && <MergeOptionsField label="Cities" values={keep.cities} selected={keep.cities} field="cities" onToggle={toggleKeepValue} />}
+              {differing.countries && <MergeOptionsField label="Countries" values={keep.countries} selected={keep.countries} field="countries" onToggle={toggleKeepValue} />}
+              {differing.rolesAppliedFor && <MergeOptionsField label="Roles applied for" values={keep.rolesAppliedFor} selected={keep.rolesAppliedFor} field="rolesAppliedFor" onToggle={toggleKeepValue} />}
+              {differing.education && <MergeOptionsField label="Education" values={keep.education} selected={keep.education} field="education" onToggle={toggleKeepValue} />}
+              {differing.sources && <MergeOptionsField label="Sources" values={keep.sources} selected={keep.sources} field="sources" onToggle={toggleKeepValue} />}
+              {differing.firstNames && <MergeOptionsField label="First names" values={keep.firstNames} selected={keep.firstNames} field="firstNames" onToggle={toggleKeepValue} />}
+              {differing.lastNames && <MergeOptionsField label="Last names" values={keep.lastNames} selected={keep.lastNames} field="lastNames" onToggle={toggleKeepValue} />}
+              {!Object.values(differing).some(Boolean) && (
+                <p className="text-sm text-gray-600">No conflicting fields found. You can still merge to consolidate logins and aliases.</p>
+              )}
+            </div>
+
+            {mergeError && <p className="mt-4 text-sm text-red-600">{mergeError}</p>}
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button type="button" onClick={() => setMergeOpen(false)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
+              <button
+                type="button"
+                disabled={mergeSaving || !canonicalLeadId || keep.emails.length === 0}
+                onClick={mergeSelectedLeads}
+                className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {mergeSaving ? 'Merging...' : 'Confirm merge'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MergeOptionsField({
+  label,
+  values,
+  selected,
+  field,
+  onToggle,
+}: {
+  label: string;
+  values: string[];
+  selected: string[];
+  field: 'emails' | 'phoneNumbers' | 'linkedinUrls' | 'cities' | 'countries' | 'rolesAppliedFor' | 'education' | 'sources' | 'firstNames' | 'lastNames';
+  onToggle: (field: 'emails' | 'phoneNumbers' | 'linkedinUrls' | 'cities' | 'countries' | 'rolesAppliedFor' | 'education' | 'sources' | 'firstNames' | 'lastNames', value: string, checked: boolean) => void;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-gray-800">{label}</p>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {values.length === 0 && <p className="text-xs text-gray-500">No values available.</p>}
+        {values.map((value) => (
+          <label key={value} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={selected.includes(value)}
+              onChange={(event) => onToggle(field, value, event.target.checked)}
+            />
+            <span>{value}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
