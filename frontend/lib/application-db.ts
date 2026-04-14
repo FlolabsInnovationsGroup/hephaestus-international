@@ -534,9 +534,21 @@ export async function getApplicants() {
     }
   }
 
-  const applicants = Array.from(byEmail.values());
-  const applicantById = new Map(applicants.map((applicant) => [applicant.id, applicant]));
   const duplicateReviewRows = await getDuplicateReviewRows();
+  const allApplicants = Array.from(byEmail.values());
+  const allApplicantIds = new Set(allApplicants.map((applicant) => applicant.id));
+  const mergedSecondaryIds = new Set<string>();
+  for (const review of duplicateReviewRows) {
+    if (review.status !== 'merged') continue;
+    const primaryId = String(review.primary_applicant_id ?? '').trim();
+    const secondaryId = String(review.duplicate_applicant_id ?? '').trim();
+    if (!primaryId || !secondaryId) continue;
+    if (!allApplicantIds.has(primaryId) || !allApplicantIds.has(secondaryId)) continue;
+    mergedSecondaryIds.add(secondaryId);
+  }
+
+  const applicants = allApplicants.filter((applicant) => !mergedSecondaryIds.has(applicant.id));
+  const applicantById = new Map(applicants.map((applicant) => [applicant.id, applicant]));
   const duplicateCandidates = buildDuplicateCandidates(applicants, duplicateReviewRows);
   const aliasRows = await getUserEmailAliasRows();
   const aliasMap = new Map<string, string[]>();
