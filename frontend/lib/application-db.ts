@@ -749,7 +749,7 @@ export async function resetApplicantPassword(userId: string, password: string, t
   await sql`update website_password_reset_tokens set used_at = now() where id = ${tokenId}`;
 }
 
-export async function updateApplicantProfile(applicantId: string, updates: Partial<ApplicantProfile>) {
+export async function updateApplicantProfile(applicantId: string, updates: Partial<ApplicantProfile>): Promise<ApplicantProfile | null> {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const current = await getUserById(applicantId);
@@ -817,7 +817,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
         id: chronos.id,
         email: chronos.email,
         password: '',
-        role: 'applicant',
+        role: 'applicant' as const,
         hrBinaryRole: false,
         firstName: firstName || chronos.email,
         lastName: rest.join(' '),
