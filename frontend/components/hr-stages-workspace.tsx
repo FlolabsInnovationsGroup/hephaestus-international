@@ -62,16 +62,17 @@ export function HrStagesWorkspace({
   const [saving, setSaving] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
   const [error, setError] = useState('');
-  const [pendingAction, setPendingAction] = useState<'add' | 'remove' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'add' | 'remove' | 'edit' | null>(null);
   const [candidateAddStageId, setCandidateAddStageId] = useState('');
+  const [editingStageId, setEditingStageId] = useState('');
 
   const stage = localSteps.find((item) => item.id === activeStageId) ?? localSteps[0];
   const stageResources = resources.filter((item) => item.stage === stage?.id);
   const statByStage = useMemo(() => new Map(stats.map((item) => [item.stageId, item])), [stats]);
   const activeStat = stage ? statByStage.get(stage.id) : null;
-  const [editName, setEditName] = useState(stage?.shortLabel ?? '');
-  const [editTitle, setEditTitle] = useState(stage?.title ?? '');
-  const [editDescription, setEditDescription] = useState(stage?.description ?? '');
+  const [editName, setEditName] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   const inactiveStages = useMemo(
     () => allSteps.filter((item) => !localSteps.some((active) => active.id === item.id)),
     [allSteps, localSteps],
@@ -108,14 +109,14 @@ export function HrStagesWorkspace({
   }
 
   async function saveStageDetails() {
-    if (!stage) return;
+    if (!editingStageId) return;
     setSavingStage(true);
     setError('');
     const res = await fetch('/api/admin/stages/definitions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        stageId: stage.id,
+        stageId: editingStageId,
         shortLabel: editName.trim(),
         title: editTitle.trim(),
         description: editDescription.trim(),
@@ -126,7 +127,8 @@ export function HrStagesWorkspace({
       setError('Could not save stage details.');
       return;
     }
-    setLocalSteps((current) => current.map((item) => item.id === stage.id ? { ...item, shortLabel: editName.trim(), title: editTitle.trim(), description: editDescription.trim() } : item));
+    setLocalSteps((current) => current.map((item) => item.id === editingStageId ? { ...item, shortLabel: editName.trim(), title: editTitle.trim(), description: editDescription.trim() } : item));
+    setPendingAction(null);
   }
 
   async function deleteStage() {
@@ -160,54 +162,72 @@ export function HrStagesWorkspace({
   }
 
   useEffect(() => {
-    if (!stage) return;
-    setEditName(stage.shortLabel);
-    setEditTitle(stage.title);
-    setEditDescription(stage.description);
-  }, [stage?.id]);
-
-  useEffect(() => {
     if (!candidateAddStageId && inactiveStages.length > 0) {
       setCandidateAddStageId(inactiveStages[0].id);
     }
   }, [candidateAddStageId, inactiveStages]);
+
+  function openEditModal(stageToEdit: Step) {
+    setEditingStageId(stageToEdit.id);
+    setEditName(stageToEdit.shortLabel);
+    setEditTitle(stageToEdit.title);
+    setEditDescription(stageToEdit.description);
+    setPendingAction('edit');
+  }
 
   if (!stage) return null;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
       <aside className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-        <h1 className="px-2 py-2 text-lg font-semibold text-gray-900">Stages</h1>
-        <div className="mt-1 space-y-1">
-          {localSteps.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveStageId(item.id)}
-              className={`w-full rounded-xl px-3 py-2 text-left text-sm ${item.id === stage.id ? 'bg-[#eef5ff] text-[#00349B]' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              <p className="font-semibold">{index + 1}. {item.title}</p>
-              <p className="text-xs opacity-80">{item.id}</p>
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 grid gap-2 border-t border-blue-50 pt-3">
+        <div className="flex items-center justify-between px-2 py-2">
+          <h1 className="text-lg font-semibold text-gray-900">Stages</h1>
           <button
             type="button"
             disabled={inactiveStages.length === 0}
             onClick={() => setPendingAction('add')}
-            className="rounded-xl border border-[#00349B]/20 px-3 py-2 text-sm font-semibold text-[#00349B] hover:bg-[#eef5ff] disabled:opacity-50"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#00349B]/20 text-lg font-semibold text-[#00349B] hover:bg-[#eef5ff] disabled:opacity-50"
+            aria-label="Add stage"
+            title="Add stage"
           >
-            Add stage
+            +
           </button>
-          <button
-            type="button"
-            disabled={localSteps.length <= 1}
-            onClick={() => setPendingAction('remove')}
-            className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-          >
-            Remove stage
-          </button>
+        </div>
+        <div className="mt-1 space-y-1">
+          {localSteps.map((item, index) => (
+            <div key={item.id} className={`flex items-center gap-2 rounded-xl px-2 py-1 ${item.id === stage.id ? 'bg-[#eef5ff]' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setActiveStageId(item.id)}
+                className={`flex-1 rounded-lg px-2 py-2 text-left text-sm ${item.id === stage.id ? 'text-[#00349B]' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                <p className="font-semibold">{index + 1}. {item.title}</p>
+                <p className="text-xs opacity-80">{item.id}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => openEditModal(item)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                aria-label={`Edit ${item.title}`}
+                title="Edit stage"
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                disabled={localSteps.length <= 1}
+                onClick={() => {
+                  setActiveStageId(item.id);
+                  setPendingAction('remove');
+                }}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                aria-label={`Remove ${item.title}`}
+                title="Remove stage"
+              >
+                -
+              </button>
+            </div>
+          ))}
         </div>
       </aside>
 
@@ -231,16 +251,6 @@ export function HrStagesWorkspace({
               <p className="mt-2 text-2xl font-bold text-gray-900">{(activeStat?.averageHours ?? 0).toFixed(1)} hours</p>
               <p className="text-xs text-gray-500">Based on {activeStat?.samples ?? 0} timeline sample(s)</p>
             </div>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-            <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-          </div>
-          <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-          <div className="mt-3 flex gap-3">
-            <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {savingStage ? 'Saving...' : 'Save stage details'}
-            </button>
           </div>
         </div>
 
@@ -324,7 +334,7 @@ export function HrStagesWorkspace({
                   </button>
                 </div>
               </>
-            ) : (
+            ) : pendingAction === 'remove' ? (
               <>
                 <h3 className="text-lg font-semibold text-gray-900">Remove stage</h3>
                 <p className="mt-2 text-sm text-gray-600">Are you sure you want to remove <strong>{stage.title}</strong> from the active stage list?</p>
@@ -339,6 +349,22 @@ export function HrStagesWorkspace({
                     className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                   >
                     Confirm remove
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Edit stage</h3>
+                <p className="mt-1 text-sm text-gray-600">Update name, title, and description for this stage.</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                  <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                </div>
+                <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+                <div className="mt-5 flex justify-end gap-2">
+                  <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                    {savingStage ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </>
