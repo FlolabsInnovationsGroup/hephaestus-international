@@ -8,6 +8,42 @@ function sameDayValue(dateString: string) {
   return new Date(dateString).toISOString().slice(0, 10);
 }
 
+function buildUniqueProfileCount(
+  applicants: Array<{
+    id: string;
+    duplicateCandidates?: Array<{ id: string; reviewStatus?: 'pending' | 'confirmed_duplicate' | 'different_people' | 'merged' }>;
+  }>,
+) {
+  const parent = new Map<string, string>();
+  const ids = new Set(applicants.map((lead) => lead.id));
+
+  function find(id: string): string {
+    const p = parent.get(id) ?? id;
+    if (p === id) return id;
+    const root = find(p);
+    parent.set(id, root);
+    return root;
+  }
+
+  function union(a: string, b: string) {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent.set(rb, ra);
+  }
+
+  for (const lead of applicants) {
+    for (const candidate of lead.duplicateCandidates ?? []) {
+      if (candidate.reviewStatus !== 'merged') continue;
+      if (!ids.has(candidate.id)) continue;
+      union(lead.id, candidate.id);
+    }
+  }
+
+  const uniqueRoots = new Set<string>();
+  for (const id of ids) uniqueRoots.add(find(id));
+  return uniqueRoots.size;
+}
+
 export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; duplicateReview?: string; more?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
@@ -69,6 +105,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   });
   const activeLead = applicants.find((lead) => lead.id === params.lead) ?? applicants[0] ?? null;
   const conversation = activeLead ? await getConversationForApplicant(activeLead.id) : [];
+  const uniqueProfilesCount = buildUniqueProfileCount(applicants);
 
   return (
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
@@ -84,7 +121,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
           />
         </div>
 
-        <HrDashboardWorkspace applicants={applicants} initialLeadId={activeLead?.id} initialConversation={conversation} />
+        <HrDashboardWorkspace applicants={applicants} initialLeadId={activeLead?.id} initialConversation={conversation} uniqueProfilesCount={uniqueProfilesCount} />
       </div>
     </Section>
   );

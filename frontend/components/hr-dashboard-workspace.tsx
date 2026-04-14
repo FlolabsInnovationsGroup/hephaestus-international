@@ -62,10 +62,12 @@ export function HrDashboardWorkspace({
   applicants,
   initialLeadId,
   initialConversation,
+  uniqueProfilesCount,
 }: {
   applicants: Lead[];
   initialLeadId?: string;
   initialConversation: Message[];
+  uniqueProfilesCount: number;
 }) {
   const [selectedLeadId, setSelectedLeadId] = useState(initialLeadId ?? applicants[0]?.id ?? null);
   const [conversation, setConversation] = useState<Message[]>(initialConversation);
@@ -106,7 +108,7 @@ export function HrDashboardWorkspace({
     <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
       <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="border-b border-blue-50 px-4 py-3 text-sm font-semibold text-gray-700">
-          {applicants.length} lead{applicants.length === 1 ? '' : 's'} match the current filters
+          {uniqueProfilesCount} unique profile{uniqueProfilesCount === 1 ? '' : 's'} match the current filters
         </div>
         <div className="max-h-[760px] overflow-y-auto p-2">
           {applicants.map((lead) => {
