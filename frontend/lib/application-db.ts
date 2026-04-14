@@ -618,7 +618,28 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
     const rows = status
       ? await sql`update website_applicants set stage = ${stage}, status = ${status}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
       : await sql`update website_applicants set stage = ${stage}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`;
-    if (rows[0]) return rowToApplicant(rows[0]);
+    if (rows[0]) {
+      const updatedWebsite = rows[0];
+      if (status) {
+        await sql`
+          update applicants
+          set stage = ${stage},
+              status = ${status},
+              last_website_visit = now(),
+              updated_at = now()
+          where id = ${applicantId} or lower(email) = lower(${updatedWebsite.email})
+        `;
+      } else {
+        await sql`
+          update applicants
+          set stage = ${stage},
+              last_website_visit = now(),
+              updated_at = now()
+          where id = ${applicantId} or lower(email) = lower(${updatedWebsite.email})
+        `;
+      }
+      return rowToApplicant(updatedWebsite);
+    }
 
     const chronosRows = status
       ? await sql`
@@ -641,6 +662,24 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
 
     const chronos = chronosRows[0];
     if (!chronos) return null;
+    if (status) {
+      await sql`
+        update website_applicants
+        set stage = ${stage},
+            status = ${status},
+            last_visited_at = now(),
+            updated_at = now()
+        where id = ${applicantId} or lower(email) = lower(${chronos.email})
+      `;
+    } else {
+      await sql`
+        update website_applicants
+        set stage = ${stage},
+            last_visited_at = now(),
+            updated_at = now()
+        where id = ${applicantId} or lower(email) = lower(${chronos.email})
+      `;
+    }
     const name = String(chronos.name ?? '').trim();
     const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
     const mappedStatus: ApplicantProfile['status'] = chronos.status === 'closed'
