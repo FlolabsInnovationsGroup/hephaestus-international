@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toEmbedUrl } from '@/lib/embed-url';
 
 type StageResource = {
   id: string;
@@ -9,20 +10,6 @@ type StageResource = {
   applicantPrompt: string;
   latestResponse?: { responseText: string } | null;
 };
-
-function toEmbedUrl(url: string) {
-  const normalized = url.trim();
-  if (normalized.includes('youtube.com/watch')) {
-    const parsed = new URL(normalized);
-    const id = parsed.searchParams.get('v');
-    return id ? `https://www.youtube.com/embed/${id}` : normalized;
-  }
-  if (normalized.includes('youtu.be/')) {
-    const id = normalized.split('youtu.be/')[1]?.split('?')[0];
-    return id ? `https://www.youtube.com/embed/${id}` : normalized;
-  }
-  return normalized;
-}
 
 export function ApplicantStageContent({ resources }: { resources: StageResource[] }) {
   const [responses, setResponses] = useState<Record<string, string>>(
@@ -57,8 +44,14 @@ export function ApplicantStageContent({ resources }: { resources: StageResource[
         <div key={resource.id} className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
           <h3 className="text-xl font-semibold text-gray-900">{resource.title}</h3>
           <p className="mt-2 text-xs text-gray-500 break-all">{resource.url}</p>
+          <p className="mt-2 text-sm">
+            <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#00349B] underline">
+              Open in new tab
+            </a>
+            <span className="text-gray-500"> — use this if the preview does not load (some sites block embedding).</span>
+          </p>
           <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
-            <iframe src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" />
+            <iframe title={resource.title} src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
           </div>
           {resource.applicantPrompt && (
             <div className="mt-4">

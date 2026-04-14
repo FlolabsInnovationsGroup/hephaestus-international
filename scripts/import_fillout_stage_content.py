@@ -41,6 +41,24 @@ def get_nested(source: dict[str, Any], path: list[str], default: str = "") -> st
     return str(value or default)
 
 
+def _urls_from_step_json(step: dict[str, Any]) -> list[str]:
+    """Collect http(s) links from an entire form step (Fillout stores URLs in Paragraph HTML,
+    button targets, etc.). Exclude Fillout CDN screenshots so we keep real presentation links."""
+    blob = json.dumps(step)
+    raw_links = re.findall(r"https?://[^\s\"<>\\]+", blob)
+    cleaned: list[str] = []
+    for link in raw_links:
+        link = link.replace("&amp;", "&").rstrip("\\").strip()
+        if not link:
+            continue
+        if "images.fillout.com" in link:
+            continue
+        if "fillout.com/t/" in link or "api.fillout.com" in link:
+            continue
+        cleaned.append(link)
+    return list(dict.fromkeys(cleaned))
+
+
 def parse_fillout_file(file_path: Path) -> list[StageResource]:
     raw = json.loads(file_path.read_text(encoding="utf-8"))
     steps = raw.get("template", {}).get("steps", {})
@@ -69,6 +87,11 @@ def parse_fillout_file(file_path: Path) -> list[StageResource]:
                 prompt = strip_html(label_html)
                 if prompt:
                     prompts.append(prompt)
+
+        # Catch URLs that only appear in non-Paragraph widgets or odd HTML (e.g. CAIPO Canva in body copy).
+        for link in _urls_from_step_json(step):
+            if link not in links:
+                links.append(link)
 
         deduped_links = list(dict.fromkeys(link.strip() for link in links if link.strip()))
         if not deduped_links:

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { toEmbedUrl } from '@/lib/embed-url';
 
 type Step = {
   id: string;
@@ -26,21 +27,6 @@ type Stat = {
   averageHours: number;
   samples: number;
 };
-
-function toEmbedUrl(url: string) {
-  const normalized = url.trim();
-  if (!normalized) return '';
-  if (normalized.includes('youtube.com/watch')) {
-    const parsed = new URL(normalized);
-    const id = parsed.searchParams.get('v');
-    return id ? `https://www.youtube.com/embed/${id}` : normalized;
-  }
-  if (normalized.includes('youtu.be/')) {
-    const id = normalized.split('youtu.be/')[1]?.split('?')[0];
-    return id ? `https://www.youtube.com/embed/${id}` : normalized;
-  }
-  return normalized;
-}
 
 export function HrStagesWorkspace({
   steps,
@@ -361,8 +347,14 @@ export function HrStagesWorkspace({
                   </button>
                 </div>
               </div>
+              <p className="mt-2 text-sm">
+                <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#00349B] underline">
+                  Open in new tab
+                </a>
+                <span className="text-gray-500"> — embedding is blocked for some URLs.</span>
+              </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <iframe src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" />
+                <iframe title={resource.title} src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
               </div>
             </div>
           ))}
