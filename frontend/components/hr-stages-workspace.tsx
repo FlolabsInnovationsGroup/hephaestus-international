@@ -65,6 +65,7 @@ export function HrStagesWorkspace({
   const [pendingAction, setPendingAction] = useState<'add' | 'remove' | 'edit' | null>(null);
   const [candidateAddStageId, setCandidateAddStageId] = useState('');
   const [editingStageId, setEditingStageId] = useState('');
+  const [removingStageId, setRemovingStageId] = useState('');
 
   const stage = localSteps.find((item) => item.id === activeStageId) ?? localSteps[0];
   const stageResources = resources.filter((item) => item.stage === stage?.id);
@@ -132,15 +133,17 @@ export function HrStagesWorkspace({
   }
 
   async function deleteStage() {
-    if (!stage) return;
-    const res = await fetch(`/api/admin/stages/definitions?stageId=${encodeURIComponent(stage.id)}`, { method: 'DELETE' });
+    if (!removingStageId) return;
+    const res = await fetch(`/api/admin/stages/definitions?stageId=${encodeURIComponent(removingStageId)}`, { method: 'DELETE' });
     if (!res.ok) {
       setError('Could not delete stage.');
       return;
     }
-    const next = localSteps.filter((item) => item.id !== stage.id);
+    const next = localSteps.filter((item) => item.id !== removingStageId);
     setLocalSteps(next);
-    if (next.length > 0) setActiveStageId(next[0].id);
+    if (next.length > 0 && removingStageId === activeStageId) setActiveStageId(next[0].id);
+    setPendingAction(null);
+    setRemovingStageId('');
   }
 
   async function addStage(stageId: string) {
@@ -157,12 +160,20 @@ export function HrStagesWorkspace({
     }
     const added = data.stage as Step | undefined;
     if (!added) return;
-    setLocalSteps((current) => [...current, added]);
+    setLocalSteps((current) => {
+      if (current.some((item) => item.id === added.id)) return current;
+      return [...current, added];
+    });
     setActiveStageId(added.id);
+    setPendingAction(null);
   }
 
   useEffect(() => {
-    if (!candidateAddStageId && inactiveStages.length > 0) {
+    if (inactiveStages.length === 0) {
+      setCandidateAddStageId('');
+      return;
+    }
+    if (!inactiveStages.some((item) => item.id === candidateAddStageId)) {
       setCandidateAddStageId(inactiveStages[0].id);
     }
   }, [candidateAddStageId, inactiveStages]);
@@ -185,7 +196,11 @@ export function HrStagesWorkspace({
           <button
             type="button"
             disabled={inactiveStages.length === 0}
-            onClick={() => setPendingAction('add')}
+            onClick={() => {
+              setError('');
+              setCandidateAddStageId(inactiveStages[0]?.id ?? '');
+              setPendingAction('add');
+            }}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#00349B]/20 text-lg font-semibold text-[#00349B] hover:bg-[#eef5ff] disabled:opacity-50"
             aria-label="Add stage"
             title="Add stage"
@@ -217,7 +232,8 @@ export function HrStagesWorkspace({
                 type="button"
                 disabled={localSteps.length <= 1}
                 onClick={() => {
-                  setActiveStageId(item.id);
+                  setError('');
+                  setRemovingStageId(item.id);
                   setPendingAction('remove');
                 }}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
@@ -320,13 +336,21 @@ export function HrStagesWorkspace({
                   ))}
                 </select>
                 <div className="mt-5 flex justify-end gap-2">
-                  <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingAction(null);
+                      setRemovingStageId('');
+                    }}
+                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="button"
                     disabled={!candidateAddStageId}
                     onClick={() => {
                       void addStage(candidateAddStageId);
-                      setPendingAction(null);
                     }}
                     className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                   >
@@ -337,14 +361,26 @@ export function HrStagesWorkspace({
             ) : pendingAction === 'remove' ? (
               <>
                 <h3 className="text-lg font-semibold text-gray-900">Remove stage</h3>
-                <p className="mt-2 text-sm text-gray-600">Are you sure you want to remove <strong>{stage.title}</strong> from the active stage list?</p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Are you sure you want to remove{' '}
+                  <strong>{localSteps.find((item) => item.id === removingStageId)?.title ?? 'this stage'}</strong>{' '}
+                  from the active stage list?
+                </p>
                 <div className="mt-5 flex justify-end gap-2">
-                  <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingAction(null);
+                      setRemovingStageId('');
+                    }}
+                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
                       void deleteStage();
-                      setPendingAction(null);
                     }}
                     className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                   >
