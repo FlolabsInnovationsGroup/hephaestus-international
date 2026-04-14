@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toEmbedUrl } from '@/lib/embed-url';
+import { isApplicantReviewWaitStage } from '@/lib/stage-definitions';
 
 type StageResource = {
   id: string;
@@ -26,10 +27,13 @@ type StageCompleteReviewPayload = {
 export function ApplicantStageContent({
   resources,
   currentStepTitle,
+  currentStageId,
 }: {
   resources: StageResource[];
   /** Shown next to the completion CTA for context */
   currentStepTitle?: string;
+  /** Used to hide self-service review on HR "under review" pipeline steps */
+  currentStageId?: string;
 }) {
   const router = useRouter();
   const [responses, setResponses] = useState<Record<string, string>>(
@@ -39,13 +43,17 @@ export function ApplicantStageContent({
   const [notice, setNotice] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
 
-  const { hasReviewablePrompts, allPromptsFilledInUi } = useMemo(() => {
+  const { allPromptsFilledInUi, showCompleteStageCta } = useMemo(() => {
     const prompted = resources.filter((r) => r.applicantPrompt?.trim());
     const allFilled =
       prompted.length > 0 &&
       prompted.every((r) => (responses[r.id] ?? '').trim().length > 0);
-    return { hasReviewablePrompts: prompted.length > 0, allPromptsFilledInUi: allFilled };
-  }, [resources, responses]);
+    const onReviewWait = currentStageId ? isApplicantReviewWaitStage(currentStageId) : false;
+    return {
+      allPromptsFilledInUi: allFilled,
+      showCompleteStageCta: prompted.length > 0 && !onReviewWait,
+    };
+  }, [resources, responses, currentStageId]);
 
   async function submit(resourceId: string) {
     const value = (responses[resourceId] ?? '').trim();
@@ -148,7 +156,7 @@ export function ApplicantStageContent({
         </div>
       ))}
 
-      {hasReviewablePrompts && (
+      {showCompleteStageCta && (
         <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900">Ready for review</h3>
           <p className="mt-2 text-sm text-gray-600">

@@ -24,7 +24,7 @@ import {
   updateApplicantProfile,
   updateApplicantStage,
 } from '@/lib/application-db';
-import { orderedStageIds } from '@/lib/stage-definitions';
+import { isApplicantReviewWaitStage, orderedStageIds } from '@/lib/stage-definitions';
 import { reviewStagesBatch, type StageReviewBlock, type StageReviewOutcome } from '@/lib/openai-stage-review';
 import type { StageResourceResponseRecord } from '@/lib/application-db';
 import { getOpenAIApiKey, getOpenAIChatModel } from '@/lib/openai-app-config';
@@ -152,6 +152,15 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   }
 
   const stageAtStart = user.stage;
+  if (isApplicantReviewWaitStage(stageAtStart)) {
+    return {
+      evaluated: false,
+      stageChanged: false,
+      applicantMessage:
+        'This step is reviewed by our team. You will be moved forward when they are ready — there is nothing to submit here.',
+    };
+  }
+
   const managed = await getManagedSteps();
   const activeIds = new Set(managed.map((s) => s.id));
   const responses = await getStageResponsesForApplicant(applicantId);

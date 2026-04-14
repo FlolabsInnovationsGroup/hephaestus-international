@@ -14,3 +14,14 @@ export function formatStageLabel(stageId: string) {
   if (index === undefined) return stageId;
   return `${index + 1}. ${stageId}`;
 }
+
+/** STEPS.json stages where the applicant waits on HR review (no "I've completed this stage" on the website). */
+const APPLICANT_REVIEW_WAIT_STAGE_IDS = new Set([
+  'interested_review',
+  'meeting_recordings_submitted',
+  'masterclass_submitted',
+]);
+
+export function isApplicantReviewWaitStage(stageId: string) {
+  return APPLICANT_REVIEW_WAIT_STAGE_IDS.has(stageId);
+}

@@ -59,7 +59,11 @@ export default async function ApplicationDashboardPage() {
               </div>
             </div>
 
-            <ApplicantStageContent resources={stageResources} currentStepTitle={step.title} />
+            <ApplicantStageContent
+              resources={stageResources}
+              currentStepTitle={step.title}
+              currentStageId={viewer.stage}
+            />
 
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
               <h3 className="text-xl font-semibold text-gray-900">What comes next</h3>
