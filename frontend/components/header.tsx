@@ -84,6 +84,24 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
               >
                 {viewer ? 'Profile' : 'Log in'}
               </Link>
+              {viewer?.hrBinaryRole && (
+                <Link
+                  href="/me/hr/stages"
+                  className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Stages
+                </Link>
+              )}
+              {viewer?.hrBinaryRole && (
+                <Link
+                  href="/me/hr/responses"
+                  className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Responses
+                </Link>
+              )}
             </nav>
           </div>
         )}

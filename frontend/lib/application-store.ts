@@ -3,7 +3,25 @@ import OpenAI from 'openai';
 import { compare } from 'bcryptjs';
 import stepsData from '@/app/STEPS.json';
 import type { ApplicantProfile, StageStep } from '@/app/application-data';
-import { addApplicantMessage, createApplicant, findUserByEmail, getApplicantConversations, getApplicants, getUserById, touchApplicantWebsiteVisit, updateApplicantProfile, updateApplicantStage } from '@/lib/application-db';
+import {
+  addApplicantMessage,
+  createApplicant,
+  createStageResource,
+  deleteStageResource,
+  findUserByEmail,
+  getApplicantConversations,
+  getApplicants,
+  getStageResources,
+  getStageResponsesForHr,
+  getStageResponsesForApplicant,
+  getStageTransitions,
+  getUserById,
+  saveStageResourceResponse,
+  touchApplicantWebsiteVisit,
+  updateApplicantProfile,
+  updateApplicantStage,
+} from '@/lib/application-db';
+import { orderedStageIds } from '@/lib/stage-definitions';
 
 const SESSION_COOKIE = 'fl_preview_session';
 
@@ -164,4 +182,90 @@ export function getStepById(stepId: string) {
 
 export function getAllSteps() {
   return stepsData as StageStep[];
+}
+
+export async function getStageResourcesForHr(stage?: string) {
+  return await getStageResources(stage);
+}
+
+export async function addStageResource(input: { stage: string; title: string; url: string; applicantPrompt: string }) {
+  return await createStageResource(input);
+}
+
+export async function removeStageResource(resourceId: string) {
+  return await deleteStageResource(resourceId);
+}
+
+export async function submitStageResponse(input: { resourceId: string; applicantId: string; responseText: string }) {
+  await saveStageResourceResponse(input);
+}
+
+export async function getStageResourcesForApplicant(stage: string, applicantId: string) {
+  const [resources, responses] = await Promise.all([
+    getStageResources(stage),
+    getStageResponsesForApplicant(applicantId),
+  ]);
+  const responseByResourceId = new Map(responses.map((item) => [item.resourceId, item]));
+  return resources
+    .filter((resource) => resource.active)
+    .map((resource) => ({
+      ...resource,
+      latestResponse: responseByResourceId.get(resource.id) ?? null,
+    }));
+}
+
+export async function getStageStats() {
+  const [applicants, transitions] = await Promise.all([getApplicants(), getStageTransitions()]);
+  const counts = new Map<string, number>();
+  for (const stageId of orderedStageIds) counts.set(stageId, 0);
+  for (const applicant of applicants) {
+    counts.set(applicant.stage, (counts.get(applicant.stage) ?? 0) + 1);
+  }
+
+  const byApplicant = new Map<string, { stage: string; reachedAt: number }[]>();
+  for (const transition of transitions) {
+    const list = byApplicant.get(transition.applicantId) ?? [];
+    list.push({ stage: transition.stage, reachedAt: new Date(transition.reachedAt).getTime() });
+    byApplicant.set(transition.applicantId, list);
+  }
+  for (const list of byApplicant.values()) {
+    list.sort((a, b) => a.reachedAt - b.reachedAt);
+  }
+
+  const durationBuckets = new Map<string, number[]>();
+  for (const stageId of orderedStageIds) durationBuckets.set(stageId, []);
+  const now = Date.now();
+  for (const [applicantId, list] of byApplicant.entries()) {
+    for (let i = 0; i < list.length; i += 1) {
+      const current = list[i];
+      const next = list[i + 1];
+      const end = next ? next.reachedAt : now;
+      if (end <= current.reachedAt) continue;
+      (durationBuckets.get(current.stage) ?? []).push(end - current.reachedAt);
+    }
+    if (list.length === 0) continue;
+    const seenStages = new Set(list.map((item) => item.stage));
+    const applicant = applicants.find((item) => item.id === applicantId);
+    if (applicant && !seenStages.has(applicant.stage)) {
+      const fallbackStart = new Date(applicant.joinedAt).getTime();
+      if (now > fallbackStart) {
+        (durationBuckets.get(applicant.stage) ?? []).push(now - fallbackStart);
+      }
+    }
+  }
+
+  return orderedStageIds.map((stageId) => {
+    const durations = durationBuckets.get(stageId) ?? [];
+    const averageMs = durations.length ? durations.reduce((sum, value) => sum + value, 0) / durations.length : 0;
+    return {
+      stageId,
+      currentCount: counts.get(stageId) ?? 0,
+      averageHours: averageMs ? averageMs / (1000 * 60 * 60) : 0,
+      samples: durations.length,
+    };
+  });
+}
+
+export async function getResponsesForHr() {
+  return await getStageResponsesForHr();
 }

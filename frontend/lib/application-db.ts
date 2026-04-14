@@ -27,6 +27,43 @@ const AUTO_MERGE_SCORE_THRESHOLD = 9;
 interface ApplicationDbShape {
   applicants: ApplicantProfile[];
   conversations: ConversationMessage[];
+  stageTransitions?: StageTransitionRecord[];
+  stageResources?: StageResourceRecord[];
+  stageResponses?: StageResourceResponseRecord[];
+}
+
+export interface StageTransitionRecord {
+  id: string;
+  applicantId: string;
+  stage: string;
+  reachedAt: string;
+}
+
+export interface StageResourceRecord {
+  id: string;
+  stage: string;
+  title: string;
+  url: string;
+  applicantPrompt: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StageResourceResponseRecord {
+  id: string;
+  resourceId: string;
+  applicantId: string;
+  responseText: string;
+  submittedAt: string;
+}
+
+export interface HrStageResponseRecord extends StageResourceResponseRecord {
+  applicantEmail: string;
+  applicantName: string;
+  stage: string;
+  resourceTitle: string;
 }
 
 async function ensureDb() {
@@ -34,7 +71,11 @@ async function ensureDb() {
     await fs.access(DB_PATH);
   } catch {
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-    await fs.writeFile(DB_PATH, JSON.stringify({ applicants: demoApplicants, conversations: demoConversations }, null, 2), 'utf8');
+    await fs.writeFile(
+      DB_PATH,
+      JSON.stringify({ applicants: demoApplicants, conversations: demoConversations, stageTransitions: [], stageResources: [], stageResponses: [] }, null, 2),
+      'utf8',
+    );
   }
 }
 
@@ -93,6 +134,46 @@ async function ensurePostgresSchema() {
       created_at timestamptz not null default now()
     );
   `;
+}
+
+async function ensureStageFeatureSchema() {
+  if (!sql) return false;
+  try {
+    await sql`
+      create table if not exists website_applicant_stage_transitions (
+        id uuid primary key default gen_random_uuid(),
+        applicant_id uuid not null,
+        stage text not null,
+        reached_at timestamptz not null default now()
+      );
+    `;
+    await sql`
+      create table if not exists website_stage_resources (
+        id uuid primary key default gen_random_uuid(),
+        stage text not null,
+        title text not null,
+        url text not null,
+        applicant_prompt text not null default '',
+        sort_order integer not null default 0,
+        active boolean not null default true,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      );
+    `;
+    await sql`
+      create table if not exists website_stage_resource_responses (
+        id uuid primary key default gen_random_uuid(),
+        resource_id uuid not null references website_stage_resources(id) on delete cascade,
+        applicant_id uuid not null,
+        response_text text not null,
+        submitted_at timestamptz not null default now()
+      );
+    `;
+    return true;
+  } catch (error) {
+    console.error('Stage feature schema unavailable:', error);
+    return false;
+  }
 }
 
 function rowToApplicant(row: any): ApplicantProfile {
@@ -156,7 +237,14 @@ export async function readDb(): Promise<ApplicationDbShape> {
 
   await ensureDb();
   const raw = await fs.readFile(DB_PATH, 'utf8');
-  return JSON.parse(raw) as ApplicationDbShape;
+  const parsed = JSON.parse(raw) as ApplicationDbShape;
+  return {
+    applicants: parsed.applicants ?? [],
+    conversations: parsed.conversations ?? [],
+    stageTransitions: parsed.stageTransitions ?? [],
+    stageResources: parsed.stageResources ?? [],
+    stageResponses: parsed.stageResponses ?? [],
+  };
 }
 
 export async function writeDb(data: ApplicationDbShape) {
@@ -452,6 +540,13 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
       insert into website_applicant_conversations (id, applicant_id, author, text)
       values (${randomUUID()}, ${applicant.id}, 'paula', ${`Hi ${applicant.firstName}, welcome to FloLabs. Your application has been created for ${applicant.roleAppliedFor}. I will answer based on your current stage and what comes next in the process.`})
     `;
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (stageSchemaReady) {
+      await sql`
+        insert into website_applicant_stage_transitions (id, applicant_id, stage, reached_at)
+        values (${randomUUID()}, ${applicant.id}, ${applicant.stage}, now())
+      `;
+    }
     return applicant;
   }
 
@@ -469,6 +564,13 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
     author: 'paula',
     text: `Hi ${applicant.firstName}, welcome to FloLabs. Your application has been created for ${applicant.roleAppliedFor}. I will answer based on your current stage and what comes next in the process.`,
     createdAt: new Date().toISOString(),
+  });
+  db.stageTransitions = db.stageTransitions ?? [];
+  db.stageTransitions.push({
+    id: `transition-${Date.now()}`,
+    applicantId: applicant.id,
+    stage: applicant.stage,
+    reachedAt: new Date().toISOString(),
   });
   await writeDb(db);
   return applicant;
@@ -615,11 +717,20 @@ export async function addApplicantMessage(applicantId: string, author: Conversat
 export async function updateApplicantStage(applicantId: string, stage: ApplicantProfile['stage'], status?: ApplicantProfile['status']) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    const previousRows = await sql`select stage from website_applicants where id = ${applicantId} limit 1`;
+    const previousWebsiteStage = String(previousRows[0]?.stage ?? '');
     const rows = status
       ? await sql`update website_applicants set stage = ${stage}, status = ${status}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
       : await sql`update website_applicants set stage = ${stage}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`;
     if (rows[0]) {
       const updatedWebsite = rows[0];
+      if (stageSchemaReady && previousWebsiteStage !== stage) {
+        await sql`
+          insert into website_applicant_stage_transitions (id, applicant_id, stage, reached_at)
+          values (${randomUUID()}, ${applicantId}, ${stage}, now())
+        `;
+      }
       if (status) {
         await sql`
           update applicants
@@ -662,6 +773,7 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
 
     const chronos = chronosRows[0];
     if (chronos) {
+      const previousChronosStage = String(chronos.stage ?? '');
       if (status) {
         await sql`
           update website_applicants
@@ -678,6 +790,12 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
               last_visited_at = now(),
               updated_at = now()
           where id = ${applicantId} or lower(email) = lower(${chronos.email})
+        `;
+      }
+      if (stageSchemaReady && previousChronosStage !== stage) {
+        await sql`
+          insert into website_applicant_stage_transitions (id, applicant_id, stage, reached_at)
+          values (${randomUUID()}, ${applicantId}, ${stage}, now())
         `;
       }
       const name = String(chronos.name ?? '').trim();
@@ -789,9 +907,19 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
   const db = await readDb();
   const applicant = db.applicants.find((candidate) => candidate.id === applicantId);
   if (!applicant) return null;
+  const previousStage = applicant.stage;
   applicant.stage = stage;
   applicant.lastVisitedAt = new Date().toISOString();
   if (status) applicant.status = status;
+  if (previousStage !== stage) {
+    db.stageTransitions = db.stageTransitions ?? [];
+    db.stageTransitions.push({
+      id: `transition-${Date.now()}`,
+      applicantId,
+      stage,
+      reachedAt: new Date().toISOString(),
+    });
+  }
   await writeDb(db);
   return applicant;
 }
@@ -980,4 +1108,226 @@ export async function touchApplicantWebsiteVisit(applicantId: string, email?: st
   if (!applicant) return;
   applicant.lastVisitedAt = new Date().toISOString();
   await writeDb(db);
+}
+
+export async function getStageTransitions() {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) return [] as StageTransitionRecord[];
+    const rows = await sql`
+      select id, applicant_id, stage, reached_at
+      from website_applicant_stage_transitions
+      order by reached_at asc
+    `;
+    return rows.map((row) => ({
+      id: String(row.id),
+      applicantId: String(row.applicant_id),
+      stage: String(row.stage),
+      reachedAt: new Date(row.reached_at).toISOString(),
+    })) as StageTransitionRecord[];
+  }
+  const db = await readDb();
+  return db.stageTransitions ?? [];
+}
+
+export async function getStageResources(stage?: string) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) return [] as StageResourceRecord[];
+    const rows = stage
+      ? await sql`
+          select id, stage, title, url, applicant_prompt, sort_order, active, created_at, updated_at
+          from website_stage_resources
+          where stage = ${stage}
+          order by sort_order asc, created_at asc
+        `
+      : await sql`
+          select id, stage, title, url, applicant_prompt, sort_order, active, created_at, updated_at
+          from website_stage_resources
+          order by stage asc, sort_order asc, created_at asc
+        `;
+    return rows.map((row) => ({
+      id: String(row.id),
+      stage: String(row.stage),
+      title: String(row.title),
+      url: String(row.url),
+      applicantPrompt: String(row.applicant_prompt ?? ''),
+      sortOrder: Number(row.sort_order ?? 0),
+      active: Boolean(row.active),
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+    })) as StageResourceRecord[];
+  }
+  const db = await readDb();
+  const resources = db.stageResources ?? [];
+  return stage ? resources.filter((item) => item.stage === stage) : resources;
+}
+
+export async function createStageResource(input: { stage: string; title: string; url: string; applicantPrompt: string }) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
+    const orderRows = await sql`select coalesce(max(sort_order), -1) as max_order from website_stage_resources where stage = ${input.stage}`;
+    const nextOrder = Number(orderRows[0]?.max_order ?? -1) + 1;
+    const rows = await sql`
+      insert into website_stage_resources (id, stage, title, url, applicant_prompt, sort_order, active)
+      values (${randomUUID()}, ${input.stage}, ${input.title}, ${input.url}, ${input.applicantPrompt}, ${nextOrder}, true)
+      returning id, stage, title, url, applicant_prompt, sort_order, active, created_at, updated_at
+    `;
+    const row = rows[0];
+    return {
+      id: String(row.id),
+      stage: String(row.stage),
+      title: String(row.title),
+      url: String(row.url),
+      applicantPrompt: String(row.applicant_prompt ?? ''),
+      sortOrder: Number(row.sort_order ?? 0),
+      active: Boolean(row.active),
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+    } as StageResourceRecord;
+  }
+  const db = await readDb();
+  const stageResources = db.stageResources ?? [];
+  const sameStage = stageResources.filter((resource) => resource.stage === input.stage);
+  const resource: StageResourceRecord = {
+    id: `resource-${Date.now()}`,
+    stage: input.stage,
+    title: input.title,
+    url: input.url,
+    applicantPrompt: input.applicantPrompt,
+    sortOrder: sameStage.length,
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  stageResources.push(resource);
+  db.stageResources = stageResources;
+  await writeDb(db);
+  return resource;
+}
+
+export async function deleteStageResource(resourceId: string) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) return;
+    await sql`delete from website_stage_resources where id = ${resourceId}`;
+    return;
+  }
+  const db = await readDb();
+  db.stageResources = (db.stageResources ?? []).filter((item) => item.id !== resourceId);
+  db.stageResponses = (db.stageResponses ?? []).filter((item) => item.resourceId !== resourceId);
+  await writeDb(db);
+}
+
+export async function saveStageResourceResponse(input: { resourceId: string; applicantId: string; responseText: string }) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) throw new Error('Stage responses are unavailable in this environment');
+    const rows = await sql`
+      insert into website_stage_resource_responses (id, resource_id, applicant_id, response_text, submitted_at)
+      values (${randomUUID()}, ${input.resourceId}, ${input.applicantId}, ${input.responseText}, now())
+      returning id, resource_id, applicant_id, response_text, submitted_at
+    `;
+    return rows[0];
+  }
+  const db = await readDb();
+  db.stageResponses = db.stageResponses ?? [];
+  db.stageResponses.push({
+    id: `response-${Date.now()}`,
+    resourceId: input.resourceId,
+    applicantId: input.applicantId,
+    responseText: input.responseText,
+    submittedAt: new Date().toISOString(),
+  });
+  await writeDb(db);
+}
+
+export async function getStageResponsesForApplicant(applicantId: string) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) return [] as StageResourceResponseRecord[];
+    const rows = await sql`
+      select id, resource_id, applicant_id, response_text, submitted_at
+      from website_stage_resource_responses
+      where applicant_id = ${applicantId}
+      order by submitted_at desc
+    `;
+    return rows.map((row) => ({
+      id: String(row.id),
+      resourceId: String(row.resource_id),
+      applicantId: String(row.applicant_id),
+      responseText: String(row.response_text),
+      submittedAt: new Date(row.submitted_at).toISOString(),
+    })) as StageResourceResponseRecord[];
+  }
+  const db = await readDb();
+  return (db.stageResponses ?? []).filter((item) => item.applicantId === applicantId);
+}
+
+export async function getStageResponsesForHr() {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const stageSchemaReady = await ensureStageFeatureSchema();
+    if (!stageSchemaReady) return [] as HrStageResponseRecord[];
+    const rows = await sql`
+      select
+        r.id,
+        r.resource_id,
+        r.applicant_id,
+        r.response_text,
+        r.submitted_at,
+        coalesce(w.email, u.email, a.email, '') as applicant_email,
+        trim(coalesce(w.first_name, split_part(coalesce(u.name, a.name, ''), ' ', 1), '')) as applicant_first_name,
+        trim(
+          coalesce(
+            w.last_name,
+            regexp_replace(coalesce(u.name, a.name, ''), '^[^ ]+\s*', ''),
+            ''
+          )
+        ) as applicant_last_name,
+        s.stage as stage,
+        s.title as resource_title
+      from website_stage_resource_responses r
+      inner join website_stage_resources s on s.id = r.resource_id
+      left join website_applicants w on w.id = r.applicant_id
+      left join users u on u.id = r.applicant_id
+      left join applicants a on a.id = r.applicant_id
+      order by r.submitted_at desc
+    `;
+    return rows.map((row) => ({
+      id: String(row.id),
+      resourceId: String(row.resource_id),
+      applicantId: String(row.applicant_id),
+      responseText: String(row.response_text),
+      submittedAt: new Date(row.submitted_at).toISOString(),
+      applicantEmail: String(row.applicant_email ?? ''),
+      applicantName: `${String(row.applicant_first_name ?? '').trim()} ${String(row.applicant_last_name ?? '').trim()}`.trim() || 'Unknown applicant',
+      stage: String(row.stage),
+      resourceTitle: String(row.resource_title),
+    })) as HrStageResponseRecord[];
+  }
+
+  const db = await readDb();
+  const applicantById = new Map((db.applicants ?? []).map((applicant) => [applicant.id, applicant]));
+  const resourceById = new Map((db.stageResources ?? []).map((resource) => [resource.id, resource]));
+  return (db.stageResponses ?? [])
+    .map((item) => {
+      const applicant = applicantById.get(item.applicantId);
+      const resource = resourceById.get(item.resourceId);
+      return {
+        ...item,
+        applicantEmail: applicant?.email ?? '',
+        applicantName: applicant ? `${applicant.firstName} ${applicant.lastName}`.trim() : 'Unknown applicant',
+        stage: resource?.stage ?? '',
+        resourceTitle: resource?.title ?? '',
+      };
+    })
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()) as HrStageResponseRecord[];
 }

@@ -2,23 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { formatStageLabel, orderedStageIds } from '@/lib/stage-definitions';
 
-const stageOptions = [
-  'application_submitted',
-  'new',
-  'contacted',
-  'interested_review',
-  'before_meeting',
-  'meeting_recordings_submitted',
-  'saturday_meeting',
-  'attended',
-  'masterclass_submitted',
-  'second_meeting',
-  'agreement_sent',
-  'agreement_signed',
-  'chronos_synced',
-  'joined',
-];
+const stageOptions = orderedStageIds;
 
 const statusOptions = ['active', 'waiting', 'approved', 'rejected', 'signed', 'joined'];
 const blacklistedCountries = ['Afghanistan', 'Belarus', 'Iran', 'North Korea', 'Russia', 'Syria'];
@@ -47,7 +33,7 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
         <label>
           <span className="mb-2 block text-sm font-semibold text-gray-700">Stage</span>
           <select value={nextStage} onChange={(e) => setNextStage(e.target.value)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
-            {stageOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            {stageOptions.map((option) => <option key={option} value={option}>{formatStageLabel(option)}</option>)}
           </select>
         </label>
         <label>

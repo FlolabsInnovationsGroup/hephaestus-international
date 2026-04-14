@@ -52,6 +52,7 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
   }
 
   const dashboardHref = viewer.hrBinaryRole || viewer.role === 'admin' ? '/me/hr' : '/me/application';
+  const stagesHref = '/me/hr/stages';
   const initials = viewer.firstName.slice(0, 1).toUpperCase();
 
   const navigateTo = (href: string) => {
@@ -110,6 +111,16 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
             <button type="button" onClick={() => navigateTo(dashboardHref)} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f7faff]">
               Dashboard
             </button>
+            {viewer.hrBinaryRole && (
+              <button type="button" onClick={() => navigateTo(stagesHref)} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f7faff]">
+                Stages
+              </button>
+            )}
+            {viewer.hrBinaryRole && (
+              <button type="button" onClick={() => navigateTo('/me/hr/responses')} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f7faff]">
+                Responses
+              </button>
+            )}
             <button
               type="button"
               onClick={async () => {

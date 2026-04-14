@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatStageLabel } from '@/lib/stage-definitions';
 
 type HrFiltersProps = {
   params: {
@@ -42,7 +43,7 @@ export function HrFilters({ params, stageOptions, statusOptions, sourceOptions, 
         <div className="flex-1 xl:max-w-[1100px]">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <FilterField label="Search"><input name="q" defaultValue={params.q ?? ''} placeholder="Search leads" className={inputClass} /></FilterField>
-            <FilterField label="Stage"><select name="stage" defaultValue={params.stage ?? ''} className={inputClass}><option value="">All stages</option>{stageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
+            <FilterField label="Stage"><select name="stage" defaultValue={params.stage ?? ''} className={inputClass}><option value="">All stages</option>{stageOptions.map((value) => <option key={value} value={value}>{formatStageLabel(value)}</option>)}</select></FilterField>
             <FilterField label="Status"><select name="status" defaultValue={params.status ?? ''} className={inputClass}><option value="">All statuses</option>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Source"><select name="source" defaultValue={params.source ?? ''} className={inputClass}><option value="">All sources</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Sort by"><select name="sort" defaultValue={params.sort ?? 'joined_desc'} className={inputClass}><option value="joined_desc">Newest joined</option><option value="joined_asc">Oldest joined</option><option value="visited_desc">Recently visited</option><option value="visited_asc">Least recently visited</option><option value="name_asc">Name A-Z</option><option value="name_desc">Name Z-A</option></select></FilterField>

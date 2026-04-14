@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { DuplicateReviewActions } from '@/components/duplicate-review-actions';
+import { formatStageLabel } from '@/lib/stage-definitions';
 
 type DuplicateCandidate = {
   id: string;
@@ -347,7 +348,7 @@ export function HrDashboardWorkspace({
                   </div>
                   <p className="mt-1 text-xs text-gray-600">{lead.roleAppliedFor}</p>
                   <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
-                    <span>Stage: {lead.stage}</span>
+                    <span>Stage: {formatStageLabel(lead.stage)}</span>
                     <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
                     <span>Visited: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
                     <span>City: {lead.city}</span>
@@ -397,7 +398,7 @@ export function HrDashboardWorkspace({
               )}
               <div className="mt-4 grid gap-3 text-sm text-gray-700">
                 <p><strong>Status:</strong> {activeLead.status}</p>
-                <p><strong>Stage:</strong> {activeLead.stage}</p>
+                <p><strong>Stage:</strong> {formatStageLabel(activeLead.stage)}</p>
                 <p><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
                 <p><strong>Last website visit:</strong> {new Date(activeLead.lastVisitedAt).toLocaleString()}</p>
                 <p><strong>Emails:</strong> {displayJoined([activeLead.email, ...(activeLead.alternateEmails ?? [])], activeLead.email)}</p>

@@ -3,6 +3,7 @@ import { Section } from '@/components/layout';
 import { HrDashboardWorkspace } from '@/components/hr-dashboard-workspace';
 import { HrFilters } from '@/components/hr-filters';
 import { getApplicantsForAdmin, getConversationForApplicant, getSessionUser } from '@/lib/application-store';
+import { getStageOrder } from '@/lib/stage-definitions';
 
 function sameDayValue(dateString: string) {
   return new Date(dateString).toISOString().slice(0, 10);
@@ -128,7 +129,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
         <div className="mb-8 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <HrFilters
             params={params}
-            stageOptions={Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort()}
+            stageOptions={Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort((a, b) => getStageOrder(a) - getStageOrder(b) || a.localeCompare(b))}
             statusOptions={Array.from(new Set(allApplicants.map((lead) => lead.status))).sort()}
             sourceOptions={sourceOptions}
             countryOptions={countryOptions}
