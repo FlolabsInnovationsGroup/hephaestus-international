@@ -260,6 +260,25 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   const newMeta = managed.find((s) => s.id === newStage);
   const newTitle = newMeta?.title ?? newStage;
 
+  const rolledBack = outcome === 'previous' && newStage !== stageAtStart;
+  if (rolledBack) {
+    const greeting = (userAgain.firstName || '').trim() || 'there';
+    await addApplicantMessage(
+      applicantId,
+      'paula',
+      `Hi ${greeting},
+
+I'm reaching out with something gentle: your application has been moved one step back on the pipeline so you can revisit "${newTitle}" when it works for you.
+
+Please open the materials and prompts on your dashboard again and read them slowly. When you try the written reflections once more, a few clear sentences that show what you actually took away from the content make a real difference — we are not looking for perfection, just genuine engagement.
+
+This happens more often than you might think, and it is not a reflection on you as a person. Take the time you need, and if anything feels unclear, message me here and I will help.
+
+Warmly,
+Paula`,
+    );
+  }
+
   let applicantMessage: string;
   if (outcome === 'next' && newStage !== stageAtStart) {
     applicantMessage = `You're now on: ${newTitle}. Refresh if the dashboard still shows the previous step.`;
