@@ -777,7 +777,83 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       where id = ${applicantId}
       returning *
     `;
-    return rows[0] ? rowToApplicant(rows[0]) : null;
+    if (rows[0]) return rowToApplicant(rows[0]);
+
+    const chronosApplicantRows = await sql`
+      update applicants
+      set email = ${next.email},
+          name = ${`${next.firstName} ${next.lastName}`.trim()},
+          phone = ${next.phoneNumber},
+          country = ${next.country},
+          state_region = ${next.stateRegion ?? ''},
+          city = ${next.city},
+          linkedin_url = ${next.linkedinUrl},
+          education = ${next.education},
+          role_applied_for = ${next.roleAppliedFor},
+          source = ${next.source ?? ''},
+          last_website_visit = now(),
+          updated_at = now()
+      where id = ${applicantId}
+      returning *
+    `;
+
+    if (chronosApplicantRows[0]) {
+      const chronos = chronosApplicantRows[0];
+      const name = String(chronos.name ?? '').trim();
+      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
+      const mappedStatus: ApplicantProfile['status'] = chronos.status === 'closed'
+        ? 'rejected'
+        : chronos.status === 'joined'
+          ? 'joined'
+          : chronos.status === 'waiting'
+            ? 'waiting'
+            : chronos.status === 'approved'
+              ? 'approved'
+              : chronos.status === 'signed'
+                ? 'signed'
+                : 'active';
+      const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? current.stage) as ApplicantProfile['stage'];
+      return {
+        id: chronos.id,
+        email: chronos.email,
+        password: '',
+        role: 'applicant',
+        hrBinaryRole: false,
+        firstName: firstName || chronos.email,
+        lastName: rest.join(' '),
+        phoneNumber: chronos.phone ?? '',
+        country: chronos.country ?? '',
+        stateRegion: chronos.state_region ?? '',
+        city: chronos.city ?? '',
+        latitude: 0,
+        longitude: 0,
+        linkedinUrl: chronos.linkedin_url ?? '',
+        education: chronos.education ?? chronos.current_job_title ?? '',
+        source: chronos.source ?? chronos.hubspot_owner ?? 'Chronos HubSpot import',
+        referralName: '',
+        cvFileName: '',
+        cvUrl: '',
+        profilePictureUrl: '',
+        roleAppliedFor: chronos.role_applied_for ?? chronos.current_job_title ?? 'Imported contact',
+        stage: mappedStage,
+        status: mappedStatus,
+        joinedAt: new Date(chronos.joined_at ?? chronos.created_at ?? Date.now()).toISOString(),
+        lastVisitedAt: new Date(chronos.last_website_visit ?? chronos.updated_at ?? Date.now()).toISOString(),
+        notes: chronos.hubspot_status ?? 'Imported from Chronos applicants.',
+        safeSendersConfirmed: false,
+        communicationConsent: true,
+      };
+    }
+
+    const chronosUserRows = await sql`
+      update users
+      set email = ${next.email},
+          name = ${`${next.firstName} ${next.lastName}`.trim()},
+          updated_at = now()
+      where id = ${applicantId}
+      returning id, email, name, password, role, is_active, created_at, updated_at
+    `;
+    return chronosUserRows[0] ? chronosUserToApplicant(chronosUserRows[0]) : null;
   }
   const db = await readDb();
   const applicant = db.applicants.find((candidate) => candidate.id === applicantId);
