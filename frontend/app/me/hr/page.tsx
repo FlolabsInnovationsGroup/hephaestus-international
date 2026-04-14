@@ -138,6 +138,9 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
               {activeLead && (
                 <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-semibold text-gray-900">Lead details</h2>
+                  <p className="mt-2 text-sm text-gray-600">
+                    {activeLead.firstName} {activeLead.lastName}
+                  </p>
                   {activeLead.duplicateNeedsReview && (
                     <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
                       <p className="font-semibold uppercase tracking-[0.14em] text-orange-800">Verification recommended</p>

@@ -6,7 +6,7 @@ import { Footer } from "@/components/footer";
 import { BrandProvider } from "@/components/brand-provider";
 import { getServerBrand } from "@/lib/branding";
 import Script from "next/script";
-import { getSessionUser } from '@/lib/application-store';
+import { getSessionUser, markSessionUserVisited } from '@/lib/application-store';
 
 // Force dynamic rendering for brand detection
 export const dynamic = 'force-dynamic'
@@ -40,6 +40,9 @@ export default async function RootLayout({
 }>) {
   const brand = await getServerBrand()
   const viewer = await getSessionUser()
+  if (viewer) {
+    await markSessionUserVisited(viewer);
+  }
   
   return (
     <html lang="en">

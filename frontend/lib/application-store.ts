@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { compare } from 'bcryptjs';
 import stepsData from '@/app/STEPS.json';
 import type { ApplicantProfile, StageStep } from '@/app/application-data';
-import { addApplicantMessage, createApplicant, findUserByEmail, getApplicantConversations, getApplicants, getUserById, updateApplicantProfile, updateApplicantStage } from '@/lib/application-db';
+import { addApplicantMessage, createApplicant, findUserByEmail, getApplicantConversations, getApplicants, getUserById, touchApplicantWebsiteVisit, updateApplicantProfile, updateApplicantStage } from '@/lib/application-db';
 
 const SESSION_COOKIE = 'fl_preview_session';
 
@@ -12,6 +12,10 @@ export async function getSessionUser(): Promise<ApplicantProfile | null> {
   const userId = jar.get(SESSION_COOKIE)?.value;
   if (!userId) return null;
   return await getUserById(userId);
+}
+
+export async function markSessionUserVisited(user: ApplicantProfile) {
+  await touchApplicantWebsiteVisit(user.id, user.email);
 }
 
 export async function loginPreview(email: string, password: string): Promise<ApplicantProfile | null> {

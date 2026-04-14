@@ -700,3 +700,22 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
   await writeDb(db);
   return applicant;
 }
+
+export async function touchApplicantWebsiteVisit(applicantId: string, email?: string) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    await sql`update website_applicants set last_visited_at = now(), updated_at = now() where id = ${applicantId}`;
+    await sql`update users set updated_at = now() where id = ${applicantId}`;
+    await sql`update applicants set last_website_visit = now(), updated_at = now() where id = ${applicantId}`;
+    if (email) {
+      await sql`update applicants set last_website_visit = now(), updated_at = now() where lower(email) = lower(${email})`;
+    }
+    return;
+  }
+
+  const db = await readDb();
+  const applicant = db.applicants.find((candidate) => candidate.id === applicantId);
+  if (!applicant) return;
+  applicant.lastVisitedAt = new Date().toISOString();
+  await writeDb(db);
+}
