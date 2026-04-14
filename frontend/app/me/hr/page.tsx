@@ -103,9 +103,24 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
         return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
     }
   });
-  const activeLead = applicants.find((lead) => lead.id === params.lead) ?? applicants[0] ?? null;
+  const initialApplicants = applicants.slice(0, 50);
+  const hasMore = applicants.length > initialApplicants.length;
+  const activeLead = initialApplicants.find((lead) => lead.id === params.lead) ?? initialApplicants[0] ?? null;
   const conversation = activeLead ? await getConversationForApplicant(activeLead.id) : [];
   const uniqueProfilesCount = buildUniqueProfileCount(applicants);
+  const queryParams: Record<string, string> = {};
+  if (params.q) queryParams.q = params.q;
+  if (params.stage) queryParams.stage = params.stage;
+  if (params.status) queryParams.status = params.status;
+  if (params.source) queryParams.source = params.source;
+  if (params.country) queryParams.country = params.country;
+  if (params.city) queryParams.city = params.city;
+  if (params.sort) queryParams.sort = params.sort;
+  if (params.joinedFrom) queryParams.joinedFrom = params.joinedFrom;
+  if (params.joinedTo) queryParams.joinedTo = params.joinedTo;
+  if (params.visitedFrom) queryParams.visitedFrom = params.visitedFrom;
+  if (params.visitedTo) queryParams.visitedTo = params.visitedTo;
+  if (params.duplicateReview) queryParams.duplicateReview = params.duplicateReview;
 
   return (
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
@@ -121,7 +136,14 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
           />
         </div>
 
-        <HrDashboardWorkspace applicants={applicants} initialLeadId={activeLead?.id} initialConversation={conversation} uniqueProfilesCount={uniqueProfilesCount} />
+        <HrDashboardWorkspace
+          applicants={initialApplicants}
+          initialLeadId={activeLead?.id}
+          initialConversation={conversation}
+          uniqueProfilesCount={uniqueProfilesCount}
+          initialHasMore={hasMore}
+          queryParams={queryParams}
+        />
       </div>
     </Section>
   );

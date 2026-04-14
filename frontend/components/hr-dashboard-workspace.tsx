@@ -68,12 +68,19 @@ export function HrDashboardWorkspace({
   initialLeadId,
   initialConversation,
   uniqueProfilesCount,
+  initialHasMore,
+  queryParams,
 }: {
   applicants: Lead[];
   initialLeadId?: string;
   initialConversation: Message[];
   uniqueProfilesCount: number;
+  initialHasMore: boolean;
+  queryParams: Record<string, string>;
 }) {
+  const [loadedApplicants, setLoadedApplicants] = useState<Lead[]>(applicants);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(initialLeadId ?? applicants[0]?.id ?? null);
   const [conversation, setConversation] = useState<Message[]>(initialConversation);
   const [loadingConversation, setLoadingConversation] = useState(false);
@@ -87,13 +94,13 @@ export function HrDashboardWorkspace({
   const router = useRouter();
 
   const activeLead = useMemo(
-    () => applicants.find((lead) => lead.id === selectedLeadId) ?? applicants[0] ?? null,
-    [applicants, selectedLeadId],
+    () => loadedApplicants.find((lead) => lead.id === selectedLeadId) ?? loadedApplicants[0] ?? null,
+    [loadedApplicants, selectedLeadId],
   );
 
   const selectedLeads = useMemo(
-    () => applicants.filter((lead) => selectedLeadIds.includes(lead.id)),
-    [applicants, selectedLeadIds],
+    () => loadedApplicants.filter((lead) => selectedLeadIds.includes(lead.id)),
+    [loadedApplicants, selectedLeadIds],
   );
   const [canonicalLeadId, setCanonicalLeadId] = useState<string>('');
 
@@ -124,6 +131,11 @@ export function HrDashboardWorkspace({
   });
 
   useEffect(() => {
+    setLoadedApplicants(applicants);
+    setHasMore(initialHasMore);
+  }, [applicants, initialHasMore]);
+
+  useEffect(() => {
     if (!mergeOpen || selectedLeads.length < 2) return;
     setCanonicalLeadId((current) => current && selectedLeads.some((lead) => lead.id === current) ? current : selectedLeads[0].id);
     setKeep({
@@ -139,6 +151,24 @@ export function HrDashboardWorkspace({
       lastNames: unique(selectedLeads.map((lead) => lead.lastName)),
     });
   }, [mergeOpen, selectedLeads]);
+
+  async function loadMoreApplicants() {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const params = new URLSearchParams({ ...queryParams, offset: String(loadedApplicants.length), limit: '50' });
+    const res = await fetch(`/api/admin/leads?${params.toString()}`, { cache: 'no-store' });
+    const data = await res.json().catch(() => ({ leads: [], hasMore: false }));
+    const nextLeads = (data.leads ?? []) as Lead[];
+    setLoadedApplicants((current) => [...current, ...nextLeads.filter((lead) => !current.some((existing) => existing.id === lead.id))]);
+    setHasMore(Boolean(data.hasMore));
+    setLoadingMore(false);
+  }
+
+  function handleListScroll(event: React.UIEvent<HTMLDivElement>) {
+    const node = event.currentTarget;
+    const nearBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 120;
+    if (nearBottom) void loadMoreApplicants();
+  }
 
   useEffect(() => {
     if (!editOpen || !activeLead) return;
@@ -283,7 +313,8 @@ export function HrDashboardWorkspace({
           </div>
         </div>
         <div className="max-h-[760px] overflow-y-auto p-2">
-          {applicants.map((lead) => {
+          <div onScroll={handleListScroll} className="max-h-[740px] overflow-y-auto">
+          {loadedApplicants.map((lead) => {
             const isActive = activeLead?.id === lead.id;
             const checked = selectedLeadIds.includes(lead.id);
             return (
@@ -325,6 +356,9 @@ export function HrDashboardWorkspace({
               </div>
             );
           })}
+          {loadingMore && <p className="px-2 py-2 text-xs text-gray-500">Loading more leads...</p>}
+          {!hasMore && loadedApplicants.length > 0 && <p className="px-2 py-2 text-xs text-gray-400">All leads loaded</p>}
+          </div>
         </div>
       </div>
 
