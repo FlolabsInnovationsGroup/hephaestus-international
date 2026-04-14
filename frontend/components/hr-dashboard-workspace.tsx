@@ -81,6 +81,9 @@ export function HrDashboardWorkspace({
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeSaving, setMergeSaving] = useState(false);
   const [mergeError, setMergeError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const router = useRouter();
 
   const activeLead = useMemo(
@@ -106,6 +109,19 @@ export function HrDashboardWorkspace({
     firstNames: [] as string[],
     lastNames: [] as string[],
   });
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    linkedinUrl: '',
+    city: '',
+    country: '',
+    education: '',
+    source: '',
+    roleAppliedFor: '',
+    notes: '',
+  });
 
   useEffect(() => {
     if (!mergeOpen || selectedLeads.length < 2) return;
@@ -123,6 +139,24 @@ export function HrDashboardWorkspace({
       lastNames: unique(selectedLeads.map((lead) => lead.lastName)),
     });
   }, [mergeOpen, selectedLeads]);
+
+  useEffect(() => {
+    if (!editOpen || !activeLead) return;
+    setEditError('');
+    setEditForm({
+      firstName: activeLead.firstName ?? '',
+      lastName: activeLead.lastName ?? '',
+      email: activeLead.email ?? '',
+      phoneNumber: activeLead.phoneNumber ?? '',
+      linkedinUrl: activeLead.linkedinUrl ?? '',
+      city: activeLead.city ?? '',
+      country: activeLead.country ?? '',
+      education: activeLead.education ?? '',
+      source: activeLead.source ?? '',
+      roleAppliedFor: activeLead.roleAppliedFor ?? '',
+      notes: '',
+    });
+  }, [editOpen, activeLead]);
 
   useEffect(() => {
     if (!activeLead) {
@@ -183,6 +217,25 @@ export function HrDashboardWorkspace({
     setMergeOpen(false);
     setSelectedLeadIds([]);
     setSelectedLeadId(canonicalLeadId);
+    router.refresh();
+  }
+
+  async function saveLeadEdit() {
+    if (!activeLead) return;
+    setEditSaving(true);
+    setEditError('');
+    const res = await fetch('/api/admin/leads/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicantId: activeLead.id, ...editForm }),
+    });
+    const data = await res.json().catch(() => ({ error: 'Update failed' }));
+    setEditSaving(false);
+    if (!res.ok) {
+      setEditError(data.error ?? 'Update failed');
+      return;
+    }
+    setEditOpen(false);
     router.refresh();
   }
 
@@ -291,7 +344,16 @@ export function HrDashboardWorkspace({
         <div className="space-y-6">
           {activeLead && (
             <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900">Lead details</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold text-gray-900">Lead details</h2>
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Edit lead
+                </button>
+              </div>
               <p className="mt-2 text-sm text-gray-600">{activeLead.firstName} {activeLead.lastName}</p>
               {activeLead.duplicateNeedsReview && (
                 <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
@@ -434,6 +496,55 @@ export function HrDashboardWorkspace({
           </div>
         </div>
       )}
+
+      {editOpen && activeLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Edit lead details</h3>
+                <p className="mt-1 text-sm text-gray-600">Update core profile fields for this lead.</p>
+              </div>
+              <button type="button" onClick={() => setEditOpen(false)} className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100">Close</button>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <EditField label="First name" value={editForm.firstName} onChange={(value) => setEditForm((c) => ({ ...c, firstName: value }))} />
+              <EditField label="Last name" value={editForm.lastName} onChange={(value) => setEditForm((c) => ({ ...c, lastName: value }))} />
+              <EditField label="Email" value={editForm.email} onChange={(value) => setEditForm((c) => ({ ...c, email: value }))} />
+              <EditField label="Phone" value={editForm.phoneNumber} onChange={(value) => setEditForm((c) => ({ ...c, phoneNumber: value }))} />
+              <EditField label="LinkedIn URL" value={editForm.linkedinUrl} onChange={(value) => setEditForm((c) => ({ ...c, linkedinUrl: value }))} />
+              <EditField label="Role applied for" value={editForm.roleAppliedFor} onChange={(value) => setEditForm((c) => ({ ...c, roleAppliedFor: value }))} />
+              <EditField label="City" value={editForm.city} onChange={(value) => setEditForm((c) => ({ ...c, city: value }))} />
+              <EditField label="Country" value={editForm.country} onChange={(value) => setEditForm((c) => ({ ...c, country: value }))} />
+              <EditField label="Source" value={editForm.source} onChange={(value) => setEditForm((c) => ({ ...c, source: value }))} />
+              <EditField label="Education" value={editForm.education} onChange={(value) => setEditForm((c) => ({ ...c, education: value }))} />
+            </div>
+
+            <div className="mt-3">
+              <label className="text-sm font-semibold text-gray-800">Notes</label>
+              <textarea
+                value={editForm.notes}
+                onChange={(event) => setEditForm((c) => ({ ...c, notes: event.target.value }))}
+                className="mt-1 min-h-24 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+              />
+            </div>
+
+            {editError && <p className="mt-3 text-sm text-red-600">{editError}</p>}
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button type="button" onClick={() => setEditOpen(false)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={saveLeadEdit}
+                className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {editSaving ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -468,5 +579,18 @@ function MergeOptionsField({
         ))}
       </div>
     </div>
+  );
+}
+
+function EditField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label>
+      <span className="text-sm font-semibold text-gray-800">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+      />
+    </label>
   );
 }

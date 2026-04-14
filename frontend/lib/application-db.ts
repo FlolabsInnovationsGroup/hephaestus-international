@@ -691,7 +691,8 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
     const next = { ...current, ...updates };
     const rows = await sql`
       update website_applicants
-      set first_name = ${next.firstName},
+      set email = ${next.email},
+          first_name = ${next.firstName},
           last_name = ${next.lastName},
           phone_number = ${next.phoneNumber},
           country = ${next.country},
@@ -699,6 +700,9 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           city = ${next.city},
           linkedin_url = ${next.linkedinUrl},
           education = ${next.education},
+          source = ${next.source ?? ''},
+          role_applied_for = ${next.roleAppliedFor ?? ''},
+          notes = ${next.notes ?? ''},
           profile_picture_url = ${next.profilePictureUrl ?? ''},
           cv_file_name = ${next.cvFileName ?? ''},
           cv_url = ${next.cvUrl ?? ''},
