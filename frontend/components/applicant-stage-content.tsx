@@ -20,6 +20,7 @@ type StageCompleteReviewPayload = {
   incomplete?: boolean;
   noReviewablePrompts?: boolean;
   batchStageCount?: number;
+  stageChanged?: boolean;
 };
 
 export function ApplicantStageContent({
@@ -67,16 +68,33 @@ export function ApplicantStageContent({
     setCompleting(true);
     setNotice(null);
     try {
-      const res = await fetch('/api/applications/stage-complete-review', { method: 'POST' });
-      const data = (await res.json()) as { ok?: boolean; review?: StageCompleteReviewPayload; error?: string };
+      const res = await fetch('/api/applications/stage-complete-review', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      let data: { ok?: boolean; review?: StageCompleteReviewPayload; error?: string };
+      try {
+        data = (await res.json()) as { ok?: boolean; review?: StageCompleteReviewPayload; error?: string };
+      } catch {
+        setNotice('Could not read the server response. Please refresh the page and try again.');
+        return;
+      }
       if (!res.ok) {
         setNotice(data.error ?? 'Something went wrong. Please try again.');
         return;
       }
       const rev = data.review;
       if (rev?.applicantMessage) setNotice(rev.applicantMessage);
+
+      if (rev?.stageChanged) {
+        window.location.reload();
+        return;
+      }
+
       if (rev?.evaluated) {
-        router.refresh();
+        await router.refresh();
+      } else if (rev?.applicantMessage) {
+        await router.refresh();
       }
     } finally {
       setCompleting(false);

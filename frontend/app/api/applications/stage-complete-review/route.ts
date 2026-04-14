@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { completeApplicantStageReviewBatch, getSessionUser } from '@/lib/application-store';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST() {
   const viewer = await getSessionUser();
   if (!viewer || viewer.role !== 'applicant') {
@@ -9,17 +11,21 @@ export async function POST() {
 
   const result = await completeApplicantStageReviewBatch(viewer.id);
 
-  return NextResponse.json({
-    ok: true,
-    review: {
-      evaluated: result.evaluated,
-      outcome: result.outcome,
-      newStage: result.newStage,
-      newStageTitle: result.newStageTitle,
-      applicantMessage: result.applicantMessage,
-      incomplete: result.incomplete,
-      noReviewablePrompts: result.noReviewablePrompts,
-      batchStageCount: result.batchStageCount,
+  return NextResponse.json(
+    {
+      ok: true,
+      review: {
+        evaluated: result.evaluated,
+        outcome: result.outcome,
+        newStage: result.newStage,
+        newStageTitle: result.newStageTitle,
+        applicantMessage: result.applicantMessage,
+        incomplete: result.incomplete,
+        noReviewablePrompts: result.noReviewablePrompts,
+        batchStageCount: result.batchStageCount,
+        stageChanged: result.stageChanged ?? false,
+      },
     },
-  });
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+  );
 }

@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 import { Container, Section } from '@/components/layout';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { ApplicantChat } from '@/components/applicant-chat';
 import { ApplicantStageContent } from '@/components/applicant-stage-content';
 import { getConversationForApplicant, getManagedStepById, getManagedSteps, getSessionUser, getStageResourcesForApplicant } from '@/lib/application-store';

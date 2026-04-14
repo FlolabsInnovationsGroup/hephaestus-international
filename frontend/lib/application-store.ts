@@ -128,6 +128,8 @@ export type StageCompleteReviewResult = {
   incomplete?: boolean;
   /** True when the step has no written prompts (nothing to run AI on) */
   noReviewablePrompts?: boolean;
+  /** True when the applicant's pipeline stage was updated (client should hard-reload) */
+  stageChanged?: boolean;
 };
 
 /**
@@ -136,12 +138,17 @@ export type StageCompleteReviewResult = {
  */
 export async function completeApplicantStageReviewBatch(applicantId: string): Promise<StageCompleteReviewResult> {
   if (!isStageResponseAutoAdvanceEnabled()) {
-    return { evaluated: false };
+    return {
+      evaluated: false,
+      stageChanged: false,
+      applicantMessage:
+        'Automatic stage review is turned off in this environment. Your answers are saved; HR will move you when it is time.',
+    };
   }
 
   const user = await getUserById(applicantId);
   if (!user || user.role !== 'applicant') {
-    return { evaluated: false };
+    return { evaluated: false, stageChanged: false };
   }
 
   const stageAtStart = user.stage;
@@ -154,6 +161,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   if (currentRequired.length === 0) {
     return {
       evaluated: false,
+      stageChanged: false,
       noReviewablePrompts: true,
       applicantMessage:
         'This step does not ask for written reflections here. When you are ready, our team will move you forward.',
@@ -165,6 +173,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     if (!latest.get(r.id)?.responseText?.trim()) {
       return {
         evaluated: false,
+        stageChanged: false,
         incomplete: true,
         applicantMessage: 'Please write and save an answer for every prompt above before requesting a review.',
       };
@@ -175,6 +184,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   if (stages.length === 0) {
     return {
       evaluated: false,
+      stageChanged: false,
       incomplete: true,
       applicantMessage: 'Please write and save an answer for every prompt above before requesting a review.',
     };
@@ -186,6 +196,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     return {
       evaluated: true,
       outcome: 'stay',
+      stageChanged: false,
       applicantMessage:
         'Your answers are saved. Automatic review is not configured yet; our team will move you forward when appropriate.',
     };
@@ -197,6 +208,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     return {
       evaluated: true,
       outcome: 'stay',
+      stageChanged: false,
       applicantMessage: 'We could not complete an automatic review just now. Your answers are saved — please try again later or wait for HR.',
     };
   }
@@ -206,6 +218,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     return {
       evaluated: true,
       outcome: 'stay',
+      stageChanged: false,
       applicantMessage: 'Review did not return a result for your current step. Your answers are saved.',
     };
   }
@@ -215,6 +228,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     return {
       evaluated: true,
       outcome: 'stay',
+      stageChanged: false,
       applicantMessage: 'Your stage changed while we were reviewing. Refresh the page to see the latest step.',
     };
   }
@@ -269,6 +283,8 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     allDecisions: batch.decisions.map((d) => ({ stageId: d.stageId, outcome: d.outcome })),
   });
 
+  const stageChanged = newStage !== stageAtStart;
+
   return {
     evaluated: true,
     outcome,
@@ -277,6 +293,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     reason: currentDecision.reason,
     applicantMessage,
     batchStageCount: stages.length,
+    stageChanged,
   };
 }
 
