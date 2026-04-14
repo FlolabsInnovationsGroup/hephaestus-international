@@ -16,7 +16,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const leadIds = Array.isArray(body.leadIds) ? body.leadIds.map((value: unknown) => String(value ?? '').trim()).filter(Boolean) : [];
+  const leadIds: string[] = Array.isArray(body.leadIds)
+    ? body.leadIds.map((value: unknown) => String(value ?? '').trim()).filter(Boolean)
+    : [];
   const canonicalLeadId = String(body.canonicalLeadId ?? '').trim();
   const keep = (body.keep ?? {}) as Record<string, unknown>;
 
