@@ -6,6 +6,7 @@ import { Container } from './layout'
 import { useState } from 'react'
 import { useBrand } from './brand-provider'
 import { ProfileMenu } from './profile-menu'
+import { useNavigationLoading } from './navigation-loading'
 
 const navigation = [
   { name: 'Blogs', href: '/blogs' },
@@ -17,6 +18,7 @@ const navigation = [
 export function Header({ viewer }: { viewer: { firstName: string; email?: string; role?: string; hrBinaryRole?: boolean; profilePictureUrl?: string } | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { brand } = useBrand()
+  const { startNavigation } = useNavigationLoading()
 
   return (
     <header className="fixed top-0 z-50 w-full bg-black/80 backdrop-blur-sm border-b border-white/10">
@@ -38,6 +40,7 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={startNavigation}
                 className="text-sm font-medium text-white hover:text-blue-400 transition-colors"
               >
                 {item.name}
@@ -72,7 +75,10 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
                   key={item.name}
                   href={item.href}
                   className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    startNavigation()
+                    setMobileMenuOpen(false)
+                  }}
                 >
                   {item.name}
                 </Link>
@@ -80,7 +86,10 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
               <Link
                 href={viewer ? '/me/application' : '/login'}
                 className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => {
+                  startNavigation()
+                  setMobileMenuOpen(false)
+                }}
               >
                 {viewer ? 'Profile' : 'Log in'}
               </Link>
@@ -88,7 +97,10 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
                 <Link
                   href="/me/hr/stages"
                   className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    startNavigation()
+                    setMobileMenuOpen(false)
+                  }}
                 >
                   Stages
                 </Link>
@@ -97,7 +109,10 @@ export function Header({ viewer }: { viewer: { firstName: string; email?: string
                 <Link
                   href="/me/hr/responses"
                   className="block px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors rounded"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    startNavigation()
+                    setMobileMenuOpen(false)
+                  }}
                 >
                   Responses
                 </Link>

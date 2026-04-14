@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { BrandProvider } from "@/components/brand-provider";
+import { NavigationLoadingProvider } from "@/components/navigation-loading";
 import { getServerBrand } from "@/lib/branding";
 import Script from "next/script";
 import { getSessionUser, markSessionUserVisited } from '@/lib/application-store';
@@ -47,20 +48,22 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${roboto.variable} ${poppins.variable} font-sans`}>
-        <BrandProvider initialBrand={brand}>
-          {/* Skip to content link for accessibility - matching WordPress */}
-          <a 
-            href="#content" 
-            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#00349B] focus:text-white focus:rounded-md focus:shadow-lg"
-          >
-            Skip to content
-          </a>
-          <Header viewer={viewer ? { firstName: viewer.firstName, email: viewer.email, role: viewer.role, hrBinaryRole: viewer.hrBinaryRole, profilePictureUrl: viewer.profilePictureUrl } : null} />
-          <main id="content" className="min-h-screen">
-            {children}
-          </main>
-          <Footer />
-        </BrandProvider>
+        <NavigationLoadingProvider>
+          <BrandProvider initialBrand={brand}>
+            {/* Skip to content link for accessibility - matching WordPress */}
+            <a 
+              href="#content" 
+              className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#00349B] focus:text-white focus:rounded-md focus:shadow-lg"
+            >
+              Skip to content
+            </a>
+            <Header viewer={viewer ? { firstName: viewer.firstName, email: viewer.email, role: viewer.role, hrBinaryRole: viewer.hrBinaryRole, profilePictureUrl: viewer.profilePictureUrl } : null} />
+            <main id="content" className="min-h-screen">
+              {children}
+            </main>
+            <Footer />
+          </BrandProvider>
+        </NavigationLoadingProvider>
         {/* HubSpot Forms Script */}
         <Script
           src="//js.hsforms.net/forms/embed/v2.js"

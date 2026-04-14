@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { NavLoadingIndicator } from '@/components/nav-loading-indicator';
+import { useNavigationLoading } from '@/components/navigation-loading';
 
 type Viewer = {
   firstName: string;
@@ -19,6 +21,7 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const { startNavigation } = useNavigationLoading();
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -57,6 +60,7 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
 
   const navigateTo = (href: string) => {
     setOpen(false);
+    startNavigation();
     startTransition(() => {
       router.push(href);
       router.refresh();
@@ -72,6 +76,7 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
           {initials}
         </span>
       )}
+      <NavLoadingIndicator />
 
       <button
         type="button"
@@ -124,6 +129,7 @@ export function ProfileMenu({ viewer }: { viewer: Viewer | null }) {
             <button
               type="button"
               onClick={async () => {
+                startNavigation();
                 await fetch('/api/auth/preview-logout', { method: 'POST' });
                 setOpen(false);
                 router.push('/');
