@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type Message = {
   id: string;
@@ -19,6 +19,11 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setMessages(initialMessages);
+    setText('');
+  }, [initialMessages, applicantId]);
 
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
