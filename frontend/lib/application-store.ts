@@ -240,6 +240,26 @@ export async function deleteManagedStep(stageId: string) {
   });
 }
 
+export async function activateManagedStep(stageId: string) {
+  const baseStep = (stepsData as StageStep[]).find((item) => item.id === stageId);
+  if (!baseStep) throw new Error('Stage not found');
+
+  const all = await getManagedSteps({ includeInactive: true });
+  const existing = all.find((item) => item.id === stageId);
+
+  await saveStageDefinition({
+    stageId,
+    shortLabel: existing?.shortLabel ?? baseStep.shortLabel,
+    title: existing?.title ?? baseStep.title,
+    description: existing?.description ?? baseStep.description,
+    applicantAction: existing?.applicantAction ?? baseStep.applicantAction,
+    adminAction: existing?.adminAction ?? baseStep.adminAction,
+    active: true,
+  });
+
+  return await getManagedStepById(stageId);
+}
+
 export async function getStageResourcesForHr(stage?: string) {
   return await getStageResources(stage);
 }

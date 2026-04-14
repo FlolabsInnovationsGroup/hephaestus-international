@@ -9,6 +9,7 @@ type Step = {
   description: string;
   applicantAction: string;
   adminAction: string;
+  active?: boolean;
 };
 
 type Resource = {
@@ -41,7 +42,17 @@ function toEmbedUrl(url: string) {
   return normalized;
 }
 
-export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: Step[]; initialResources: Resource[]; stats: Stat[] }) {
+export function HrStagesWorkspace({
+  steps,
+  allSteps,
+  initialResources,
+  stats,
+}: {
+  steps: Step[];
+  allSteps: Step[];
+  initialResources: Resource[];
+  stats: Stat[];
+}) {
   const [localSteps, setLocalSteps] = useState<Step[]>(steps);
   const [activeStageId, setActiveStageId] = useState(steps[0]?.id ?? '');
   const [resources, setResources] = useState<Resource[]>(initialResources);
@@ -51,6 +62,8 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
   const [saving, setSaving] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
   const [error, setError] = useState('');
+  const [pendingAction, setPendingAction] = useState<'add' | 'remove' | null>(null);
+  const [candidateAddStageId, setCandidateAddStageId] = useState('');
 
   const stage = localSteps.find((item) => item.id === activeStageId) ?? localSteps[0];
   const stageResources = resources.filter((item) => item.stage === stage?.id);
@@ -59,6 +72,10 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
   const [editName, setEditName] = useState(stage?.shortLabel ?? '');
   const [editTitle, setEditTitle] = useState(stage?.title ?? '');
   const [editDescription, setEditDescription] = useState(stage?.description ?? '');
+  const inactiveStages = useMemo(
+    () => allSteps.filter((item) => !localSteps.some((active) => active.id === item.id)),
+    [allSteps, localSteps],
+  );
 
   async function addResource() {
     setError('');
@@ -124,12 +141,36 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
     if (next.length > 0) setActiveStageId(next[0].id);
   }
 
+  async function addStage(stageId: string) {
+    if (!stageId) return;
+    const res = await fetch('/api/admin/stages/definitions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stageId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? 'Could not add stage.');
+      return;
+    }
+    const added = data.stage as Step | undefined;
+    if (!added) return;
+    setLocalSteps((current) => [...current, added]);
+    setActiveStageId(added.id);
+  }
+
   useEffect(() => {
     if (!stage) return;
     setEditName(stage.shortLabel);
     setEditTitle(stage.title);
     setEditDescription(stage.description);
   }, [stage?.id]);
+
+  useEffect(() => {
+    if (!candidateAddStageId && inactiveStages.length > 0) {
+      setCandidateAddStageId(inactiveStages[0].id);
+    }
+  }, [candidateAddStageId, inactiveStages]);
 
   if (!stage) return null;
 
@@ -149,6 +190,24 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
               <p className="text-xs opacity-80">{item.id}</p>
             </button>
           ))}
+        </div>
+        <div className="mt-4 grid gap-2 border-t border-blue-50 pt-3">
+          <button
+            type="button"
+            disabled={inactiveStages.length === 0}
+            onClick={() => setPendingAction('add')}
+            className="rounded-xl border border-[#00349B]/20 px-3 py-2 text-sm font-semibold text-[#00349B] hover:bg-[#eef5ff] disabled:opacity-50"
+          >
+            Add stage
+          </button>
+          <button
+            type="button"
+            disabled={localSteps.length <= 1}
+            onClick={() => setPendingAction('remove')}
+            className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            Remove stage
+          </button>
         </div>
       </aside>
 
@@ -172,19 +231,16 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
               <p className="mt-2 text-2xl font-bold text-gray-900">{(activeStat?.averageHours ?? 0).toFixed(1)} hours</p>
               <p className="text-xs text-gray-500">Based on {activeStat?.samples ?? 0} timeline sample(s)</p>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-              <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-            </div>
-            <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
-            <div className="mt-3 flex gap-3">
-              <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                {savingStage ? 'Saving...' : 'Save stage details'}
-              </button>
-              <button type="button" onClick={() => void deleteStage()} className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
-                Delete stage
-              </button>
-            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <input value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Name" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+            <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Title" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+          </div>
+          <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]" />
+          <div className="mt-3 flex gap-3">
+            <button type="button" onClick={() => void saveStageDetails()} disabled={savingStage} className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {savingStage ? 'Saving...' : 'Save stage details'}
+            </button>
           </div>
         </div>
 
@@ -237,6 +293,59 @@ export function HrStagesWorkspace({ steps, initialResources, stats }: { steps: S
           ))}
         </div>
       </section>
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            {pendingAction === 'add' ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Add stage</h3>
+                <p className="mt-1 text-sm text-gray-600">Choose an inactive stage to add back to the Stages list.</p>
+                <select
+                  value={candidateAddStageId}
+                  onChange={(event) => setCandidateAddStageId(event.target.value)}
+                  className="mt-4 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]"
+                >
+                  {inactiveStages.map((item) => (
+                    <option key={item.id} value={item.id}>{item.title}</option>
+                  ))}
+                </select>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button
+                    type="button"
+                    disabled={!candidateAddStageId}
+                    onClick={() => {
+                      void addStage(candidateAddStageId);
+                      setPendingAction(null);
+                    }}
+                    className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    Confirm add
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Remove stage</h3>
+                <p className="mt-2 text-sm text-gray-600">Are you sure you want to remove <strong>{stage.title}</strong> from the active stage list?</p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button type="button" onClick={() => setPendingAction(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void deleteStage();
+                      setPendingAction(null);
+                    }}
+                    className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    Confirm remove
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

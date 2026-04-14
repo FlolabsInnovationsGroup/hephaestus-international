@@ -1,5 +1,21 @@
 import { NextResponse } from 'next/server';
-import { deleteManagedStep, getSessionUser, updateManagedStep } from '@/lib/application-store';
+import { activateManagedStep, deleteManagedStep, getSessionUser, updateManagedStep } from '@/lib/application-store';
+
+export async function POST(request: Request) {
+  const viewer = await getSessionUser();
+  if (!viewer?.hrBinaryRole) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await request.json();
+  const stageId = String(body?.stageId ?? '').trim();
+  if (!stageId) return NextResponse.json({ error: 'Missing stageId' }, { status: 400 });
+
+  try {
+    const stage = await activateManagedStep(stageId);
+    return NextResponse.json({ ok: true, stage });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Add failed' }, { status: 404 });
+  }
+}
 
 export async function PATCH(request: Request) {
   const viewer = await getSessionUser();
