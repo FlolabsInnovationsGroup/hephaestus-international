@@ -29,6 +29,7 @@ function normalizeOutcome(value: unknown): StageReviewOutcome | null {
  */
 export async function reviewStagesBatch(
   stages: StageReviewBlock[],
+  options?: { model?: string },
 ): Promise<{ decisions: BatchStageReviewDecision[]; error?: string }> {
   if (stages.length === 0) {
     return { decisions: [] };
@@ -39,7 +40,7 @@ export async function reviewStagesBatch(
     return { decisions: [], error: 'OpenAI is not configured (missing OPENAI_API_KEY).' };
   }
 
-  const model = getOpenAIStageReviewModel();
+  const model = options?.model?.trim() || getOpenAIStageReviewModel();
   const openai = new OpenAI({ apiKey });
 
   const requiredIds = stages.map((s) => s.stageId);

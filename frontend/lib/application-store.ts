@@ -24,10 +24,10 @@ import {
   updateApplicantProfile,
   updateApplicantStage,
 } from '@/lib/application-db';
-import { isApplicantReviewWaitStage, orderedStageIds } from '@/lib/stage-definitions';
+import { getStageOrder, isApplicantReviewWaitStage, orderedStageIds } from '@/lib/stage-definitions';
 import { reviewStagesBatch, type StageReviewBlock, type StageReviewOutcome } from '@/lib/openai-stage-review';
 import type { StageResourceResponseRecord } from '@/lib/application-db';
-import { getOpenAIApiKey, getOpenAIChatModel } from '@/lib/openai-app-config';
+import { getOpenAIApiKey, getOpenAIChatModel, getOpenAIStageReviewModelForStageNumber } from '@/lib/openai-app-config';
 
 const SESSION_COOKIE = 'fl_preview_session';
 
@@ -211,7 +211,9 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     };
   }
 
-  const batch = await reviewStagesBatch(stages);
+  const stageNumber = getStageOrder(stageAtStart) + 1;
+  const stageReviewModel = getOpenAIStageReviewModelForStageNumber(stageNumber);
+  const batch = await reviewStagesBatch(stages, { model: stageReviewModel });
   if (batch.error || batch.decisions.length === 0) {
     console.warn('[completeApplicantStageReviewBatch]', batch.error ?? 'no decisions');
     return {

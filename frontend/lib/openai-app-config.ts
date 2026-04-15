@@ -23,6 +23,17 @@ export function getOpenAIStageReviewModel(): string {
   );
 }
 
+/**
+ * Stage-specific override. Example:
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_4=gpt-5.4-nano
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_6=gpt-5.4-nano
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_9=gpt-5.4-nano
+ */
+export function getOpenAIStageReviewModelForStageNumber(stageNumber: number): string {
+  const perStage = process.env[`OPENAI_STAGE_REVIEW_MODEL_STAGE_${stageNumber}`]?.trim();
+  return perStage || getOpenAIStageReviewModel();
+}
+
 /** Paula / general chat completions — same env chain, no separate stage key. */
 export function getOpenAIChatModel(): string {
   return process.env.LLM_MODEL?.trim() || process.env.OPENAI_CHAT_MODEL?.trim() || OPENAI_DEFAULT_NANO_MODEL;
