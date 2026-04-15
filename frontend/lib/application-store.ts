@@ -49,6 +49,37 @@ function latestResponseByResourceId(responses: StageResourceResponseRecord[]) {
   return map;
 }
 
+async function maybeSendReviewRedoExplanation(applicant: ApplicantProfile) {
+  const marker = 'please revisit your previous responses';
+  const now = Date.now();
+  const twelveHoursMs = 12 * 60 * 60 * 1000;
+  const messages = await getApplicantConversations(applicant.id);
+  const alreadySentRecently = messages.some((message) => {
+    if (message.author !== 'paula') return false;
+    if (!message.text.toLowerCase().includes(marker)) return false;
+    const createdAt = new Date(message.createdAt).getTime();
+    return Number.isFinite(createdAt) && now - createdAt < twelveHoursMs;
+  });
+  if (alreadySentRecently) return;
+
+  const stage = getStepById(applicant.stage);
+  const greeting = applicant.firstName?.trim() || 'there';
+  await addApplicantMessage(
+    applicant.id,
+    'paula',
+    `Hi ${greeting},
+
+Quick context on this review step (${stage?.title ?? applicant.stage}): we're asking you to please revisit your previous responses because they need a bit more depth and specificity before we can move you forward.
+
+When you redo them, focus on clear takeaways from the materials, concrete observations, and your own reasoning in full sentences. You do not need perfect grammar — we are mainly looking for genuine effort and thoughtful engagement.
+
+If you want, I can help you structure stronger answers before you resubmit.
+
+Warmly,
+Paula`,
+  );
+}
+
 function resolveNextActiveStage(current: ApplicationStage, activeIds: Set<string>): ApplicationStage | null {
   const idx = orderedStageIds.indexOf(current);
   if (idx < 0) return null;
@@ -153,6 +184,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
 
   const stageAtStart = user.stage;
   if (isApplicantReviewWaitStage(stageAtStart)) {
+    await maybeSendReviewRedoExplanation(user);
     return {
       evaluated: false,
       stageChanged: false,
