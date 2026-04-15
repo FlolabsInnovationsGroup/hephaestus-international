@@ -17,6 +17,7 @@ type StageCompleteReviewPayload = {
   evaluated?: boolean;
   outcome?: string;
   newStageTitle?: string;
+  redirectTo?: string;
   applicantMessage?: string;
   incomplete?: boolean;
   noReviewablePrompts?: boolean;
@@ -94,8 +95,9 @@ export function ApplicantStageContent({
       const rev = data.review;
       if (rev?.applicantMessage) setNotice(rev.applicantMessage);
 
-      if (rev?.stageChanged) {
-        window.location.reload();
+      if (rev?.stageChanged || rev?.outcome === 'next') {
+        const target = rev?.redirectTo || '/me/application';
+        window.location.assign(target);
         return;
       }
 

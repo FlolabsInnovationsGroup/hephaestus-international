@@ -244,6 +244,8 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     };
   }
 
+  const currentMeta = managed.find((s) => s.id === stageAtStart);
+  const currentTitle = currentMeta?.title ?? stageAtStart;
   const nextStageId = resolveNextActiveStage(stageAtStart, activeIds);
   const previousStageId = resolvePreviousActiveStage(stageAtStart, activeIds);
 
@@ -271,15 +273,16 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   const newMeta = managed.find((s) => s.id === newStage);
   const newTitle = newMeta?.title ?? newStage;
 
-  const rolledBack = outcome === 'previous' && newStage !== stageAtStart;
-  if (rolledBack) {
+  const lowEffortDetected = currentDecision.outcome === 'previous';
+  if (lowEffortDetected) {
     const greeting = (userAgain.firstName || '').trim() || 'there';
+    const redoTitle = outcome === 'previous' && newStage !== stageAtStart ? newTitle : currentTitle;
     await addApplicantMessage(
       applicantId,
       'paula',
       `Hi ${greeting},
 
-I'm reaching out with something gentle: your application has been moved one step back on the pipeline so you can revisit "${newTitle}" when it works for you.
+I'm reaching out with something gentle: your latest answers need a bit more depth, so please revisit "${redoTitle}" when it works for you.
 
 Please open the materials and prompts on your dashboard again and read them slowly. When you try the written reflections once more, a few clear sentences that show what you actually took away from the content make a real difference — we are not looking for perfection, just genuine engagement.
 

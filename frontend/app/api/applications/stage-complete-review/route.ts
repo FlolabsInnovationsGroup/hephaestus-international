@@ -19,6 +19,7 @@ export async function POST() {
         outcome: result.outcome,
         newStage: result.newStage,
         newStageTitle: result.newStageTitle,
+        redirectTo: result.stageChanged ? `/me/application?stageUpdated=${Date.now()}` : undefined,
         applicantMessage: result.applicantMessage,
         incomplete: result.incomplete,
         noReviewablePrompts: result.noReviewablePrompts,
