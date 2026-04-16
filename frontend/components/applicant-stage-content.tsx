@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toEmbedUrl } from '@/lib/embed-url';
 import { isApplicantReviewWaitStage } from '@/lib/stage-definitions';
 
@@ -19,6 +18,7 @@ type StageCompleteReviewPayload = {
   newStageTitle?: string;
   redirectTo?: string;
   applicantMessage?: string;
+  /** True when required prompts are missing — stay on page, no full reload */
   incomplete?: boolean;
   noReviewablePrompts?: boolean;
   batchStageCount?: number;
@@ -36,7 +36,6 @@ export function ApplicantStageContent({
   /** Used to hide self-service review on HR "under review" pipeline steps */
   currentStageId?: string;
 }) {
-  const router = useRouter();
   const [responses, setResponses] = useState<Record<string, string>>(
     Object.fromEntries(resources.map((item) => [item.id, item.latestResponse?.responseText ?? ''])),
   );
@@ -93,29 +92,40 @@ export function ApplicantStageContent({
         return;
       }
       const rev = data.review;
-      if (rev?.applicantMessage) setNotice(rev.applicantMessage);
 
-      if (rev?.stageChanged || rev?.outcome === 'next') {
-        const target = rev?.redirectTo || '/me/application';
-        window.location.assign(target);
+      if (rev?.incomplete) {
+        if (rev.applicantMessage) setNotice(rev.applicantMessage);
         return;
       }
 
-      if (rev?.evaluated) {
-        await router.refresh();
-      } else if (rev?.applicantMessage) {
-        await router.refresh();
+      if (rev?.applicantMessage) {
+        try {
+          sessionStorage.setItem('hephaestus_stage_notice', rev.applicantMessage);
+        } catch {
+          /* ignore */
+        }
       }
+
+      const target = rev?.redirectTo || `/me/application?updated=${Date.now()}`;
+      window.location.assign(target);
     } finally {
       setCompleting(false);
     }
   }
 
   if (resources.length === 0) {
+    const onTeamReview = currentStageId ? isApplicantReviewWaitStage(currentStageId) : false;
     return (
       <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">
         <h3 className="text-xl font-semibold text-gray-900">Stage content</h3>
-        <p className="mt-3 text-sm text-gray-600">No materials have been assigned to this stage yet.</p>
+        {onTeamReview ? (
+          <p className="mt-3 text-sm text-gray-600">
+            There is nothing to fill in on this step — your previous submission is with our team for review. If anything needs
+            another pass, Paula will reach out in <strong>Questions and answers</strong> on the left.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-gray-600">No materials have been assigned to this stage yet.</p>
+        )}
       </div>
     );
   }

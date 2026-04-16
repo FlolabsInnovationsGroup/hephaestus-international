@@ -1,26 +1,42 @@
 import { redirect } from 'next/navigation';
+import type { ApplicationStage } from '@/app/application-data';
 import { Container, Section } from '@/components/layout';
+import { resolveNextPipelineStage } from '@/lib/stage-definitions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import { ApplicantChat } from '@/components/applicant-chat';
 import { ApplicantStageContent } from '@/components/applicant-stage-content';
-import { getConversationForApplicant, getManagedStepById, getManagedSteps, getSessionUser, getStageResourcesForApplicant } from '@/lib/application-store';
+import { StageCompletionNotice } from '@/components/stage-completion-notice';
+import {
+  getApplicantById,
+  getConversationForApplicant,
+  getManagedStepById,
+  getManagedSteps,
+  getSessionUser,
+  getStageResourcesForApplicant,
+  processLowEffortRollbackIfDue,
+} from '@/lib/application-store';
 
 export default async function ApplicationDashboardPage() {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (viewer.role !== 'applicant') redirect('/me/hr');
 
+  await processLowEffortRollbackIfDue(viewer.id);
+  const applicant = (await getApplicantById(viewer.id)) ?? viewer;
+
   const steps = await getManagedSteps();
-  const step = (await getManagedStepById(viewer.stage)) ?? steps[0];
-  const currentStepIndex = steps.findIndex((candidate) => candidate.id === viewer.stage);
-  const nextStep = currentStepIndex >= 0 && currentStepIndex < steps.length - 1
-    ? steps[currentStepIndex + 1]
-    : null;
+  const step = (await getManagedStepById(applicant.stage)) ?? steps[0];
+  const currentStepIndex = steps.findIndex((candidate) => candidate.id === applicant.stage);
+  const nextFromActiveList =
+    currentStepIndex >= 0 && currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : null;
+  const nextPipelineId = resolveNextPipelineStage(applicant.stage as ApplicationStage);
+  const nextStep =
+    nextFromActiveList ?? (nextPipelineId ? await getManagedStepById(nextPipelineId) : null);
   const [conversation, stageResources] = await Promise.all([
-    getConversationForApplicant(viewer.id),
-    getStageResourcesForApplicant(viewer.stage, viewer.id),
+    getConversationForApplicant(applicant.id),
+    getStageResourcesForApplicant(applicant.stage, applicant.id),
   ]);
 
   return (
@@ -29,10 +45,12 @@ export default async function ApplicationDashboardPage() {
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">My application</p>
-            <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Welcome back, {viewer.firstName}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Welcome back, {applicant.firstName}</h1>
             <p className="mt-2 text-gray-600">This is your space to follow your progress, know your next move, and chat with us anytime you need help.</p>
           </div>
         </div>
+
+        <StageCompletionNotice />
 
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -40,7 +58,7 @@ export default async function ApplicationDashboardPage() {
               <h2 className="text-xl font-semibold text-gray-900">Questions and answers</h2>
               <p className="mt-1 text-sm text-gray-600">Paula is here to help you based on where you are right now.</p>
             </div>
-            <ApplicantChat initialMessages={conversation} applicantId={viewer.id} />
+            <ApplicantChat initialMessages={conversation} applicantId={applicant.id} />
           </div>
 
           <div className="space-y-6">
@@ -62,7 +80,7 @@ export default async function ApplicationDashboardPage() {
             <ApplicantStageContent
               resources={stageResources}
               currentStepTitle={step.title}
-              currentStageId={viewer.stage}
+              currentStageId={applicant.stage}
             />
 
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-blue-100">

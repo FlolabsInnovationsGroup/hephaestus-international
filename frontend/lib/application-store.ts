@@ -23,8 +23,16 @@ import {
   touchApplicantWebsiteVisit,
   updateApplicantProfile,
   updateApplicantStage,
+  setLowEffortPendingHold,
+  clearLowEffortPendingHold,
 } from '@/lib/application-db';
-import { getStageOrder, isApplicantReviewWaitStage, orderedStageIds } from '@/lib/stage-definitions';
+import {
+  getStageOrder,
+  isApplicantReviewWaitStage,
+  orderedStageIds,
+  resolveNextPipelineStage,
+  resolvePreviousPipelineStage,
+} from '@/lib/stage-definitions';
 import { reviewStagesBatch, type StageReviewBlock, type StageReviewOutcome } from '@/lib/openai-stage-review';
 import type { StageResourceResponseRecord } from '@/lib/application-db';
 import { getOpenAIApiKey, getOpenAIChatModel, getOpenAIStageReviewModelForStageNumber } from '@/lib/openai-app-config';
@@ -80,39 +88,21 @@ Paula`,
   );
 }
 
-function resolveNextActiveStage(current: ApplicationStage, activeIds: Set<string>): ApplicationStage | null {
-  const idx = orderedStageIds.indexOf(current);
-  if (idx < 0) return null;
-  for (let i = idx + 1; i < orderedStageIds.length; i += 1) {
-    const id = orderedStageIds[i] as ApplicationStage;
-    if (activeIds.has(id)) return id;
-  }
-  return null;
-}
-
-function resolvePreviousActiveStage(current: ApplicationStage, activeIds: Set<string>): ApplicationStage | null {
-  const idx = orderedStageIds.indexOf(current);
-  if (idx <= 0) return null;
-  for (let i = idx - 1; i >= 0; i -= 1) {
-    const id = orderedStageIds[i] as ApplicationStage;
-    if (activeIds.has(id)) return id;
-  }
-  return null;
+function lowEffortHoldDelayMs() {
+  const minutes = parseInt(process.env.LOW_EFFORT_REVIEW_HOLD_MINUTES ?? '3', 10);
+  return Math.max(1, Number.isFinite(minutes) ? minutes : 3) * 60 * 1000;
 }
 
 async function buildBatchStageReviewBlocks(
   currentStage: ApplicationStage,
   managed: Awaited<ReturnType<typeof getManagedSteps>>,
-  activeIds: Set<string>,
   responses: StageResourceResponseRecord[],
 ): Promise<StageReviewBlock[]> {
   const latest = latestResponseByResourceId(responses);
   const currentIdx = orderedStageIds.indexOf(currentStage);
   if (currentIdx < 0) return [];
 
-  const stageIdsToScan = orderedStageIds
-    .slice(0, currentIdx + 1)
-    .filter((id) => activeIds.has(id)) as ApplicationStage[];
+  const stageIdsToScan = orderedStageIds.slice(0, currentIdx + 1) as ApplicationStage[];
   const resourceLists = await Promise.all(stageIdsToScan.map((stageId) => getStageResources(stageId)));
 
   const stages: StageReviewBlock[] = [];
@@ -144,6 +134,47 @@ async function buildBatchStageReviewBlocks(
     });
   }
   return stages;
+}
+
+/**
+ * After a low-effort review, the applicant is parked on the next "under review" step for a short hold;
+ * when the hold expires, Paula explains the redo in chat and the stage rolls back to the content step.
+ */
+export async function processLowEffortRollbackIfDue(applicantId: string): Promise<void> {
+  const user = await getUserById(applicantId);
+  if (!user?.lowEffortRollbackAfter || !user.lowEffortReturnStage) return;
+
+  const due = new Date(user.lowEffortRollbackAfter).getTime();
+  if (!Number.isFinite(due)) {
+    await clearLowEffortPendingHold(applicantId);
+    return;
+  }
+  if (!isApplicantReviewWaitStage(user.stage)) {
+    await clearLowEffortPendingHold(applicantId);
+    return;
+  }
+  if (Date.now() < due) return;
+
+  const greeting = (user.firstName || '').trim() || 'there';
+  const redoStage = user.lowEffortReturnStage;
+  const redoTitle = getStepById(redoStage).title ?? redoStage;
+
+  await addApplicantMessage(
+    applicantId,
+    'paula',
+    `Hi ${greeting},
+
+I'm reaching out with something gentle: your latest answers need a bit more depth, so please revisit "${redoTitle}" when it works for you.
+
+Please open the materials and prompts on your dashboard again and read them slowly. When you try the written reflections once more, a few clear sentences that show what you actually took away from the content make a real difference — we are not looking for perfection, just genuine engagement.
+
+This happens more often than you might think, and it is not a reflection on you as a person. Take the time you need, and if anything feels unclear, message me here and I will help.
+
+Warmly,
+Paula`,
+  );
+  await clearLowEffortPendingHold(applicantId);
+  await updateApplicantStage(applicantId, redoStage);
 }
 
 export type StageCompleteReviewResult = {
@@ -194,7 +225,6 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   }
 
   const managed = await getManagedSteps();
-  const activeIds = new Set(managed.map((s) => s.id));
   const responses = await getStageResponsesForApplicant(applicantId);
 
   const currentResources = await getStageResources(stageAtStart);
@@ -221,7 +251,7 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     }
   }
 
-  const stages = await buildBatchStageReviewBlocks(stageAtStart, managed, activeIds, responses);
+  const stages = await buildBatchStageReviewBlocks(stageAtStart, managed, responses);
   if (stages.length === 0) {
     return {
       evaluated: false,
@@ -278,11 +308,19 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
 
   const currentMeta = managed.find((s) => s.id === stageAtStart);
   const currentTitle = currentMeta?.title ?? stageAtStart;
-  const nextStageId = resolveNextActiveStage(stageAtStart, activeIds);
-  const previousStageId = resolvePreviousActiveStage(stageAtStart, activeIds);
+  const nextStageId = resolveNextPipelineStage(stageAtStart);
+  const previousStageId = resolvePreviousPipelineStage(stageAtStart);
+  const reviewHoldAfterLowEffort =
+    currentDecision.outcome === 'previous' &&
+    Boolean(nextStageId && isApplicantReviewWaitStage(nextStageId));
+
+  if (!reviewHoldAfterLowEffort) {
+    await clearLowEffortPendingHold(applicantId);
+  }
 
   let newStage: ApplicationStage = stageAtStart;
   let outcome: StageReviewOutcome = currentDecision.outcome;
+  let usedLowEffortReviewHold = false;
 
   if (outcome === 'next') {
     if (!nextStageId) {
@@ -291,7 +329,10 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
       newStage = nextStageId;
     }
   } else if (outcome === 'previous') {
-    if (!previousStageId) {
+    if (reviewHoldAfterLowEffort && nextStageId) {
+      newStage = nextStageId;
+      usedLowEffortReviewHold = true;
+    } else if (!previousStageId) {
       outcome = 'stay';
     } else {
       newStage = previousStageId;
@@ -302,19 +343,23 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
     await updateApplicantStage(applicantId, newStage);
   }
 
+  if (usedLowEffortReviewHold) {
+    await setLowEffortPendingHold(applicantId, stageAtStart, new Date(Date.now() + lowEffortHoldDelayMs()));
+  }
+
   const newMeta = managed.find((s) => s.id === newStage);
   const newTitle = newMeta?.title ?? newStage;
 
-  const lowEffortDetected = currentDecision.outcome === 'previous';
-  if (lowEffortDetected) {
+  const immediateLowEffortChat =
+    currentDecision.outcome === 'previous' && !usedLowEffortReviewHold && newStage !== stageAtStart;
+  if (immediateLowEffortChat) {
     const greeting = (userAgain.firstName || '').trim() || 'there';
-    const redoTitle = outcome === 'previous' && newStage !== stageAtStart ? newTitle : currentTitle;
     await addApplicantMessage(
       applicantId,
       'paula',
       `Hi ${greeting},
 
-I'm reaching out with something gentle: your latest answers need a bit more depth, so please revisit "${redoTitle}" when it works for you.
+I'm reaching out with something gentle: your latest answers need a bit more depth, so please revisit "${newTitle}" when it works for you.
 
 Please open the materials and prompts on your dashboard again and read them slowly. When you try the written reflections once more, a few clear sentences that show what you actually took away from the content make a real difference — we are not looking for perfection, just genuine engagement.
 
@@ -328,11 +373,14 @@ Paula`,
   let applicantMessage: string;
   if (outcome === 'next' && newStage !== stageAtStart) {
     applicantMessage = `You're now on: ${newTitle}. Refresh if the dashboard still shows the previous step.`;
+  } else if (usedLowEffortReviewHold) {
+    applicantMessage =
+      'Thank you — your step is now under review. Please give us a few minutes; if your answers need more depth, Paula will reach out in Questions and answers with friendly guidance.';
   } else if (outcome === 'previous' && newStage !== stageAtStart) {
     applicantMessage = `Based on your answers, you have been moved one step back so you can revisit that part of the process. You are now on: ${newTitle}.`;
   } else if (currentDecision.outcome === 'next' && !nextStageId) {
     applicantMessage =
-      'Great work — your answers are recorded. You are already at the last active step in the pipeline; HR will take it from here.';
+      'Great work — your answers are recorded. You are already at the last step in the pipeline; HR will take it from here.';
   } else {
     applicantMessage =
       'Your responses are saved. Add more specific detail where the prompts ask for it, then try "I\'ve completed this stage" again, or wait for HR to follow up.';
@@ -344,6 +392,7 @@ Paula`,
     appliedOutcome: outcome,
     modelOutcome: currentDecision.outcome,
     modelReason: currentDecision.reason,
+    usedLowEffortReviewHold,
     batchStageIds: stages.map((s) => s.stageId),
     allDecisions: batch.decisions.map((d) => ({ stageId: d.stageId, outcome: d.outcome })),
   });
@@ -439,50 +488,96 @@ export async function sendHrMessage(applicantId: string, text: string, author: '
   return await addApplicantMessage(applicantId, author, text);
 }
 
+async function buildPaulaFormAnswerContext(applicant: ApplicantProfile): Promise<string> {
+  try {
+    const [resources, responses] = await Promise.all([
+      getStageResources(applicant.stage),
+      getStageResponsesForApplicant(applicant.id),
+    ]);
+    const latest = latestResponseByResourceId(responses);
+    const lines: string[] = [];
+    for (const r of resources) {
+      if (!r.active || !r.applicantPrompt?.trim()) continue;
+      const text = latest.get(r.id)?.responseText?.trim() ?? '';
+      if (!text) continue;
+      const q = r.applicantPrompt.trim().slice(0, 120);
+      const excerpt = text.length > 220 ? `${text.slice(0, 220)}…` : text;
+      lines.push(`- Prompt: ${q}${r.applicantPrompt.length > 120 ? '…' : ''} | Their answer (excerpt): ${excerpt}`);
+      if (lines.length >= 5) break;
+    }
+    if (lines.length === 0) return '';
+    return `\nThey already have saved written answers on the current stage (for your judgment only; do not quote back verbatim):\n${lines.join('\n')}`;
+  } catch {
+    return '';
+  }
+}
+
+function chatMessageLooksLowEffort(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 14) return true;
+  if (/^(idk|dunno|dunno+|no idea|nothing|skip|fine|ok+|k|ya|yea|sure|maybe|whatever|idc)\.?$/i.test(t)) return true;
+  if (/^h+i+!*$/i.test(t) || /^b+y+e+!*$/i.test(t)) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && !/[?]/.test(t)) return true;
+  return false;
+}
+
 async function buildPaulaReply(userMessage: string, applicant: ApplicantProfile | null) {
   const apiKey = getOpenAIApiKey();
 
   if (!apiKey) {
-    return fallbackPaulaReply(userMessage);
+    return fallbackPaulaReply(userMessage, applicant);
   }
 
   try {
     const openai = new OpenAI({ apiKey });
     const currentStep = applicant ? getStepById(applicant.stage) : null;
-    
+    const formSnippet = applicant ? await buildPaulaFormAnswerContext(applicant) : '';
+    const effortHint = chatMessageLooksLowEffort(userMessage)
+      ? '\nThe user message looks very short or low-effort. Gently ask them to open the materials and form prompts on the right and add specific takeaways (full sentences) before relying on chat; stay warm.'
+      : '\nThe user message shows reasonable engagement. Answer helpfully and concisely.';
+
     const systemPrompt = `You are Paula Ferry, a warm and professional HR coordinator at FloLabs Innovations. You help applicants navigate the internship application process.
 
 Your role:
 - Be friendly, encouraging, and professional
 - Answer questions about the application process, stages, and timeline
-- Guide applicants to check their dashboard for current stage progress
+- Guide applicants to use the right-hand panel: they must actually read the linked materials and reflect in the form prompts — that is the bar for moving forward
 - Never make promises about hiring outcomes
-- Keep responses concise (2-3 sentences max)
-- If you don't know something, say so and suggest contacting HR
+- Keep responses concise (2-4 sentences)
+- If you don't know something, say so and suggest HR can follow up from the lead view
+- If they are vague but you have form excerpts below, you may nudge them toward adding concrete detail that relates to those prompts (without quoting their answers back word-for-word)
+
+Effort heuristic for this turn:${effortHint}
 
 Current applicant context (if available):
 ${applicant ? `- Applicant name: ${applicant.firstName} ${applicant.lastName}
 - Current stage: ${currentStep?.title || 'Unknown'}
-- Stage description: ${currentStep?.description || 'N/A'}` : '- No applicant context available'}`;
+- Stage description: ${currentStep?.description || 'N/A'}
+- What to do on this stage (short): ${currentStep?.applicantAction || 'N/A'}${formSnippet}` : '- No applicant context available'}`;
 
     const response = await openai.chat.completions.create({
       model: getOpenAIChatModel(),
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
+        { role: 'user', content: userMessage },
       ],
-      max_tokens: 150,
-      temperature: 0.7,
+      max_tokens: 220,
+      temperature: 0.55,
     });
 
-    return response.choices[0]?.message?.content || fallbackPaulaReply(userMessage);
+    return response.choices[0]?.message?.content || fallbackPaulaReply(userMessage, applicant);
   } catch (error) {
     console.error('OpenAI API error:', error);
-    return fallbackPaulaReply(userMessage);
+    return fallbackPaulaReply(userMessage, applicant);
   }
 }
 
-function fallbackPaulaReply(text: string) {
+function fallbackPaulaReply(text: string, applicant: ApplicantProfile | null) {
+  if (chatMessageLooksLowEffort(text)) {
+    const stage = applicant ? getStepById(applicant.stage).title : 'your current step';
+    return `Happy to help. For ${stage}, please open the links and prompts on the right and add a few clear sentences about what you took away from the materials — that is what we need to see before we can move you forward. If a specific question on the form is confusing, tell me which one.`;
+  }
   const normalized = text.toLowerCase();
   if (normalized.includes('paid') || normalized.includes('salary') || normalized.includes('compensation')) {
     return 'Compensation details depend on the specific program path. HR will confirm that in the appropriate stage, but for now you should keep moving through the current application step shown on the right.';
@@ -491,7 +586,7 @@ function fallbackPaulaReply(text: string) {
     return 'Before the individual Oliver meeting, the process stays asynchronous until the Saturday Orientation step. The dashboard on the right shows which step you are currently in.';
   }
   if (normalized.includes('what next') || normalized.includes('next step') || normalized.includes('timeline')) {
-    return 'Your next step is the one shown on the right panel. If you complete it, HR can move you forward from the admin workspace.';
+    return 'Your next step is the one shown on the right panel. Complete the prompts there with thoughtful answers; when you use “I’ve completed this stage”, your work goes to review and your stage can update.';
   }
   if (normalized.includes('cv') || normalized.includes('resume') || normalized.includes('file')) {
     return 'You can update your CV file name in your profile settings. Make sure it matches the filename in your application.';
@@ -617,6 +712,9 @@ export async function submitStageResponse(input: { resourceId: string; applicant
 }
 
 export async function getStageResourcesForApplicant(stage: string, applicantId: string) {
+  if (isApplicantReviewWaitStage(stage)) {
+    return [];
+  }
   const [resources, responses] = await Promise.all([
     getStageResources(stage),
     getStageResponsesForApplicant(applicantId),
