@@ -13,7 +13,10 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
   const [nextStage, setNextStage] = useState(stage);
   const [nextStatus, setNextStatus] = useState(status);
   const [loading, setLoading] = useState(false);
+  const [onboarding, setOnboarding] = useState(false);
   const router = useRouter();
+
+  const canOnboard = nextStatus === 'signed';
 
   async function save() {
     setLoading(true);
@@ -23,6 +26,18 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
       body: JSON.stringify({ applicantId, stage: nextStage, status: nextStatus }),
     });
     setLoading(false);
+    router.refresh();
+  }
+
+  async function onboard() {
+    if (!canOnboard) return;
+    setOnboarding(true);
+    await fetch('/api/admin/leads/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicantId }),
+    });
+    setOnboarding(false);
     router.refresh();
   }
 
@@ -53,7 +68,18 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
             </ul>
           </div>
         )}
-        <button onClick={save} disabled={loading} className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Saving...' : 'Save stage and status'}</button>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={save} disabled={loading} className="rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? 'Saving...' : 'Save stage and status'}</button>
+          <button
+            type="button"
+            onClick={onboard}
+            disabled={!canOnboard || onboarding}
+            className="rounded-xl border border-[#00349B] px-4 py-3 text-sm font-semibold text-[#00349B] disabled:cursor-not-allowed disabled:opacity-50"
+            title={canOnboard ? 'Run the legacy onboarding flow' : 'Available only once the applicant reaches signed status'}
+          >
+            {onboarding ? 'Onboarding...' : 'Onboard'}
+          </button>
+        </div>
       </div>
     </div>
   );

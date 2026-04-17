@@ -463,7 +463,7 @@ export function HrDashboardWorkspace({
           {activeLead && <HrStageControls applicantId={activeLead.id} stage={activeLead.stage} status={activeLead.status} />}
           <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900">Chronos sync note</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-700">When a lead reaches <code>agreement_signed</code> or <code>chronos_synced</code>, the backend now writes a Chronos sync payload into the preview sync layer so the shared identity contract is no longer only UI text.</p>
+            <p className="mt-3 text-sm leading-6 text-gray-700">Signed applicants can now be onboarded explicitly, while joined applicants continue to get a working Chronos profile automatically. Team Members sync is also refreshed periodically from the shared user data.</p>
           </div>
         </div>
       </div>
