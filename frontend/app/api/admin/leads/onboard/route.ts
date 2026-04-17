@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApplicantById, getSessionUser } from '@/lib/application-store';
-import { canOnboardApplicant, maybeSyncTeamMembersPeriodically, onboardApplicantToChronos } from '@/lib/chronos-sync';
+import { canOnboardApplicant, onboardApplicantToChronos } from '@/lib/chronos-sync';
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
@@ -23,7 +23,6 @@ export async function POST(request: Request) {
   }
 
   const chronosSync = await onboardApplicantToChronos(applicant);
-  const teamMembersSync = await maybeSyncTeamMembersPeriodically(true);
 
-  return NextResponse.json({ ok: true, applicant, chronosSync, teamMembersSync });
+  return NextResponse.json({ ok: true, applicant, chronosSync });
 }

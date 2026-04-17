@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, saveApplicantStage } from '@/lib/application-store';
-import { maybeSyncTeamMembersPeriodically, syncApplicantToChronos } from '@/lib/chronos-sync';
+import { syncApplicantToChronos } from '@/lib/chronos-sync';
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
@@ -20,6 +20,5 @@ export async function POST(request: Request) {
     String(body.status ?? '').toLowerCase() === 'joined'
   );
   const chronosSync = shouldSync ? await syncApplicantToChronos(applicant) : null;
-  const teamMembersSync = shouldSync ? await maybeSyncTeamMembersPeriodically() : null;
-  return NextResponse.json({ ok: true, applicant, chronosSync, teamMembersSync });
+  return NextResponse.json({ ok: true, applicant, chronosSync });
 }
