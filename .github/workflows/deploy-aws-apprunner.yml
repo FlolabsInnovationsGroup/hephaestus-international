@@ -128,7 +128,7 @@ jobs:
           cat > apprunner-source.json <<JSON
           {
             "AuthenticationConfiguration": {
-              "AccessRoleArn": "${{ secrets.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}"
+              "AccessRoleArn": "arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role"
             },
             "AutoDeploymentsEnabled": true,
             "ImageRepository": {
@@ -137,10 +137,10 @@ jobs:
               "ImageConfiguration": {
                 "Port": "3000",
                 "RuntimeEnvironmentVariables": {
-                  "APP_URL": "${{ secrets.APP_RUNNER_URL }}",
+                  "APP_URL": "https://qmpjrq5tqi.us-east-1.awsapprunner.com",
                   "APPLICANT_STORAGE_DRIVER": "postgres",
                   "NODE_ENV": "production",
-                  "NEXTAUTH_URL": "${{ secrets.APP_RUNNER_URL }}",
+                  "NEXTAUTH_URL": "https://qmpjrq5tqi.us-east-1.awsapprunner.com",
                   "NEXTAUTH_SECRET": "${{ secrets.AUTH_SECRET }}",
                   "DATABASE_URL": "${{ steps.runtime-secrets.outputs.database_url }}",
                   "CHRONOS_DB_DATABASE_URL": "${{ steps.runtime-secrets.outputs.database_url }}",
@@ -181,7 +181,7 @@ jobs:
         run: |
           set -euo pipefail
           OPERATION_ID=$(aws apprunner update-service \
-            --service-arn "${{ secrets.APP_RUNNER_SERVICE_ARN }}" \
+            --service-arn "arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/26b4568d042b40e2bc6205852fce68ae" \
             --source-configuration file://apprunner-source.json \
             --instance-configuration file://apprunner-service.json \
             --region "${AWS_REGION}" \
@@ -195,7 +195,7 @@ jobs:
           set -euo pipefail
           while true; do
             STATUS=$(aws apprunner list-operations \
-              --service-arn "${{ secrets.APP_RUNNER_SERVICE_ARN }}" \
+              --service-arn "arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/26b4568d042b40e2bc6205852fce68ae" \
               --region "${AWS_REGION}" \
               --query "OperationSummaryList[?Id=='${{ steps.update.outputs.operation_id }}'].Status | [0]" \
               --output text)
@@ -214,7 +214,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP_URL="${{ secrets.APP_RUNNER_URL }}"
+          APP_URL="https://qmpjrq5tqi.us-east-1.awsapprunner.com"
           for attempt in {1..30}; do
             BODY=$(curl -fsSL "${APP_URL}/api/health") && true || BODY=""
             if [[ -n "$BODY" ]]; then
