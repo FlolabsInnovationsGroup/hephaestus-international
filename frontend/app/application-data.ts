@@ -64,6 +64,9 @@ export interface ApplicantProfile {
   communicationConsent?: boolean;
   duplicateCandidates?: DuplicateCandidate[];
   duplicateNeedsReview?: boolean;
+  /** When set, applicant is briefly held on a review step before automatic rollback + Paula message (low-effort path). */
+  lowEffortRollbackAfter?: string | null;
+  lowEffortReturnStage?: ApplicationStage | null;
 }
 
 export interface ConversationMessage {
