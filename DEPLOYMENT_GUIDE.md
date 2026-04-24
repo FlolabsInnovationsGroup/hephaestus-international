@@ -1,13 +1,23 @@
 # Hephaestus.International Deployment Guide
 
-This guide covers deploying the Hephaestus.International website, which is a rebranded version of the Flo Labs International site.
+This guide covers deploying Hephaestus.International on AWS using the same credentials and shared database account model as Chronos.
 
 ## Architecture Overview
 
-- **Frontend**: Next.js 16 on Vercel
-- **Backend**: Strapi v5 on Railway
-- **Database**: PostgreSQL 16 on Railway
+- **Frontend**: Next.js 16 on AWS App Runner
+- **Backend**: Strapi v5 (existing content backend)
+- **Database/Auth identity**: shared PostgreSQL account model with Chronos (`users`, `user_email_aliases`, `applicants`)
 - **Domain**: hephaestus.international
+
+## Canonical deployment path
+
+Use GitHub Actions -> AWS OIDC -> ECR -> App Runner:
+
+- Workflow: `.github/workflows/deploy-aws-apprunner.yml`
+- Bootstrap IAM/secrets: `deploy/aws/setup-github-actions-deploy.ps1`
+- Bootstrap docs: `deploy/aws/README-github-actions.md`
+
+The workflow reads the shared DB credential from `/flolabs-chronos/DATABASE_URL` and Hephaestus-specific runtime values from `/hephaestus-international/*` in AWS SSM.
 
 ## Environment Variables
 

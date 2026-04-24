@@ -1,6 +1,6 @@
 # Hephaestus.International
 
-Modern marketing site and content hub for **Hephaestus.International** (with optional **Efestos** branding on a second domain). The stack is **Next.js** (App Router) on the frontend and **Strapi v5** for content, with media on **Cloudinary** and deployments on **Vercel** (frontend) and **Railway** (Strapi + PostgreSQL).
+Modern marketing site and applicant portal for **Hephaestus.International** (with optional **Efestos** branding on a second domain). The stack is **Next.js** (App Router) on the frontend and **Strapi v5** for content, with media on **Cloudinary** and production deployment on **AWS App Runner** (frontend) plus Strapi hosting.
 
 **بالعربية:** المشروع عبارة عن موقع وواجهة أمامية بـ Next.js تتصل بنظامي Strapi (رئيسي للمحتوى العام للموقع، وآخر للمشاريع والمدونة وإعلانات التدريب)، مع دعم اسم تجاري يعتمد على النطاق (Hephaestus أو Efestos)، وإعادة تحقق للمحتوى (ISR) على معظم الصفحات.
 
@@ -10,7 +10,7 @@ Modern marketing site and content hub for **Hephaestus.International** (with opt
 
 | Layer | Role |
 |--------|------|
-| **Frontend** (`frontend/`) | Next.js 16, React 19, Tailwind CSS 4, Framer Motion |
+| **Frontend** (`frontend/`) | Next.js 16, React 19, Tailwind CSS 4, Framer Motion on AWS App Runner |
 | **Main Strapi** | Site settings, homepage sections, benefits, methodology, team, verticals, etc. |
 | **Content Strapi** | Projects, blog posts, internship listings (job posts) |
 | **Media** | Cloudinary (via Strapi upload provider); Next.js allows remote images from Strapi and Cloudinary |
@@ -119,7 +119,7 @@ Admin UI: [http://localhost:1337/admin](http://localhost:1337/admin). Configure 
 | [frontend/README.md](./frontend/README.md) | Frontend env vars, dual Strapi behavior, ISR |
 | [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) | Developer setup and patterns |
 | [CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md) | Content editing in Strapi |
-| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Deployment (Vercel, Railway) |
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Deployment (AWS App Runner + shared Chronos data) |
 | [DOMAIN_SETUP_GUIDE.md](./DOMAIN_SETUP_GUIDE.md) | DNS and domains |
 | [QUICK_START.md](./QUICK_START.md) | Short onboarding |
 | [QA_CHECKLIST.md](./QA_CHECKLIST.md) | Pre-release checks |
@@ -138,6 +138,7 @@ Admin UI: [http://localhost:1337/admin](http://localhost:1337/admin). Configure 
 | `STRAPI_API_TOKEN` | Server-only token for main Strapi |
 | `CONTENT_STRAPI_URL` | Content Strapi base URL (server-only) |
 | `CONTENT_STRAPI_API_TOKEN` | Server-only token for content Strapi |
+| `DATABASE_URL` / `CHRONOS_DB_DATABASE_URL` | Shared Chronos Postgres database (same credentials and account identity) |
 
 Never prefix secret tokens with `NEXT_PUBLIC_`.
 

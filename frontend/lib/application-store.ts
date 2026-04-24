@@ -39,6 +39,19 @@ import { getOpenAIApiKey, getOpenAIChatModel, getOpenAIStageReviewModelForStageN
 
 const SESSION_COOKIE = 'fl_preview_session';
 
+function canAccessSharedFloLabsAccount(user: ApplicantProfile): boolean {
+  if (user.hrBinaryRole || user.role === 'admin' || user.role === 'hr') {
+    return true;
+  }
+
+  const status = String(user.status ?? '').toLowerCase();
+  if (status === 'active' || status === 'joined') {
+    return true;
+  }
+
+  return user.stage === 'joined';
+}
+
 function isStageResponseAutoAdvanceEnabled() {
   const v = process.env.STAGE_RESPONSE_AUTO_ADVANCE;
   if (v === undefined || v === '') return true;
@@ -431,6 +444,7 @@ export async function loginPreview(email: string, password: string): Promise<App
     : user.password === password;
 
   if (!passwordMatches) return null;
+  if (!canAccessSharedFloLabsAccount(user)) return null;
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, user.id, { httpOnly: true, sameSite: 'lax', path: '/' });

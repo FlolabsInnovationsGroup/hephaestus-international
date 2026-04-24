@@ -2,8 +2,17 @@ import { randomUUID } from 'crypto';
 import { hash } from 'bcryptjs';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { demoApplicants, demoConversations, type ApplicantProfile, type ConversationMessage, type DuplicateCandidate, type StageStep } from '@/app/application-data';
+import {
+  demoApplicants,
+  demoConversations,
+  type ApplicantProfile,
+  type ApplicationStage,
+  type ConversationMessage,
+  type DuplicateCandidate,
+  type StageStep,
+} from '@/app/application-data';
 import { sql } from '@/lib/db';
+import { isApplicantReviewWaitStage } from '@/lib/stage-definitions';
 
 interface DuplicateReviewRow {
   id: string;
@@ -91,6 +100,60 @@ async function ensureDb() {
   }
 }
 
+async function ensureApplicantLowEffortHoldColumns() {
+  if (!sql) return;
+  try {
+    await sql`alter table website_applicants add column if not exists low_effort_rollback_after timestamptz`;
+    await sql`alter table website_applicants add column if not exists low_effort_return_stage text`;
+  } catch (e) {
+    console.warn('[ensureApplicantLowEffortHoldColumns]', e);
+  }
+}
+
+export async function setLowEffortPendingHold(
+  applicantId: string,
+  returnStage: ApplicationStage,
+  rollbackAfter: Date,
+) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    await sql`
+      update website_applicants
+      set low_effort_return_stage = ${returnStage},
+          low_effort_rollback_after = ${rollbackAfter.toISOString()},
+          updated_at = now()
+      where id = ${applicantId}
+    `;
+    return;
+  }
+  const db = await readDb();
+  const applicant = db.applicants.find((a) => a.id === applicantId);
+  if (!applicant) return;
+  applicant.lowEffortReturnStage = returnStage;
+  applicant.lowEffortRollbackAfter = rollbackAfter.toISOString();
+  await writeDb(db);
+}
+
+export async function clearLowEffortPendingHold(applicantId: string) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    await sql`
+      update website_applicants
+      set low_effort_return_stage = null,
+          low_effort_rollback_after = null,
+          updated_at = now()
+      where id = ${applicantId}
+    `;
+    return;
+  }
+  const db = await readDb();
+  const applicant = db.applicants.find((a) => a.id === applicantId);
+  if (!applicant) return;
+  delete applicant.lowEffortReturnStage;
+  delete applicant.lowEffortRollbackAfter;
+  await writeDb(db);
+}
+
 async function ensurePostgresSchema() {
   if (!sql) throw new Error('DATABASE_URL is required for postgres applicant storage');
   await sql`
@@ -127,6 +190,7 @@ async function ensurePostgresSchema() {
       updated_at timestamptz not null default now()
     );
   `;
+  await ensureApplicantLowEffortHoldColumns();
   await sql`
     create table if not exists website_applicant_conversations (
       id uuid primary key default gen_random_uuid(),
@@ -235,6 +299,12 @@ function rowToApplicant(row: any): ApplicantProfile {
     notes: row.notes ?? '',
     safeSendersConfirmed: Boolean(row.safe_senders_confirmed),
     communicationConsent: Boolean(row.communication_consent),
+    lowEffortRollbackAfter: row.low_effort_rollback_after
+      ? new Date(row.low_effort_rollback_after).toISOString()
+      : null,
+    lowEffortReturnStage: row.low_effort_return_stage
+      ? (row.low_effort_return_stage as ApplicationStage)
+      : null,
   };
 }
 
@@ -998,7 +1068,24 @@ export async function resetApplicantPassword(userId: string, password: string, t
   }
   await ensurePostgresSchema();
   const hashedPassword = await hash(password, 12);
+  const emailRows = await sql`
+    select email from users where id = ${userId}
+    union
+    select email from user_email_aliases where user_id = ${userId}
+  `;
+  const emails = Array.from(new Set(emailRows.map((row) => String(row.email ?? '').trim().toLowerCase()).filter(Boolean)));
+
+  await sql`update users set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
   await sql`update website_applicants set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
+
+  if (emails.length > 0) {
+    await sql`
+      update website_applicants
+      set password = ${hashedPassword}, updated_at = now()
+      where lower(email) = any(${emails}::text[])
+    `;
+  }
+
   await sql`update website_password_reset_tokens set used_at = now() where id = ${tokenId}`;
 }
 

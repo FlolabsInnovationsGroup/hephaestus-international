@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrPushPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AppRunnerDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "apprunner:UpdateService",
+        "apprunner:DescribeService",
+        "apprunner:ListOperations"
+      ],
+      "Resource": "arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/*"
+    },
+    {
+      "Sid": "ReadSharedRuntimeSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-east-1:975049954782:parameter/flolabs-chronos/DATABASE_URL",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/flolabs-chronos/RESEND_API_KEY",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/flolabs-chronos/EMAIL_FROM",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/hephaestus-international/CHRONOS_SYNC_API_URL",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/hephaestus-international/CHRONOS_SYNC_TOKEN",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/hephaestus-international/CONTENT_STRAPI_URL",
+        "arn:aws:ssm:us-east-1:975049954782:parameter/hephaestus-international/STRAPI_API_TOKEN"
+      ]
+    },
+    {
+      "Sid": "PassAppRunnerEcrAccessRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role"
+    }
+  ]
+}

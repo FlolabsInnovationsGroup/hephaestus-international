@@ -170,12 +170,18 @@ Use `generateStaticParams` where applicable (e.g. blog and internship slugs).
 
 ## Deployment
 
-Set the same four environment variables in your host (Vercel, Railway, etc.):
+Primary production target is AWS App Runner using `.github/workflows/deploy-aws-apprunner.yml`.
+
+Set these environment variables in runtime (injected by App Runner workflow via SSM + secrets):
 
 - `NEXT_PUBLIC_STRAPI_URL`
 - `STRAPI_API_TOKEN`
 - `CONTENT_STRAPI_URL`
 - `CONTENT_STRAPI_API_TOKEN`
+- `DATABASE_URL` (shared Chronos DB)
+- `CHRONOS_DB_DATABASE_URL` (same shared value)
+- `CHRONOS_SYNC_API_URL`
+- `CHRONOS_SYNC_TOKEN`
 
 Redeploy after changing env vars.
 
