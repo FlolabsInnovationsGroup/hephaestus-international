@@ -380,7 +380,7 @@ async function getUserEmailAliasRows() {
   `;
 
   const rows = await sql`select user_id, email from user_email_aliases`;
-  return rows as UserEmailAliasRow[];
+  return rows as unknown as UserEmailAliasRow[];
 }
 
 async function getDuplicateReviewRows() {
@@ -404,7 +404,7 @@ async function getDuplicateReviewRows() {
   `;
 
   const rows = await sql`select id, primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes from applicant_duplicate_reviews`;
-  return rows as DuplicateReviewRow[];
+  return rows as unknown as DuplicateReviewRow[];
 }
 
 function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: DuplicateReviewRow[] = []) {
