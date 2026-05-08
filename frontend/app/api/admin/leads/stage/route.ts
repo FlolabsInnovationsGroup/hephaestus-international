@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, saveApplicantStage } from '@/lib/application-store';
-import { syncApplicantToChronos } from '@/lib/chronos-sync';
+import { syncApplicantToChronos, revokeChronosAccess } from '@/lib/chronos-sync';
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
@@ -12,12 +12,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing applicantId or stage' }, { status: 400 });
   }
   const applicant = await saveApplicantStage(String(body.applicantId), body.stage, body.status);
+  const incomingStatus = String(body.status ?? '').toLowerCase();
+
+  if (incomingStatus === 'terminated' && applicant) {
+    const revoke = await revokeChronosAccess(applicant);
+    return NextResponse.json({ ok: true, applicant, chronosSync: null, chronosRevoke: revoke });
+  }
+
   const shouldSync = applicant && (
     body.stage === 'agreement_signed' ||
     body.stage === 'chronos_synced' ||
     body.stage === 'joined' ||
-    String(body.status ?? '').toLowerCase() === 'signed' ||
-    String(body.status ?? '').toLowerCase() === 'joined'
+    incomingStatus === 'signed' ||
+    incomingStatus === 'joined' ||
+    incomingStatus === 'active'
   );
   const chronosSync = shouldSync ? await syncApplicantToChronos(applicant) : null;
   return NextResponse.json({ ok: true, applicant, chronosSync });

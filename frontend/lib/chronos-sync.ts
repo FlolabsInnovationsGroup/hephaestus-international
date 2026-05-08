@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ApplicantProfile } from '@/app/application-data';
+import { sql } from '@/lib/db';
 
 const SYNC_PATH = path.join(process.cwd(), 'data', 'chronos-sync.json');
 
@@ -53,6 +54,47 @@ export function canOnboardApplicant(applicant: ApplicantProfile) {
   return (applicant.status?.toLowerCase?.() ?? '') === 'signed';
 }
 
+function buildHubspotRawDataFromApplicant(applicant: ApplicantProfile) {
+  const fullName = `${applicant.firstName} ${applicant.lastName}`.trim();
+  const alternateEmails = Array.from(
+    new Set(
+      [applicant.email, ...(applicant.alternateEmails ?? [])]
+        .map((value) => String(value ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+  const nowIso = new Date().toISOString();
+
+  return {
+    Email: applicant.email,
+    'First Name': applicant.firstName,
+    'Last Name': applicant.lastName,
+    'First and Last Name': fullName || applicant.email,
+    'Phone Number': applicant.phoneNumber,
+    'Mobile Phone Number': applicant.phoneNumber,
+    'WhatsApp Phone Number': applicant.phoneNumber,
+    'Country/Region': applicant.country,
+    'State/Region': applicant.stateRegion ?? '',
+    City: applicant.city,
+    Education: applicant.education,
+    'LinkedIn URL': applicant.linkedinUrl,
+    Source: applicant.source,
+    'Record source': applicant.source,
+    'Job Title': applicant.roleAppliedFor,
+    'Status Flomad': applicant.status,
+    'Lifecycle Stage': applicant.stage,
+    'Lead Status': applicant.stage,
+    'Date of application': applicant.joinedAt,
+    'Create Date': applicant.joinedAt,
+    'Last Activity Date': applicant.lastVisitedAt,
+    'Last Modified Date': nowIso,
+    'Additional email addresses': alternateEmails.slice(1).join(', '),
+    emails: alternateEmails,
+    rolesAppliedFor: [applicant.roleAppliedFor].filter(Boolean),
+    'HubSpot last sync (Hephaestus)': nowIso,
+  };
+}
+
 export async function syncApplicantToChronos(applicant: ApplicantProfile) {
   const data = await readSyncFile();
   const payload = {
@@ -88,20 +130,28 @@ export async function syncApplicantToChronos(applicant: ApplicantProfile) {
         },
         body: JSON.stringify({
           externalApplicantId: applicant.id,
+          hubspotRecordId: applicant.id,
           email: applicant.email,
           firstName: applicant.firstName,
           lastName: applicant.lastName,
           name: `${applicant.firstName} ${applicant.lastName}`,
           phone: applicant.phoneNumber,
           country: applicant.country,
+          stateRegion: applicant.stateRegion ?? '',
           city: applicant.city,
           linkedinUrl: applicant.linkedinUrl,
+          education: applicant.education,
           roleAppliedFor: applicant.roleAppliedFor,
           stage: applicant.stage,
           status: applicant.status,
           joinedAt: applicant.joinedAt,
           lastWebsiteVisit: applicant.lastVisitedAt,
           source: applicant.source,
+          hubspotStatus: applicant.status,
+          hubspotLifecycleStage: applicant.stage,
+          hubspotLeadStatus: applicant.stage,
+          hubspotLastModifiedAt: new Date().toISOString(),
+          hubspotRawData: buildHubspotRawDataFromApplicant(applicant),
           syncedToTeamMembers: shouldMarkSyncedToTeamMembers(applicant),
         }),
       });
@@ -116,6 +166,20 @@ export async function syncApplicantToChronos(applicant: ApplicantProfile) {
 
 export async function getChronosSyncRecords() {
   return (await readSyncFile()).syncedApplicants;
+}
+
+export async function revokeChronosAccess(applicant: ApplicantProfile): Promise<{ ok: boolean; error?: string }> {
+  if (!sql) return { ok: false, error: 'No database connection' };
+  try {
+    await sql`
+      update users
+      set is_active = false, updated_at = now()
+      where lower(email) = lower(${applicant.email}) or id::text = ${applicant.id}
+    `;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
 }
 
 

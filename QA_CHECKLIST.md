@@ -1,200 +1,122 @@
-# QA Checklist - Flo Labs Migration
+# QA Checklist — Hephaestus HR Pipeline
 
-## Deployment URLs
-- **New Site**: https://hephaestus-international.vercel.app
-- **Original Site**: https://hephaestus.international (WordPress - legacy)
-- **Strapi CMS**: https://strapi-production-7ecb.up.railway.app/admin
+## Status Definitions
 
-## ✅ Content Migration Status
+| Status | Meaning | Hephaestus access | Chronos access |
+|---|---|---|---|
+| `applying` | Applied; has not yet reached the second meeting stage | ✅ Yes | ❌ No |
+| `waiting` | Passed second meeting; waiting for agreement to be signed | ✅ Yes | ❌ No |
+| `signed` | Agreement signed; pending Chronos onboarding | ✅ Yes | ❌ No |
+| `joined` | Onboarded to Chronos; not yet using timers | ✅ Yes | ✅ Yes (read-only/inactive) |
+| `active` | Actively using Chronos (has timer sessions) | ✅ Yes | ✅ Yes |
+| `approved` | Approved by HR for a specific path (manual override) | ✅ Yes | ❌ No |
+| `rejected` | Rejected; all platform access revoked | ❌ No | ❌ No |
+| `terminated` | Chronos access revoked; FloLabs account preserved | ✅ Yes | ❌ No (is_active = false) |
 
-### Pages (8/8 Complete)
-- ✅ **Homepage** (`/`) - All sections migrated
-  - Hero section
-  - Get Recruited section
-  - Projects showcase (4 projects from Strapi)
-  - Ambitious Projects section
-  - Verticals (Education, Healthcare, Travel, Space)
-  - Long Live Learning section
-  - Benefits section
-  - Methodology section
-  
-- ✅ **About** (`/about`) - Complete with team info
-  
-- ✅ **Internships** (`/internships`) - List page with carousel
-  - Hero carousel with 3 rotating images
-  - 39 internships displayed in grid
-  - Location and duration badges
-  
-- ✅ **Internship Detail** (`/internships/[slug]`) - 39 dynamic pages
-  - Hero with status badge
-  - Description section
-  - Responsibilities list
-  - Requirements list
-  - HubSpot application form (when status = 'Open')
-  - Quick Info sidebar
-  
-- ✅ **Projects** (`/projects`) - Fetching from Strapi
-  - 4 projects: MoodChanger, CAIPO, Flo Studios, Flo Travel
-  - Grid layout with descriptions
-  - External links to project websites
-  
-- ✅ **Blog Listing** (`/blogs`) - 13 posts from Strapi
-  - Hero section
-  - Blog post grid (3 columns)
-  - Post cards with title, author, date, excerpt, tags
-  - Newsletter subscription section
-  
-- ✅ **Blog Detail** (`/blogs/[slug]`) - 13 dynamic pages
-  - Published posts:
-    - AI Internship: The Complete Beginner's Guide
-    - 5 Easy AI Robotics Projects for Beginners
-    - Humanoid Robots vs. Generative AI
-    - Future of AI and Robotics: Top Trends for 2025
-    - Robots as a Service
-  - Draft posts (8 additional)
-  - Full content with HTML rendering
-  - Related posts section
-  
-- ✅ **Contact** (`/contact`) - Contact form page
+## Stage → Status Canonical Mapping
 
-### Content Types
-- ✅ **Internships**: 39/39 imported from WordPress
-  - All fields mapped correctly
-  - Requirements/responsibilities parsed as arrays
-  - Status, location, duration displaying
-  - HubSpot form IDs preserved
-  
-- ✅ **Projects**: 8/8 created in Strapi
-  - All projects migrated with descriptions, links, and display order
-  - Homepage shows selected projects via `showOnHomepage` flag
-  
-- ✅ **Blog Posts**: 13/13 imported from WordPress
-  - 5 published posts
-  - 8 draft posts
-  - Authors, dates, content, tags preserved
-  
-- ✅ **Media**: 5 images uploaded to Strapi
-  - 3 carousel images for internships page
-  - 1 blog hero image
-  - 1 logo image
+When HR moves a lead to a stage, the status should auto-update to the value in the "Canonical status" column. HR can override manually.
 
-## 🎨 Design & Styling
+| Stage # | Stage ID | Stage label | Canonical status |
+|---|---|---|---|
+| 1 | `application_submitted` | Application submitted | `applying` |
+| 2 | `new` | New | `applying` |
+| 3 | `contacted` | Contacted | `applying` |
+| 4 | `interested_review` | Interested review | `applying` |
+| 5 | `before_meeting` | Before meeting | `applying` |
+| 6 | `meeting_recordings_submitted` | Meeting recordings submitted | `applying` |
+| 7 | `saturday_meeting` | Saturday meeting | `applying` |
+| 8 | `attended` | Attended | `applying` |
+| 9 | `masterclass_submitted` | Masterclass submitted | `applying` |
+| 10 | `second_meeting` | Second meeting | `waiting` |
+| 11 | `agreement_sent` | Agreement sent | `waiting` |
+| 12 | `agreement_signed` | Agreement signed | `signed` |
+| 13 | `chronos_synced` | Chronos synced | `joined` |
+| 14 | `joined` | Joined | `active` |
 
-### Colors
-- ✅ Primary Blue: `#0047AB` (matching WordPress)
-- ✅ White backgrounds for cards
-- ✅ Blue gradient sections (`flo-blue-section`)
-- ✅ Proper contrast and readability
+## Access Control Rules
 
-### Components
-- ✅ Header with navigation
-- ✅ Footer with links and social media
-- ✅ Buttons (primary and outline variants)
-- ✅ Cards with hover effects
-- ✅ Hero sections with gradients
-- ✅ Carousel with auto-rotate (5 seconds)
-- ✅ HubSpot form integration
-- ✅ Responsive grid layouts
+### Hephaestus login allowed for:
+- All statuses **except** `rejected`
+- This includes `terminated` — they keep their FloLabs profile
 
-### Animations
-- ✅ Framer Motion animations on scroll
-- ✅ Hover effects on cards and links
-- ✅ Carousel transitions
-- ✅ Smooth page transitions
+### Chronos access (users.is_active):
+- `active` → `is_active = true`
+- `terminated` → `is_active = false` (revoked automatically via API when HR sets status)
+- All other statuses → no Chronos user record, no Chronos access
 
-## 🔧 Technical Features
+## QA Test Cases
 
-### Frontend (Next.js)
-- ✅ Server-side rendering (SSR)
-- ✅ Static site generation (SSG) for internships/blogs
-- ✅ Dynamic routes for [slug] pages
-- ✅ Revalidation (60 seconds) for fresh data
-- ✅ TypeScript with proper interfaces
-- ✅ Tailwind CSS for styling
-- ✅ Image optimization
+### TC-01: Status filter and stage controls parity
+**Test file:** `e2e/hr-status-filter.spec.ts`
+- [ ] The `select[name="status"]` filter dropdown contains exactly: `applying`, `waiting`, `signed`, `joined`, `active`, `approved`, `rejected`, `terminated`
+- [ ] The HR stage controls status select contains the same 8 values
+- [ ] Both selects sorted are identical
 
-### Backend (Strapi)
-- ✅ PostgreSQL database on Railway
-- ✅ RESTful API endpoints
-- ✅ Content types: Internship, Project, Blog Post
-- ✅ Media library for image uploads
-- ✅ Draft/Publish system
-- ✅ API token authentication
+### TC-02: Stage-to-status auto-suggest
+**Test file:** `e2e/hr-stage-lifecycle.spec.ts` → "Stage-to-status mapping"
+- [ ] Selecting stage 1–9 (application_submitted → masterclass_submitted) auto-sets status to `applying`
+- [ ] Selecting stage 10 (second_meeting) auto-sets status to `waiting`
+- [ ] Selecting stage 11 (agreement_sent) auto-sets status to `waiting`
+- [ ] Selecting stage 12 (agreement_signed) auto-sets status to `signed`
+- [ ] Selecting stage 13 (chronos_synced) auto-sets status to `joined`
+- [ ] Selecting stage 14 (joined) auto-sets status to `active`
 
-### Deployment
-- ✅ Vercel for frontend hosting
-- ✅ Railway for Strapi + PostgreSQL
-- ✅ Environment variables configured
-- ✅ Build process optimized
-- ✅ 39 internship static pages + 13 blog static pages generated
+### TC-03: Terminated status — Chronos revocation
+**Test file:** `e2e/hr-stage-lifecycle.spec.ts` → "Terminated status"
+- [ ] When HR sets status to `terminated` and clicks Save, the API `/api/admin/leads/stage` responds with `{ ok: true, chronosRevoke: { ok: true } }`
+- [ ] The corresponding Chronos `users` row has `is_active = false` after save
+- [ ] A terminated user can still log into Hephaestus (`/login` succeeds)
+- [ ] A terminated user cannot log into Chronos (timer app returns 401/403)
 
-## ⚠️ Items Requiring Manual Testing
+### TC-04: Status filter — applying
+**Test file:** `e2e/hr-stage-lifecycle.spec.ts` → "Filter by applying"
+- [ ] Navigating to `/me/hr?status=applying` shows only leads with `applying` status
+- [ ] The filter dropdown reflects `applying` as the selected value
 
-### HubSpot Forms
-- ⚠️ **Requires manager's HubSpot login to test**
-  - Form IDs are preserved from WordPress
-  - Component is properly configured
-  - Forms should render when internship status = 'Open'
-  - Test submission and lead capture
+### TC-05: Status filter — terminated
+**Test file:** `e2e/hr-stage-lifecycle.spec.ts` → "Filter by terminated"
+- [ ] Navigating to `/me/hr?status=terminated` renders without errors
+- [ ] The filter dropdown reflects `terminated` as the selected value
 
-### Links to External Sites
-- ⚠️ **Verify all external links work**:
-  - Project external links (check each project's `link` field in Strapi)
-  - Social media links in footer
-  - Parent company: https://flomadlabs.com/
+### TC-06: Rejected status — login blocked
+- [ ] A user with `rejected` status cannot log into Hephaestus (`/login` returns null/redirect)
+- [ ] A user with `rejected` status cannot log into Chronos
 
-### Email/Newsletter Forms
-- ⚠️ **Newsletter subscription** (on blog page)
-  - Currently just UI, not connected
-  - Needs integration with email service
+### TC-07: Applying users — Hephaestus login allowed
+- [ ] A user with `applying` status can log into Hephaestus
+- [ ] They land on `/me/application`, not HR dashboard
+- [ ] They can see their current stage in the application pipeline
 
-### Mobile Responsiveness
-- ⚠️ **Test on actual devices**:
-  - iPhone/Android phones
-  - iPads/tablets
-  - Various screen sizes
-  - Touch interactions
+### TC-08: Active Chronos users show as `active` in HR dashboard
+- [ ] Users in the Chronos `users` table with `is_active = true` appear in the HR dashboard with status `active`
+- [ ] Users in the Chronos `users` table with `is_active = false` appear with status `terminated`
 
-## 📊 Migration Statistics
+### TC-09: New applicant default status
+- [ ] A newly submitted application form creates a `website_applicants` row with `status = 'applying'`
+- [ ] Their initial stage is `application_submitted`
 
-- **Total Pages Built**: 8 main pages + 39 internships + 13 blogs = **60 pages**
-- **Content Imported**: 39 internships + 8 projects + 13 blog posts = **60 items**
-- **Images Uploaded**: 5 media files
-- **Build Time**: ~2-3 seconds
-- **Deployment**: Automated via Vercel
-- **Revalidation**: 60 seconds for fresh content
+## Playwright Test Execution
 
-## 🎯 Key Differences from WordPress Site
+```bash
+# Run all HR lifecycle tests
+cd hephaestus-international
+npx playwright test e2e/hr-status-filter.spec.ts e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
 
-### Improvements
-1. ✅ **Faster load times** - Static generation vs WordPress
-2. ✅ **Better SEO** - Next.js metadata and SSR
-3. ✅ **Easier content management** - Strapi CMS vs WordPress
-4. ✅ **Cleaner codebase** - TypeScript + React vs PHP
-5. ✅ **Image carousel** - Auto-rotating on internships page
-6. ✅ **Modern animations** - Framer Motion effects
+# Run individual suites
+npx playwright test e2e/hr-status-filter.spec.ts --config playwright.config.ts
+npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
+```
 
-### Notable Changes
-1. Blog posts include draft content (can be filtered in Strapi if needed)
-2. Newsletter form is UI-only (needs email service integration)
-3. Some WordPress plugins not needed (cleaner stack)
+## Deployment Validation Checklist
 
-## ✅ Ready for Production
+After each deploy to AWS App Runner:
 
-**All core functionality is complete and deployed!**
-
-The site is ready for:
-- ✅ Content updates via Strapi CMS
-- ✅ Adding new internships/projects/blog posts
-- ✅ Image uploads
-- ⚠️ HubSpot form testing (requires login)
-- ⚠️ Email service integration (if needed)
-
----
-
-**Next Steps**:
-1. Test HubSpot forms with manager's login
-2. Verify all external links work
-3. Test on mobile devices
-4. Set up email service for newsletter (optional)
-5. Point custom domain to Vercel deployment
+- [ ] `GET /api/health` returns 200
+- [ ] HR dashboard loads at `/me/hr` (HR credentials)
+- [ ] Status filter shows 8 options (applying, waiting, signed, joined, active, approved, rejected, terminated)
+- [ ] Stage controls status select shows same 8 options
+- [ ] Changing stage auto-updates status to canonical value
+- [ ] Save with `terminated` status calls Chronos revocation
+- [ ] Filter by `applying` works without JS errors
+- [ ] Filter by `terminated` works without JS errors

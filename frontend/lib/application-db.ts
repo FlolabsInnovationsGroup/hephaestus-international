@@ -180,7 +180,7 @@ async function ensurePostgresSchema() {
       profile_picture_url text,
       role_applied_for text,
       stage text not null default 'application_submitted',
-      status text not null default 'active',
+      status text not null default 'applying',
       joined_at timestamptz not null default now(),
       last_visited_at timestamptz not null default now(),
       notes text,
@@ -561,7 +561,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     profilePictureUrl: '',
     roleAppliedFor: hasHrAccess ? 'FloLabs team member' : row.role,
     stage: 'joined',
-    status: row.is_active === false ? 'waiting' : 'joined',
+    status: row.is_active === false ? 'terminated' : 'active',
     joinedAt: new Date(row.created_at ?? Date.now()).toISOString(),
     lastVisitedAt: new Date(row.updated_at ?? Date.now()).toISOString(),
     notes: 'Authenticated through shared Chronos users table.',
@@ -677,7 +677,7 @@ export async function getApplicants() {
 
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where is_active = true order by created_at desc`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users order by created_at desc`;
 
     for (const row of chronosRows) {
       const email = String(row.email ?? '').toLowerCase();
@@ -721,7 +721,7 @@ export async function getApplicants() {
         profilePictureUrl: '',
         roleAppliedFor: row.role_applied_for ?? row.current_job_title ?? 'Imported contact',
         stage: row.stage ?? 'new',
-        status: row.status === 'closed' ? 'rejected' : row.status === 'joined' ? 'joined' : 'active',
+        status: row.status === 'closed' ? 'rejected' : 'joined',
         joinedAt: new Date(row.joined_at ?? row.created_at ?? Date.now()).toISOString(),
         lastVisitedAt: new Date(row.last_website_visit ?? row.updated_at ?? row.created_at ?? Date.now()).toISOString(),
         notes: row.hubspot_status ?? 'Imported from Chronos applicants.',
@@ -905,7 +905,13 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
               ? 'approved'
               : chronos.status === 'signed'
                 ? 'signed'
-                : 'active';
+                : chronos.status === 'applying'
+                  ? 'applying'
+                  : chronos.status === 'terminated'
+                    ? 'terminated'
+                    : chronos.status === 'active'
+                      ? 'active'
+                      : 'joined';
       const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? stage) as ApplicantProfile['stage'];
       return {
         id: chronos.id,
@@ -1151,7 +1157,13 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
               ? 'approved'
               : chronos.status === 'signed'
                 ? 'signed'
-                : 'active';
+                : chronos.status === 'applying'
+                  ? 'applying'
+                  : chronos.status === 'terminated'
+                    ? 'terminated'
+                    : chronos.status === 'active'
+                      ? 'active'
+                      : 'joined';
       const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? current.stage) as ApplicantProfile['stage'];
       return {
         id: chronos.id,

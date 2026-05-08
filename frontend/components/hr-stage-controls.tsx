@@ -6,8 +6,18 @@ import { formatStageLabel, orderedStageIds } from '@/lib/stage-definitions';
 
 const stageOptions = orderedStageIds;
 
-const statusOptions = ['active', 'waiting', 'approved', 'rejected', 'signed', 'joined'];
+const statusOptions = ['applying', 'waiting', 'signed', 'joined', 'active', 'approved', 'rejected', 'terminated'];
 const blacklistedCountries = ['Afghanistan', 'Belarus', 'Iran', 'North Korea', 'Russia', 'Syria'];
+
+function statusForStage(stageId: string): string {
+  const idx = orderedStageIds.indexOf(stageId as (typeof orderedStageIds)[number]);
+  if (idx < 0) return 'applying';
+  if (idx <= 8) return 'applying';   // stages 1–9: application_submitted → masterclass_submitted
+  if (idx <= 10) return 'waiting';   // stages 10–11: second_meeting, agreement_sent
+  if (idx === 11) return 'signed';   // stage 12: agreement_signed
+  if (idx === 12) return 'joined';   // stage 13: chronos_synced
+  return 'active';                    // stage 14: joined (actively using Chronos)
+}
 
 export function HrStageControls({ applicantId, stage, status }: { applicantId: string; stage: string; status: string }) {
   const [nextStage, setNextStage] = useState(stage);
@@ -47,7 +57,7 @@ export function HrStageControls({ applicantId, stage, status }: { applicantId: s
       <div className="mt-4 grid gap-4">
         <label>
           <span className="mb-2 block text-sm font-semibold text-gray-700">Stage</span>
-          <select value={nextStage} onChange={(e) => setNextStage(e.target.value)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
+          <select value={nextStage} onChange={(e) => { setNextStage(e.target.value); setNextStatus(statusForStage(e.target.value)); }} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]">
             {stageOptions.map((option) => <option key={option} value={option}>{formatStageLabel(option)}</option>)}
           </select>
         </label>

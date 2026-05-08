@@ -43,13 +43,9 @@ function canAccessSharedFloLabsAccount(user: ApplicantProfile): boolean {
   if (user.hrBinaryRole || user.role === 'admin' || user.role === 'hr') {
     return true;
   }
-
+  // Rejected accounts lose all platform access
   const status = String(user.status ?? '').toLowerCase();
-  if (status === 'active' || status === 'joined') {
-    return true;
-  }
-
-  return user.stage === 'joined';
+  return status !== 'rejected';
 }
 
 function isStageResponseAutoAdvanceEnabled() {

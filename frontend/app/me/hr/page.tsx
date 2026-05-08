@@ -130,7 +130,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
           <HrFilters
             params={params}
             stageOptions={Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort((a, b) => getStageOrder(a) - getStageOrder(b) || a.localeCompare(b))}
-            statusOptions={['active', 'waiting', 'approved', 'rejected', 'signed', 'joined']}
+            statusOptions={['applying', 'waiting', 'signed', 'joined', 'active', 'approved', 'rejected', 'terminated']}
             sourceOptions={sourceOptions}
             countryOptions={countryOptions}
             cityOptions={cityOptions}

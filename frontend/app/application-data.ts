@@ -14,7 +14,7 @@ export type ApplicationStage =
   | 'chronos_synced'
   | 'joined';
 
-export type ApplicantStatus = 'active' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined';
+export type ApplicantStatus = 'applying' | 'active' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined' | 'terminated';
 export type UserRole = 'applicant' | 'admin' | 'hr';
 
 export interface DuplicateCandidate {
