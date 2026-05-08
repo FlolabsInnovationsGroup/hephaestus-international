@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, saveApplicantStage } from '@/lib/application-store';
-import { syncApplicantToChronos, revokeChronosAccess } from '@/lib/chronos-sync';
+import { syncApplicantToChronos, revokeChronosAccess, grantChronosAccess } from '@/lib/chronos-sync';
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
@@ -19,6 +19,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, applicant, chronosSync: null, chronosRevoke: revoke });
   }
 
+  const shouldGrant = applicant && (incomingStatus === 'joined' || incomingStatus === 'active');
+  const chronosGrant = shouldGrant ? await grantChronosAccess(applicant) : null;
+
   const shouldSync = applicant && (
     body.stage === 'agreement_signed' ||
     body.stage === 'chronos_synced' ||
@@ -28,5 +31,5 @@ export async function POST(request: Request) {
     incomingStatus === 'active'
   );
   const chronosSync = shouldSync ? await syncApplicantToChronos(applicant) : null;
-  return NextResponse.json({ ok: true, applicant, chronosSync });
+  return NextResponse.json({ ok: true, applicant, chronosSync, chronosGrant });
 }

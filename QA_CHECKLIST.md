@@ -7,8 +7,8 @@
 | `applying` | Applied; has not yet reached the second meeting stage | ✅ Yes | ❌ No |
 | `waiting` | Passed second meeting; waiting for agreement to be signed | ✅ Yes | ❌ No |
 | `signed` | Agreement signed; pending Chronos onboarding | ✅ Yes | ❌ No |
-| `joined` | Onboarded to Chronos; not yet using timers | ✅ Yes | ✅ Yes (read-only/inactive) |
-| `active` | Actively using Chronos (has timer sessions) | ✅ Yes | ✅ Yes |
+| `joined` | Onboarded to Chronos; not yet using timers | ✅ Yes | ✅ Yes (is_active = true) |
+| `active` | Actively using Chronos (has timer sessions) | ✅ Yes | ✅ Yes (is_active = true) |
 | `approved` | Approved by HR for a specific path (manual override) | ✅ Yes | ❌ No |
 | `rejected` | Rejected; all platform access revoked | ❌ No | ❌ No |
 | `terminated` | Chronos access revoked; FloLabs account preserved | ✅ Yes | ❌ No (is_active = false) |
@@ -41,9 +41,10 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 - This includes `terminated` — they keep their FloLabs profile
 
 ### Chronos access (users.is_active):
-- `active` → `is_active = true`
-- `terminated` → `is_active = false` (revoked automatically via API when HR sets status)
-- All other statuses → no Chronos user record, no Chronos access
+- `joined` → `is_active = true` (granted automatically when HR sets status)
+- `active` → `is_active = true` (granted automatically when HR sets status)
+- `terminated` → `is_active = false` (revoked automatically when HR sets status)
+- All other statuses → no Chronos access change
 
 ## QA Test Cases
 

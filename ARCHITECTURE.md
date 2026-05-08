@@ -65,8 +65,8 @@ From **GitHub Actions secrets**: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_
 | `applying` | Applied; hasn't reached second meeting stage | ✅ | ❌ |
 | `waiting` | Passed second meeting; agreement not yet signed | ✅ | ❌ |
 | `signed` | Agreement signed; pending Chronos onboarding | ✅ | ❌ |
-| `joined` | Onboarded to Chronos; not yet using timers | ✅ | ✅ (read-only) |
-| `active` | Actively using Chronos (has timer sessions) | ✅ | ✅ |
+| `joined` | Onboarded to Chronos; not yet using timers | ✅ | ✅ (`is_active = true`) |
+| `active` | Actively using Chronos (has timer sessions) | ✅ | ✅ (`is_active = true`) |
 | `approved` | Manual HR override | ✅ | ❌ |
 | `rejected` | Rejected; all platform access revoked | ❌ | ❌ |
 | `terminated` | Chronos access revoked; Hephaestus account preserved | ✅ | ❌ (`is_active = false`) |
@@ -95,7 +95,7 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 ### Access Control
 
 - **Hephaestus login** (`canAccessSharedFloLabsAccount()` in `application-store.ts`): blocks `rejected` only; all other statuses can log in.
-- **Chronos `users.is_active`**: `revokeChronosAccess()` sets it to `false` when status becomes `terminated`. `syncApplicantToChronos()` sets it to `true` for `active` status.
+- **Chronos `users.is_active`**: `grantChronosAccess()` sets it to `true` for `joined` and `active` status. `revokeChronosAccess()` sets it to `false` for `terminated`.
 
 ---
 

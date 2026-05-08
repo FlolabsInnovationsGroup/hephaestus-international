@@ -182,6 +182,20 @@ export async function revokeChronosAccess(applicant: ApplicantProfile): Promise<
   }
 }
 
+export async function grantChronosAccess(applicant: ApplicantProfile): Promise<{ ok: boolean; error?: string }> {
+  if (!sql) return { ok: false, error: 'No database connection' };
+  try {
+    await sql`
+      update users
+      set is_active = true, updated_at = now()
+      where lower(email) = lower(${applicant.email}) or id::text = ${applicant.id}
+    `;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 
 export async function onboardApplicantToChronos(applicant: ApplicantProfile) {
   if (!canOnboardApplicant(applicant)) {
