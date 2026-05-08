@@ -40,18 +40,11 @@ const STAGE_STATUS_MAP: Record<string, string> = {
 
 async function loginAsHr(page: Parameters<Parameters<typeof test>[1]>[0]) {
   const { email, password } = getCredentials('Human Resources');
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(
-    ([e, p]) => {
-      const inputs = document.querySelectorAll('input');
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
-      setter.call(inputs[0], e);
-      inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
-      setter.call(inputs[1], p);
-      inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
-    },
-    [email, password],
-  );
+  await page.goto('/login', { waitUntil: 'load' });
+  // Wait for React-hydrated inputs before filling
+  await page.locator('input').first().waitFor({ state: 'visible' });
+  await page.locator('input').first().fill(email);
+  await page.locator('input[type="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
 }

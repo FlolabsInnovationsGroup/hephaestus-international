@@ -27,11 +27,12 @@ test.describe('HR dashboard — status filter matches status selector', () => {
 
     const { email, password } = getTestCredentials();
 
-    // Login
-    await page.goto('/login', { waitUntil: 'domcontentloaded' });
-    await page.locator('input[type="text"], input:not([type="password"])').first().fill(email);
+    // Login — wait for React hydration before filling controlled inputs
+    await page.goto('/login', { waitUntil: 'load' });
+    await page.locator('input').first().waitFor({ state: 'visible' });
+    await page.locator('input').first().fill(email);
     await page.locator('input[type="password"]').fill(password);
-    await page.getByRole('button', { name: /log in/i }).click();
+    await page.locator('button[type="submit"]').click();
     await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
 
     // Wait for HR dashboard content

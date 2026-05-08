@@ -1,0 +1,20 @@
+{
+  "baseUrl": "https://fykgssqbvg.us-east-1.awsapprunner.com",
+  "users": [
+    {
+      "emails": ["oliver.abreu@flolabsrd.com, oliver.belliardabreu@gmail.com, oliver.abreu@flomadlabs.com"],
+      "password": "gq2A1xZ^CdMM#uUpJnfc",
+      "role": "Human Resources"
+    },
+    {
+      "emails": ["tesororeptilipotermius@gmail.com"],
+      "password": "oliverbenjamin",
+      "role": "member"
+    },
+    {
+      "emails": ["pm@flolabsinnovations.com"],
+      "password": "flchron2026",
+      "role": "admin"
+    }
+  ]
+}
