@@ -18,7 +18,6 @@ export async function POST(req: Request) {
     (user.hrBinaryRole ||
       user.role === 'admin' ||
       user.role === 'hr' ||
-      status === 'active' ||
       status === 'joined' ||
       user.stage === 'joined');
 

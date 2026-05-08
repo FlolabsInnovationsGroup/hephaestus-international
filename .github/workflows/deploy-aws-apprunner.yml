@@ -54,6 +54,16 @@ jobs:
           echo "latest_uri=${LATEST_URI}" >> "$GITHUB_OUTPUT"
           echo "build_timestamp=${BUILD_TIMESTAMP}" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch Strapi URL for build
+        id: build-config
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONTENT_STRAPI_URL=$(aws ssm get-parameter --name /hephaestus-international/CONTENT_STRAPI_URL --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
+          echo "content_strapi_url<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CONTENT_STRAPI_URL" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -67,6 +77,7 @@ jobs:
             BUILD_COMMIT_REF=${{ github.ref_name }}
             BUILD_IMAGE_TAG=${{ steps.meta.outputs.image_tag }}
             BUILD_TIMESTAMP=${{ steps.meta.outputs.build_timestamp }}
+            NEXT_PUBLIC_STRAPI_URL=${{ steps.build-config.outputs.content_strapi_url }}
 
       - name: Resolve ECR image digest
         id: digest
@@ -94,6 +105,7 @@ jobs:
           CHRONOS_SYNC_API_URL=$(aws ssm get-parameter --name /hephaestus-international/CHRONOS_SYNC_API_URL --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
           CONTENT_STRAPI_URL=$(aws ssm get-parameter --name /hephaestus-international/CONTENT_STRAPI_URL --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
           STRAPI_API_TOKEN=$(aws ssm get-parameter --name /hephaestus-international/STRAPI_API_TOKEN --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
+          CONTENT_STRAPI_API_TOKEN=$(aws ssm get-parameter --name /hephaestus-international/CONTENT_STRAPI_API_TOKEN --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
           CHRONOS_SYNC_TOKEN=$(aws ssm get-parameter --name /hephaestus-international/CHRONOS_SYNC_TOKEN --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text)
           EMAIL_FROM=$(aws ssm get-parameter --name /flolabs-chronos/EMAIL_FROM --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
           RESEND_API_KEY=$(aws ssm get-parameter --name /flolabs-chronos/RESEND_API_KEY --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
@@ -109,6 +121,9 @@ jobs:
             echo "EOF"
             echo "strapi_api_token<<EOF"
             echo "$STRAPI_API_TOKEN"
+            echo "EOF"
+            echo "content_strapi_api_token<<EOF"
+            echo "$CONTENT_STRAPI_API_TOKEN"
             echo "EOF"
             echo "chronos_sync_token<<EOF"
             echo "$CHRONOS_SYNC_TOKEN"
@@ -148,6 +163,7 @@ jobs:
                   "CHRONOS_SYNC_API_URL": "${{ steps.runtime-secrets.outputs.chronos_sync_api_url }}",
                   "CHRONOS_SYNC_TOKEN": "${{ steps.runtime-secrets.outputs.chronos_sync_token }}",
                   "CONTENT_STRAPI_URL": "${{ steps.runtime-secrets.outputs.content_strapi_url }}",
+                  "CONTENT_STRAPI_API_TOKEN": "${{ steps.runtime-secrets.outputs.content_strapi_api_token }}",
                   "NEXT_PUBLIC_STRAPI_URL": "${{ steps.runtime-secrets.outputs.content_strapi_url }}",
                   "STRAPI_API_TOKEN": "${{ steps.runtime-secrets.outputs.strapi_api_token }}",
                   "RESEND_API_KEY": "${{ steps.runtime-secrets.outputs.resend_api_key }}",

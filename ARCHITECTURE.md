@@ -1,77 +1,192 @@
-# Hermes Applicant Platform (Hephaestus) — Implementation Status
+# Hephaestus Applicant Platform — Architecture
 
-## Goal
+## Production URLs (agent entry point)
 
-Centralize the FloLabs educational-program application flow inside the website platform, replace HubSpot/Sheets/email-thread dependence, and bridge accepted applicants into Chronos.
+| | URL |
+|---|---|
+| **Production domain** | `https://efestos.international` |
+| **AWS App Runner URL** | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
+| **Health check** | `GET https://fykgssqbvg.us-east-1.awsapprunner.com/api/health` |
 
-## Cross-system profile and Chronos (2026-04)
+---
 
-Hephaestus and Chronos share **one logical person record** for people in the program: Chronos persists that record primarily in the **`applicants`** table (with `users` holding sign-in credentials and links such as `chronosUserId`). The website’s applicant object is the **upstream editor** for funnel and profile fields; Chronos is the **downstream system of record** for time tracking, HR directory, and Notion-side automation once sync has run.
+## System Architecture (for agents)
 
-- **Website profile surface**: `/profile` uses `ProfileEditor`, which saves through `POST /api/applications/profile`. Profile picture uploads use `POST /api/applications/profile-picture`. Email is displayed but not edited on that form (identity changes are operational).
-- **Sync entry point**: `frontend/lib/chronos-sync.ts` — `syncApplicantToChronos(applicant)` merges a snapshot into a local file `data/chronos-sync.json` (preview / audit trail) and, when configured, `POST`s JSON to `CHRONOS_SYNC_API_URL` with optional `Authorization: Bearer <CHRONOS_SYNC_TOKEN>`.
-- **Outbound payload (conceptual)**: external id, email, name parts, phone, location, LinkedIn, role applied for, **stage**, **status**, joined/visit timestamps, source, and a boolean hint `syncedToTeamMembers` derived from stage (`agreement_signed`, `chronos_synced`, or `joined`). Chronos maps this into applicant rows and downstream jobs (Team Members / MasterClasses behavior is owned on the Chronos side).
-- **Directory parity**: After sync and linking, Chronos’s Users experience overlays **applicant** fields on Chronos users for people in program scope (typically `stage = joined` or `status in (joined, active)`). Hephaestus does not render that directory; operators use Chronos for the live team list and timers.
-- **Notion**: Team Member page association and MasterClasses creation are triggered from Chronos when rules are satisfied; Hephaestus only supplies the applicant lifecycle signals via sync.
+Read this section first for **where code runs**, **what stores state**, and **how deploys work**.
 
-## Current Implemented State
+| Concern | Implementation |
+|---|---|
+| **App server** | **Next.js 16** (App Router) in `frontend/` directory. Docker image on **AWS App Runner** (`us-east-1`). Handles SSR, route handlers (`frontend/app/api/**`), and Server Components. |
+| **Images & deploy** | Immutable ECR tags `git-<12-char-sha>`. **GitHub Actions** (`.github/workflows/deploy-aws-apprunner.yml`) builds on push to `main` or manual `workflow_dispatch`, updates App Runner, verifies `/api/health` returns matching commit SHA. |
+| **Database** | Shared **AWS RDS PostgreSQL** with FloLabs Chronos. All three env aliases point to the same SSM param `/flolabs-chronos/DATABASE_URL`: `DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`, `FL_CHRONOS_DATABASE_URL`. Hephaestus owns `website_applicants`; Chronos owns `applicants` and `users` in the same DB. |
+| **Auth** | Cookie-based session (`fl_preview_session`). `canAccessSharedFloLabsAccount()` in `frontend/lib/application-store.ts` gates login — blocks `rejected` only; all other statuses allowed. |
+| **AI chatbot** | Paula uses OpenAI when `OPENAI_API_KEY` is set; falls back to rule-based replies when absent. |
+| **Location picker** | OpenStreetMap / Leaflet (`frontend/components/location-picker.tsx`) |
+| **Email** | Resend — shared SSM params `/flolabs-chronos/RESEND_API_KEY` and `/flolabs-chronos/EMAIL_FROM` |
+| **CMS (optional)** | Strapi (`CONTENT_STRAPI_URL`) for marketing pages. App works without it; missing env var logs a build warning. |
+| **Chronos sync** | `frontend/lib/chronos-sync.ts` — `syncApplicantToChronos()` pushes profile/stage/status to Chronos. `revokeChronosAccess()` sets `users.is_active = false` when status becomes `terminated`. |
+| **NEXTAUTH_URL** | Set to AWS URL at runtime. Custom domain `efestos.international` is a DNS / App Runner alias pointing to the same service. |
 
-### Website / Applicant Platform
-- Internal application form replaces HubSpot on internship pages
-- Role is auto-filled from internship page
-- Applicant login flow exists
-- `/me/application` exists with:
-  - left-side chat
-  - right-side stage content
-  - timeline view
-- `/me/hr` exists with:
-  - lead list
-  - search/filter
-  - conversation access
-  - stage/status controls
-- `/profile` exists and supports backend profile updates (aligned intent with Chronos applicant profile after sync)
-- `STEPS.json` is the Git-managed stage content source
-- File-backed preview persistence exists in `frontend/data/`
-- Chronos sync contract is implemented in `frontend/lib/chronos-sync.ts`
-- Free map picker uses OpenStreetMap/Leaflet in `frontend/components/location-picker.tsx`
+### AWS Resources
 
-### Applicant Backend
-- Application creation API
-- Applicant message API
-- Profile update API
-- Admin lead listing API
-- Admin stage/status mutation API
-- Stage updates can trigger Chronos sync payload generation
-- Applicant chat can use OpenAI when `OPENAI_API_KEY` is set, otherwise falls back to rule-based Paula replies
+| Resource | Value |
+|---|---|
+| App Runner service | `hephaestus-international` |
+| Service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
+| ECR repository | `hephaestus-international` |
+| GitHub Actions role | `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy` |
+| App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
+| VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` (shared with Chronos) |
+| Instance size | 1 vCPU / 2 GB |
+| Region / Account | `us-east-1` / `975049954782` |
 
-### Chronos Integration
+### Runtime Secrets
 
-- Chronos maintains an **`applicants`** model aligned with program profile data (and links applicants to **`users`** for authentication and the Users directory).
-- Chronos exposes applicant-oriented HTTP APIs (for example `/api/applicants`) consumed by automation and admin flows.
-- Website preview and production can target Chronos using:
-  - `CHRONOS_SYNC_API_URL`
-  - `CHRONOS_SYNC_TOKEN`
-- HR or automation code paths that call `syncApplicantToChronos` should run whenever stage/status changes must be visible in Chronos (joined pipeline, access, Notion follow-ups).
+Pulled from **AWS SSM** during deploy:
+- `/flolabs-chronos/DATABASE_URL` — shared Postgres (RDS)
+- `/hephaestus-international/CHRONOS_SYNC_API_URL`
+- `/hephaestus-international/CHRONOS_SYNC_TOKEN`
+- `/hephaestus-international/CONTENT_STRAPI_URL`
+- `/hephaestus-international/STRAPI_API_TOKEN`
+- `/hephaestus-international/CONTENT_STRAPI_API_TOKEN`
+- `/flolabs-chronos/RESEND_API_KEY` (shared with Chronos)
+- `/flolabs-chronos/EMAIL_FROM` (shared with Chronos)
 
-## Production Deployment
+From **GitHub Actions secrets**: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_API_KEY`
 
-- **Runtime:** AWS App Runner (`us-east-1`) — deployed via GitHub Actions (`.github/workflows/deploy-aws-apprunner.yml`)
-- **Service URL:** `fykgssqbvg.us-east-1.awsapprunner.com`
-- **Database:** shared AWS RDS PostgreSQL with Chronos — connected via `CHRONOS_DB_DATABASE_URL` / `FL_CHRONOS_DATABASE_URL`
-- **Instance:** 1 vCPU / 2 GB (same infrastructure account as Chronos)
+---
 
-Deploy path: `git push origin main` → GitHub Actions → ECR → App Runner (same OIDC/ECR pattern as Chronos).
+## Applicant Status System
 
-## Known Gaps / Remaining Work
-- Real CV file upload/storage (API stubs may exist; end-to-end storage story incomplete)
-- Fully live Paula integration using the exact Emails_automation stack
-- Full funnel parity with every branch/reminder state from `FUNNEL.md`
+### The 8 Statuses
 
-## Build Notes
-- Website build succeeds but still logs missing `CONTENT_STRAPI_URL` warnings for content-backed pages when that env var is absent
-- `@neondatabase/serverless` remains in `package.json` as a legacy dependency but is not used; the app connects to AWS RDS via the `postgres` driver
+| Status | Meaning | Hephaestus login | Chronos access |
+|---|---|---|---|
+| `applying` | Applied; hasn't reached second meeting stage | ✅ | ❌ |
+| `waiting` | Passed second meeting; agreement not yet signed | ✅ | ❌ |
+| `signed` | Agreement signed; pending Chronos onboarding | ✅ | ❌ |
+| `joined` | Onboarded to Chronos; not yet using timers | ✅ | ✅ (read-only) |
+| `active` | Actively using Chronos (has timer sessions) | ✅ | ✅ |
+| `approved` | Manual HR override | ✅ | ❌ |
+| `rejected` | Rejected; all platform access revoked | ❌ | ❌ |
+| `terminated` | Chronos access revoked; Hephaestus account preserved | ✅ | ❌ (`is_active = false`) |
 
-## Recommended Next Steps
-1. Remove or replace the `@neondatabase/serverless` dependency (it is unused; the app uses the `postgres` driver against AWS RDS)
-2. Wire Paula to the existing Emails_automation backend and prompts
-3. Add real CV upload/storage
+### Stage-to-Status Canonical Mapping
+
+When HR selects a stage, the status auto-updates to the canonical value (via `statusForStage()` in `hr-stage-controls.tsx`). HR can override manually before saving.
+
+| Stage # | Stage ID | Canonical Status |
+|---|---|---|
+| 1 | `application_submitted` | `applying` |
+| 2 | `new` | `applying` |
+| 3 | `contacted` | `applying` |
+| 4 | `interested_review` | `applying` |
+| 5 | `before_meeting` | `applying` |
+| 6 | `meeting_recordings_submitted` | `applying` |
+| 7 | `saturday_meeting` | `applying` |
+| 8 | `attended` | `applying` |
+| 9 | `masterclass_submitted` | `applying` |
+| 10 | `second_meeting` | `waiting` |
+| 11 | `agreement_sent` | `waiting` |
+| 12 | `agreement_signed` | `signed` |
+| 13 | `chronos_synced` | `joined` |
+| 14 | `joined` | `active` |
+
+### Access Control
+
+- **Hephaestus login** (`canAccessSharedFloLabsAccount()` in `application-store.ts`): blocks `rejected` only; all other statuses can log in.
+- **Chronos `users.is_active`**: `revokeChronosAccess()` sets it to `false` when status becomes `terminated`. `syncApplicantToChronos()` sets it to `true` for `active` status.
+
+---
+
+## Key Routes
+
+| Route | Purpose |
+|---|---|
+| `GET /login` | Applicant / HR login (React controlled form — requires hydration before `.fill()` in tests) |
+| `GET /me/application` | Applicant view: left chat + right stage timeline |
+| `GET /me/hr` | HR dashboard: lead list, search/filter, stage/status controls |
+| `GET /profile` | Profile editor aligned with Chronos applicant profile |
+| `POST /api/applications` | Create new application |
+| `POST /api/applications/profile` | Update applicant profile |
+| `POST /api/applications/profile-picture` | Upload profile picture |
+| `GET /api/admin/leads` | List applicants (HR/admin) |
+| `POST /api/admin/leads/stage` | Update stage/status; calls `revokeChronosAccess()` for `terminated`, `syncApplicantToChronos()` for others |
+| `GET /api/health` | Build metadata; returns `{ ok, commitSha, imageTag, ... }` |
+
+---
+
+## Key Source Files
+
+| File | Purpose |
+|---|---|
+| `frontend/app/application-data.ts` | `ApplicantStatus` union type, `ApplicantProfile` type |
+| `frontend/lib/application-db.ts` | All DB access: schema creation, CRUD, Chronos `users` read, `chronosUserToApplicant()` |
+| `frontend/lib/application-store.ts` | Login gate (`canAccessSharedFloLabsAccount()`), session helpers |
+| `frontend/lib/chronos-sync.ts` | `syncApplicantToChronos()`, `revokeChronosAccess()` |
+| `frontend/components/hr-stage-controls.tsx` | Stage + status selects with `statusForStage()` auto-suggest |
+| `frontend/components/login-form.tsx` | Controlled React form with `useState` defaults |
+| `frontend/app/me/hr/page.tsx` | HR dashboard; passes `statusOptions` array |
+| `frontend/app/api/admin/leads/stage/route.ts` | Stage API; branches on `terminated` for revocation vs sync |
+| `STEPS.json` | Git-managed stage content for applicant timeline view |
+
+---
+
+## Database
+
+Hephaestus and Chronos share **one AWS RDS PostgreSQL instance** and connect with identical credentials.
+
+**Hephaestus-managed table:** `website_applicants` — created by `ensurePostgresSchema()` in `application-db.ts`. This is the primary source for the HR pipeline.
+
+**Chronos tables read/written by Hephaestus:**
+- `users` — `is_active` written by `revokeChronosAccess()`; read by `chronosUserToApplicant()` to derive applicant status (`is_active = false` → `terminated`, `is_active = true` → `active`)
+- `applicants` — written via `syncApplicantToChronos()` when stage/status changes
+
+**Data flow:** `website_applicants` (Hephaestus source) → Chronos `applicants` (via sync) → Chronos `users` (for active users with timer sessions)
+
+---
+
+## Project Layout (relevant paths)
+
+```
+hephaestus-international/
+├── frontend/                         ← Next.js app (Docker build context)
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── admin/leads/          ← HR lead management APIs
+│   │   │   ├── applications/         ← Applicant CRUD APIs
+│   │   │   └── health/
+│   │   ├── login/
+│   │   ├── me/
+│   │   │   ├── application/          ← Applicant dashboard
+│   │   │   └── hr/                   ← HR dashboard
+│   │   └── profile/
+│   ├── components/
+│   │   ├── hr-stage-controls.tsx     ← Stage/status selects + auto-suggest
+│   │   ├── login-form.tsx            ← Controlled React login form
+│   │   └── location-picker.tsx
+│   ├── lib/
+│   │   ├── application-data.ts       ← ApplicantStatus type
+│   │   ├── application-db.ts         ← All DB access
+│   │   ├── application-store.ts      ← Login gate
+│   │   └── chronos-sync.ts           ← Chronos sync + revocation
+│   └── data/                         ← File-backed preview/sync state
+├── e2e/                              ← Playwright E2E tests
+│   ├── hr-status-filter.spec.ts
+│   └── hr-stage-lifecycle.spec.ts
+├── test_assets/
+│   └── test_users.json               ← Test credentials (baseUrl = AWS URL)
+├── QA_CHECKLIST.md                   ← HR pipeline test cases
+├── STEPS.json                        ← Stage content source
+├── ARCHITECTURE.md
+├── DEPLOYMENT.md
+└── CLAUDE.md
+```
+
+---
+
+## Known Gaps
+
+- Real CV file upload/storage: API stubs exist but end-to-end storage is incomplete
+- Paula not yet wired to the Emails_automation backend (uses OpenAI direct or rule-based fallback)
+- `@neondatabase/serverless` is in `package.json` as an unused legacy dependency — app uses `postgres` driver only

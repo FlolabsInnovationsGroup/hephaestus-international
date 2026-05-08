@@ -51,9 +51,9 @@ Each block is one pipeline stage with question/answer pairs after the applicant 
 For EVERY stage in the JSON input you MUST return exactly one decision object with the same "stageId".
 
 Outcomes (pick one per stage):
-- "next": responses are substantive, on-prompt, and show genuine effort — ready to move forward in the pipeline.
+- "next": responses are substantive, on-prompt, and show genuine effort — ready for the very next pipeline step in the program (often a short team review step with no new form, then later more content).
 - "stay": mixed quality, too thin, or uneven — applicant should improve answers on this stage before advancing (do NOT move them forward or backward).
-- "previous": clearly low effort overall (gibberish, one-word non-answers, obvious spam, hostile, or copy-paste filler across the stage) — send them one step BACK so they can redo that part of the process.
+- "previous": clearly low effort overall (gibberish, one-word non-answers, obvious spam, hostile, or copy-paste filler across the stage) — they should not advance; the system will handle routing (redo / review) — use this outcome for that case.
 
 Rules:
 - Be lenient on grammar and non-native English when ideas and specifics are present.
