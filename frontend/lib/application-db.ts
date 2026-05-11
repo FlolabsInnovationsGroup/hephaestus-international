@@ -1101,6 +1101,35 @@ export async function resetApplicantPassword(userId: string, password: string, t
   await sql`update website_password_reset_tokens set used_at = now() where id = ${tokenId}`;
 }
 
+async function persistEmailAliases(db: typeof sql, userId: string, primaryEmail: string, alternateEmails: string[]) {
+  if (!db) return;
+  await db`
+    create table if not exists user_email_aliases (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null,
+      email text not null unique,
+      is_primary boolean not null default false,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+  `;
+  await db`delete from user_email_aliases where user_id = ${userId}`;
+  await db`
+    insert into user_email_aliases (user_id, email, is_primary)
+    values (${userId}, ${primaryEmail.toLowerCase()}, true)
+    on conflict (email) do update set user_id = excluded.user_id, is_primary = true, updated_at = now()
+  `;
+  for (const alt of alternateEmails) {
+    const lower = alt.toLowerCase().trim();
+    if (!lower || lower === primaryEmail.toLowerCase()) continue;
+    await db`
+      insert into user_email_aliases (user_id, email, is_primary)
+      values (${userId}, ${lower}, false)
+      on conflict (email) do update set user_id = excluded.user_id, is_primary = false, updated_at = now()
+    `;
+  }
+}
+
 export async function updateApplicantProfile(applicantId: string, updates: Partial<ApplicantProfile>): Promise<ApplicantProfile | null> {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
@@ -1129,7 +1158,12 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       where id = ${applicantId}
       returning *
     `;
-    if (rows[0]) return rowToApplicant(rows[0]);
+    if (rows[0]) {
+      if (updates.alternateEmails !== undefined) {
+        await persistEmailAliases(sql, applicantId, next.email, updates.alternateEmails);
+      }
+      return rowToApplicant(rows[0]);
+    }
 
     const chronosApplicantRows = await sql`
       update applicants

@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { getSessionUser, saveProfileUpdates } from '@/lib/application-store';
 import { syncApplicantToChronos } from '@/lib/chronos-sync';
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+}
+
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
   if (!viewer || !viewer.hrBinaryRole) {
@@ -14,18 +19,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing applicantId' }, { status: 400 });
   }
 
+  const alternateEmails = toStringArray(body.alternateEmails).map((e) => e.toLowerCase());
+  const phoneNumbers = toStringArray(body.phoneNumbers);
+  const linkedinUrls = toStringArray(body.linkedinUrls);
+  const cities = toStringArray(body.cities);
+  const countries = toStringArray(body.countries);
+
   const updated = await saveProfileUpdates(applicantId, {
     firstName: String(body.firstName ?? ''),
     lastName: String(body.lastName ?? ''),
     email: String(body.email ?? '').toLowerCase(),
-    phoneNumber: String(body.phoneNumber ?? ''),
-    linkedinUrl: String(body.linkedinUrl ?? ''),
-    city: String(body.city ?? ''),
-    country: String(body.country ?? ''),
+    phoneNumber: phoneNumbers.join(', '),
+    linkedinUrl: linkedinUrls.join(', '),
+    city: cities.join(', '),
+    country: countries.join(', '),
     education: String(body.education ?? ''),
     source: String(body.source ?? ''),
     roleAppliedFor: String(body.roleAppliedFor ?? ''),
     notes: String(body.notes ?? ''),
+    alternateEmails,
   });
 
   if (!updated) {

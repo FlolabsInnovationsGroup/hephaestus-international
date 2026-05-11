@@ -64,6 +64,11 @@ function unique(values: Array<string | undefined>) {
   return Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)));
 }
 
+function parseMultiValue(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+}
+
 export function HrDashboardWorkspace({
   applicants,
   initialLeadId,
@@ -121,10 +126,11 @@ export function HrDashboardWorkspace({
     firstName: '',
     lastName: '',
     email: '',
-    phoneNumber: '',
-    linkedinUrl: '',
-    city: '',
-    country: '',
+    alternateEmails: [] as string[],
+    phoneNumbers: [] as string[],
+    linkedinUrls: [] as string[],
+    cities: [] as string[],
+    countries: [] as string[],
     education: '',
     source: '',
     roleAppliedFor: '',
@@ -174,14 +180,16 @@ export function HrDashboardWorkspace({
   useEffect(() => {
     if (!editOpen || !activeLead) return;
     setEditError('');
+    const primaryEmail = (activeLead.email ?? '').toLowerCase();
     setEditForm({
       firstName: activeLead.firstName ?? '',
       lastName: activeLead.lastName ?? '',
-      email: activeLead.email ?? '',
-      phoneNumber: activeLead.phoneNumber ?? '',
-      linkedinUrl: activeLead.linkedinUrl ?? '',
-      city: activeLead.city ?? '',
-      country: activeLead.country ?? '',
+      email: primaryEmail,
+      alternateEmails: (activeLead.alternateEmails ?? []).filter((e) => e.toLowerCase() !== primaryEmail),
+      phoneNumbers: parseMultiValue(activeLead.phoneNumber),
+      linkedinUrls: parseMultiValue(activeLead.linkedinUrl),
+      cities: parseMultiValue(activeLead.city),
+      countries: parseMultiValue(activeLead.country),
       education: activeLead.education ?? '',
       source: activeLead.source ?? '',
       roleAppliedFor: activeLead.roleAppliedFor ?? '',
@@ -546,14 +554,15 @@ export function HrDashboardWorkspace({
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <EditField label="First name" value={editForm.firstName} onChange={(value) => setEditForm((c) => ({ ...c, firstName: value }))} />
               <EditField label="Last name" value={editForm.lastName} onChange={(value) => setEditForm((c) => ({ ...c, lastName: value }))} />
-              <EditField label="Email" value={editForm.email} onChange={(value) => setEditForm((c) => ({ ...c, email: value }))} />
-              <EditField label="Phone" value={editForm.phoneNumber} onChange={(value) => setEditForm((c) => ({ ...c, phoneNumber: value }))} />
-              <EditField label="LinkedIn URL" value={editForm.linkedinUrl} onChange={(value) => setEditForm((c) => ({ ...c, linkedinUrl: value }))} />
+              <EditField label="Primary email" value={editForm.email} onChange={(value) => setEditForm((c) => ({ ...c, email: value }))} />
               <EditField label="Role applied for" value={editForm.roleAppliedFor} onChange={(value) => setEditForm((c) => ({ ...c, roleAppliedFor: value }))} />
-              <EditField label="City" value={editForm.city} onChange={(value) => setEditForm((c) => ({ ...c, city: value }))} />
-              <EditField label="Country" value={editForm.country} onChange={(value) => setEditForm((c) => ({ ...c, country: value }))} />
               <EditField label="Source" value={editForm.source} onChange={(value) => setEditForm((c) => ({ ...c, source: value }))} />
               <EditField label="Education" value={editForm.education} onChange={(value) => setEditForm((c) => ({ ...c, education: value }))} />
+              <MultiValueField label="Alternate emails" values={editForm.alternateEmails} onChange={(values) => setEditForm((c) => ({ ...c, alternateEmails: values }))} />
+              <MultiValueField label="Phone numbers" values={editForm.phoneNumbers} onChange={(values) => setEditForm((c) => ({ ...c, phoneNumbers: values }))} />
+              <MultiValueField label="LinkedIn URLs" values={editForm.linkedinUrls} onChange={(values) => setEditForm((c) => ({ ...c, linkedinUrls: values }))} />
+              <MultiValueField label="Cities" values={editForm.cities} onChange={(values) => setEditForm((c) => ({ ...c, cities: values }))} />
+              <MultiValueField label="Countries" values={editForm.countries} onChange={(values) => setEditForm((c) => ({ ...c, countries: values }))} />
             </div>
 
             <div className="mt-3">
@@ -627,5 +636,53 @@ function EditField({ label, value, onChange }: { label: string; value: string; o
         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
       />
     </label>
+  );
+}
+
+function MultiValueField({ label, values, onChange }: { label: string; values: string[]; onChange: (values: string[]) => void }) {
+  const [inputValue, setInputValue] = useState('');
+
+  function addValue() {
+    const trimmed = inputValue.trim();
+    if (!trimmed || values.includes(trimmed)) { setInputValue(''); return; }
+    onChange([...values, trimmed]);
+    setInputValue('');
+  }
+
+  return (
+    <div className="md:col-span-2">
+      <span className="block text-sm font-semibold text-gray-800">{label}</span>
+      <div className="mt-1 flex min-h-[28px] flex-wrap gap-1.5">
+        {values.length === 0 && <span className="py-0.5 text-xs text-gray-400">None</span>}
+        {values.map((value, i) => (
+          <span key={i} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs text-blue-900">
+            {value}
+            <button
+              type="button"
+              onClick={() => onChange(values.filter((_, j) => j !== i))}
+              className="ml-0.5 font-bold leading-none text-blue-300 hover:text-red-500"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-2">
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addValue(); } }}
+          placeholder={`Add ${label.toLowerCase()}…`}
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-[#00349B]"
+        />
+        <button
+          type="button"
+          onClick={addValue}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+        >
+          Add
+        </button>
+      </div>
+    </div>
   );
 }
