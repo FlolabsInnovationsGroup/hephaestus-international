@@ -402,6 +402,14 @@ async function getDuplicateReviewRows() {
       constraint applicant_duplicate_reviews_pair_unique unique (primary_applicant_id, duplicate_applicant_id)
     );
   `;
+  // These FK constraints were originally added against the Chronos `applicants` table,
+  // but website_applicants IDs can also come from the `users` table (different UUID space).
+  // Drop them so merge operations aren't blocked by FK violations.
+  await sql`
+    alter table applicant_duplicate_reviews
+      drop constraint if exists applicant_duplicate_reviews_primary_applicant_id_applicants_id_,
+      drop constraint if exists applicant_duplicate_reviews_duplicate_applicant_id_applicants_i;
+  `;
 
   const rows = await sql`select id, primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes from applicant_duplicate_reviews`;
   return rows as unknown as DuplicateReviewRow[];
