@@ -1,553 +1,205 @@
-# Developer Guide - Flo Labs Website
+# Hephaestus — Developer Guide
 
-## 🏗️ Architecture Overview
+## What This Is
 
-### Tech Stack
-- **Frontend**: Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4
-- **Backend CMS**: Strapi v5.31.0 (Headless CMS)
-- **Database**: PostgreSQL 16 on Railway
-- **Hosting**: 
-  - Frontend: Vercel
-  - Backend: Railway (Strapi + PostgreSQL)
+Hephaestus is FloLabs' **internship applicant tracking platform**, deployed at `https://efestos.international`. It is an internal operations tool — not a public-facing website.
 
-### Project Structure
+**Core functions:**
+- Captures internship applications and routes them through a 14-stage HR pipeline
+- Provides HR with a dashboard to manage leads, set stage/status, and trigger Chronos sync
+- Syncs accepted applicants into FloLabs Chronos (time-tracking) via a shared PostgreSQL database
+- Allows applicants to log in and view their application progress
+
+**Read first:** `ARCHITECTURE.md` covers the full system, status/stage tables, and key file inventory. `DEPLOYMENT.md` covers the CI/CD pipeline. `CLAUDE.md` covers coding rules and common task checklists.
+
+---
+
+## Stack
+
+| Concern | Implementation |
+|---|---|
+| Framework | Next.js 16 App Router (`frontend/` is the Docker build context) |
+| Language | TypeScript |
+| Database | Shared AWS RDS PostgreSQL — same instance as FloLabs Chronos |
+| Auth | Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` |
+| Deploy | AWS App Runner via GitHub Actions on push to `main` |
+| CMS | Strapi (optional — for marketing pages only; app works without it) |
+| AI chatbot | OpenAI (Paula); falls back to rule-based if `OPENAI_API_KEY` absent |
+| Email | Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`) |
+
+---
+
+## Project Structure
+
 ```
 hephaestus-international/
-├── frontend/               # Next.js application
-│   ├── app/               # App Router pages
-│   │   ├── page.tsx       # Homepage
-│   │   ├── about/         # About page
-│   │   ├── internships/   # Internships list & detail
-│   │   ├── projects/      # Projects page
-│   │   ├── blogs/         # Blog list & detail
-│   │   └── contact/       # Contact page
-│   ├── components/        # React components
-│   ├── lib/              # Utilities & API helpers
-│   │   ├── strapi.ts     # Strapi API functions
-│   │   └── types.ts      # TypeScript interfaces
-│   └── public/           # Static assets
-├── strapi/               # Strapi CMS application
-│   └── app/
-│       ├── config/       # Strapi configuration
-│       ├── src/api/      # API endpoints & schemas
-│       │   ├── internship/
-│       │   ├── project/
-│       │   └── blog-post/
-│       └── database/     # Database migrations
-└── scripts/              # Import/migration scripts
-    ├── import-wordpress-to-strapi.js
-    ├── import-blog-posts.js
-    ├── create-projects.js
-    └── upload-images-to-strapi.js
+├── frontend/                         ← Next.js app (Docker build context)
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── admin/leads/          ← HR lead management APIs
+│   │   │   ├── applications/         ← Applicant CRUD APIs
+│   │   │   └── health/               ← Build metadata endpoint
+│   │   ├── login/
+│   │   ├── me/
+│   │   │   ├── application/          ← Applicant dashboard
+│   │   │   └── hr/                   ← HR dashboard
+│   │   └── profile/
+│   ├── components/
+│   │   ├── hr-stage-controls.tsx     ← Stage/status selects + auto-suggest
+│   │   ├── hr-dashboard-workspace.tsx← HR lead list + detail panels
+│   │   └── login-form.tsx            ← Controlled React login form
+│   ├── lib/
+│   │   ├── application-data.ts       ← ApplicantStatus type (source of truth)
+│   │   ├── application-db.ts         ← All DB access
+│   │   ├── application-store.ts      ← Login gate
+│   │   └── chronos-sync.ts           ← Chronos sync + revocation
+│   └── data/                         ← File-backed preview/sync state
+├── e2e/                              ← Playwright E2E tests
+│   ├── hr-status-filter.spec.ts
+│   └── hr-stage-lifecycle.spec.ts
+├── test_assets/
+│   └── test_users.json               ← Test credentials (HR + applicant)
+├── strapi/                           ← Optional marketing CMS (see strapi/README.md)
+├── scripts/                          ← Historical one-time migration scripts
+├── ARCHITECTURE.md                   ← Full system architecture
+├── DEPLOYMENT.md                     ← CI/CD pipeline and validation
+├── CLAUDE.md                         ← Coding rules and checklists
+└── QA_CHECKLIST.md                   ← HR pipeline test cases
 ```
 
 ---
 
-## 🚀 Getting Started
+## Key Source Files
 
-### Prerequisites
-- Node.js 18+ and npm
-- Git
-- PostgreSQL (for local Strapi development)
-
-### Initial Setup
-
-#### 1. Clone the Repository
-```bash
-git clone https://github.com/FlomadLabsRD/hephaestus-international.git
-cd hephaestus-international
-```
-
-#### 2. Frontend Setup
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local
-```
-
-Edit `.env.local`:
-```env
-NEXT_PUBLIC_STRAPI_URL=https://strapi-production-7ecb.up.railway.app
-STRAPI_API_TOKEN=your_api_token_here
-```
-
-#### 3. Run Frontend Locally
-```bash
-npm run dev
-```
-Frontend runs at: http://localhost:3000
-
-#### 4. Strapi Setup (if needed)
-```bash
-cd strapi/app
-npm install
-```
-
-Edit `.env`:
-```env
-HOST=0.0.0.0
-PORT=1337
-DATABASE_CLIENT=postgres
-DATABASE_URL=your_postgres_url
-APP_KEYS=key1,key2,key3,key4
-API_TOKEN_SALT=your_token_salt
-ADMIN_JWT_SECRET=your_admin_secret
-TRANSFER_TOKEN_SALT=your_transfer_salt
-JWT_SECRET=your_jwt_secret
-```
-
-#### 5. Run Strapi Locally
-```bash
-npm run develop
-```
-Strapi runs at: http://localhost:1337
+| File | Purpose |
+|---|---|
+| `frontend/app/application-data.ts` | `ApplicantStatus` union type (source of truth), `ApplicantProfile` interface |
+| `frontend/lib/application-db.ts` | All DB access: schema creation, CRUD, `chronosUserToApplicant()` |
+| `frontend/lib/application-store.ts` | Login gate (`canAccessSharedFloLabsAccount()`), session helpers |
+| `frontend/lib/chronos-sync.ts` | `syncApplicantToChronos()`, `revokeChronosAccess()`, `grantChronosAccess()` |
+| `frontend/components/hr-stage-controls.tsx` | Stage + status selects, `statusForStage()` |
+| `frontend/components/hr-dashboard-workspace.tsx` | HR lead list + detail panels (client component) |
+| `frontend/app/me/hr/page.tsx` | HR dashboard server page |
+| `frontend/app/api/admin/leads/stage/route.ts` | Stage/status save API — branches on terminated/joined |
+| `frontend/lib/stage-definitions.ts` | `orderedStageIds`, `formatStageLabel()`, `getStageOrder()` |
 
 ---
 
-## 📡 API Integration
+## Development Workflow
 
-### Strapi API Helper (`lib/strapi.ts`)
+### Type Check
 
-```typescript
-import { getInternships, getInternshipBySlug } from '@/lib/strapi'
+Always run before pushing:
 
-// Get all internships
-const internships = await getInternships()
-
-// Get single internship by slug
-const internship = await getInternshipBySlug('ai-research-intern')
-
-// Get all projects
-const projects = await getProjects()
-
-// Get all blog posts
-const blogPosts = await getBlogPosts()
-
-// Get single blog post
-const post = await getBlogPostBySlug('future-of-ai')
-```
-
-### Available API Functions
-
-| Function | Description | Returns |
-|----------|-------------|---------|
-| `getInternships()` | Fetch all internships | `Internship[]` |
-| `getInternshipBySlug(slug)` | Fetch single internship | `Internship \| null` |
-| `getProjects()` | Fetch all projects | `Project[]` |
-| `getBlogPosts()` | Fetch all blog posts | `BlogPost[]` |
-| `getBlogPostBySlug(slug)` | Fetch single blog post | `BlogPost \| null` |
-
-### TypeScript Interfaces
-
-```typescript
-// Internship
-interface Internship {
-  id: number
-  documentId: string
-  title: string
-  slug: string
-  status: 'Open' | 'Closed' | 'Filled'
-  location: string
-  duration?: string
-  description: string
-  requirements?: string
-  responsibilities?: string
-  hubspotFormId?: string
-  images?: { url: string, alternativeText?: string }[]
-  createdAt: string
-  updatedAt: string
-  publishedAt?: string
-}
-
-// Project
-interface Project {
-  id: number
-  documentId: string
-  title: string
-  slug: string
-  description: string
-  link?: string
-  order: number
-  images?: { url: string, alternativeText?: string }[]
-  createdAt: string
-  updatedAt: string
-  publishedAt?: string
-}
-
-// Blog Post
-interface BlogPost {
-  id: number
-  documentId: string
-  title: string
-  slug: string
-  content: string
-  excerpt?: string
-  author: string
-  publishedDate: string
-  tags?: string[]
-  featuredImage?: { url: string, alternativeText?: string }
-  createdAt: string
-  updatedAt: string
-  publishedAt?: string
-}
-```
-
----
-
-## 🎨 Styling & Components
-
-### Tailwind Configuration
-Custom colors in `tailwind.config.ts`:
-```typescript
-colors: {
-  'flo-blue': '#0047AB',
-}
-```
-
-### Global CSS Classes
-In `app/globals.css`:
-```css
-.flo-blue-section {
-  background: linear-gradient(135deg, #0047AB 0%, #0066CC 100%);
-  color: white;
-}
-
-.flo-card {
-  @apply bg-white rounded-lg shadow-md p-6 transition-shadow duration-300;
-}
-```
-
-### Key Components
-
-#### Layout Components
-- `<Header />` - Navigation header
-- `<Footer />` - Site footer
-- `<Section />` - Page section wrapper
-- `<Container />` - Content container with max-width
-- `<Button />` - Styled button component
-
-#### Feature Components
-- `<HubSpotForm />` - HubSpot form integration
-- `<InternshipCarousel />` - Auto-rotating image carousel
-- `<ProjectsShowcase />` - Homepage projects section
-
----
-
-## 🔄 Data Flow
-
-### Content Updates
-1. Content editor updates content in Strapi CMS
-2. Strapi saves to PostgreSQL database
-3. Next.js requests data from Strapi API
-4. Pages revalidate every 60 seconds (`revalidate: 60`)
-5. New content appears on website within 1 minute
-
-### Revalidation Strategy
-```typescript
-// In page.tsx files
-export const revalidate = 60 // Revalidate every 60 seconds
-```
-
-### Static Generation
-- Internship pages: Pre-generated at build time
-- Blog pages: Pre-generated at build time
-- Homepage: Revalidated every 60 seconds
-- Project pages: Revalidated every 60 seconds
-
----
-
-## 📦 Content Management
-
-### Adding a New Content Type in Strapi
-
-1. **Access Content-Types Builder**
-   - Log into Strapi admin
-   - Click "Content-Types Builder"
-   - Click "Create new collection type"
-
-2. **Define the Schema**
-   ```json
-   {
-     "displayName": "Team Member",
-     "attributes": {
-       "name": { "type": "string", "required": true },
-       "role": { "type": "string" },
-       "bio": { "type": "text" },
-       "image": { "type": "media", "allowedTypes": ["images"] },
-       "order": { "type": "integer" }
-     }
-   }
-   ```
-
-3. **Create API Function in Frontend**
-   ```typescript
-   // In lib/strapi.ts
-   export async function getTeamMembers(): Promise<TeamMember[]> {
-     const response = await fetchAPI<StrapiResponse<TeamMember[]>>(
-       '/team-members?populate=*&sort=order:asc'
-     )
-     return response.data || []
-   }
-   ```
-
-4. **Use in Pages**
-   ```typescript
-   const teamMembers = await getTeamMembers()
-   ```
-
----
-
-## 🛠️ Deployment
-
-### Frontend (Vercel)
-
-#### Manual Deployment
 ```bash
 cd frontend
-vercel deploy --prod
+npx tsc --noEmit
 ```
 
-#### Automatic Deployment
-- Push to `main` branch triggers automatic deployment
-- Vercel pulls from GitHub and builds automatically
+### Run Playwright E2E Tests
 
-#### Environment Variables in Vercel
-Set these in Vercel dashboard → Project Settings → Environment Variables:
+Tests run against the live AWS URL. Credentials are in `test_assets/test_users.json`.
+
+```bash
+# Run all HR tests
+npx playwright test e2e/hr-status-filter.spec.ts e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
+
+# Run a single suite
+npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
 ```
-NEXT_PUBLIC_STRAPI_URL=https://strapi-production-7ecb.up.railway.app
-STRAPI_API_TOKEN=your_api_token_here
+
+### Validate Production After Deploy
+
+```bash
+curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health
+# Returns: { "ok": true, "commitSha": "<sha>", ... }
 ```
 
-### Backend (Railway)
+### Deploy
 
-#### Strapi is Auto-Deployed
-- Railway watches the `strapi/` directory
-- Any push to `main` triggers automatic rebuild
-- PostgreSQL database is persistent
+Push to `main` — GitHub Actions builds, pushes to ECR, and updates App Runner:
 
-#### Environment Variables in Railway
-Already configured:
-- `DATABASE_URL`
-- `APP_KEYS`
-- `API_TOKEN_SALT`
-- `ADMIN_JWT_SECRET`
-- `JWT_SECRET`
-- `TRANSFER_TOKEN_SALT`
+```bash
+git push origin main
+```
+
+See `DEPLOYMENT.md` for the full pipeline and verification commands.
 
 ---
 
-## 📜 Scripts
+## Status System
 
-### Import Scripts (in `/scripts`)
+`ApplicantStatus` in `frontend/app/application-data.ts` is the **single source of truth**.
 
-#### Import Internships from WordPress
-```bash
-cd scripts
-npm install
-export STRAPI_API_TOKEN="your_token"
-node import-wordpress-to-strapi.js path/to/wordpress.xml
-```
+| Status | Hephaestus login | Chronos `is_active` |
+|---|---|---|
+| `applying` | ✅ | unchanged |
+| `waiting` | ✅ | unchanged |
+| `signed` | ✅ | unchanged |
+| `joined` | ✅ | set to `true` |
+| `approved` | ✅ | unchanged |
+| `rejected` | ❌ blocked | unchanged |
+| `terminated` | ✅ | set to `false` |
 
-#### Import Blog Posts
-```bash
-export STRAPI_API_TOKEN="your_token"
-node import-blog-posts.js
-```
-
-#### Create Projects
-```bash
-export STRAPI_API_TOKEN="your_token"
-node create-projects.js
-```
-
-#### Upload Images
-```bash
-export STRAPI_API_TOKEN="your_token"
-node upload-images-to-strapi.js
-```
+When adding or changing a status, update all five locations listed in `CLAUDE.md`.
 
 ---
 
-## 🔐 Authentication & Security
+## Database
 
-### Strapi API Token
-- Required for all API requests from frontend
-- Generated in Strapi: Settings → API Tokens → Create new API Token
-- Set permissions to "Full access" for development
-- For production, limit to specific content types
+Hephaestus shares an AWS RDS PostgreSQL instance with FloLabs Chronos:
 
-### Security Best Practices
-1. **Never commit `.env` files** - Use `.env.example` templates
-2. **Rotate API tokens regularly**
-3. **Use environment-specific tokens** (dev vs prod)
-4. **Enable CORS in Strapi** for your frontend domain
-5. **Use HTTPS** for all API requests
+- `website_applicants` — Hephaestus-owned; managed by `ensurePostgresSchema()` in `application-db.ts`
+- `applicants` — Chronos-owned; written by `syncApplicantToChronos()`
+- `users` — Chronos-owned; `is_active` written by `revokeChronosAccess()` / `grantChronosAccess()`
+
+Connection string sourced from `/flolabs-chronos/DATABASE_URL` SSM at deploy time.
 
 ---
 
-## 🐛 Troubleshooting
+## Auth
 
-### Frontend Issues
+`LoginForm` in `frontend/components/login-form.tsx` is a **controlled React component** using `useState`. In Playwright tests, always wait for hydration before filling:
 
-#### Build Fails
-```bash
-# Clear Next.js cache
-rm -rf .next
-npm run build
-```
-
-#### Images Not Loading
-- Check `NEXT_PUBLIC_STRAPI_URL` is set correctly
-- Verify images exist in Strapi media library
-- Check Strapi CORS settings allow your domain
-
-#### Data Not Updating
-- Wait 60 seconds for revalidation
-- Check Strapi API is accessible
-- Verify API token is valid
-- Check browser console for errors
-
-### Strapi Issues
-
-#### Database Connection Errors
-- Verify `DATABASE_URL` is correct
-- Check PostgreSQL is running
-- Ensure database exists
-
-#### API Returns Empty Data
-- Check content is **Published** (not Draft)
-- Verify API token has correct permissions
-- Check Strapi logs: `npm run develop` (shows console output)
-
-#### Can't Access Admin Panel
-- Ensure Strapi is running
-- Check URL: https://strapi-production-7ecb.up.railway.app/admin
-- Clear browser cache
-- Try incognito/private window
-
----
-
-## 📊 Performance Optimization
-
-### Image Optimization
 ```typescript
-// Use Next.js Image component
-import Image from 'next/image'
-
-<Image
-  src={getStrapiImageUrl(image.url)}
-  alt={image.alternativeText || ''}
-  width={800}
-  height={600}
-  loading="lazy"
-/>
+await page.goto('/login', { waitUntil: 'load' });
+await page.locator('input').first().waitFor({ state: 'visible' });
+await page.locator('input').first().fill(email);
 ```
 
-### Code Splitting
-- Components automatically code-split by Next.js
-- Use dynamic imports for heavy components:
-```typescript
-const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
-  loading: () => <p>Loading...</p>
-})
-```
-
-### Caching Strategy
-- Static pages cached by Vercel CDN
-- API responses cached for 60 seconds
-- Images cached with aggressive cache headers
+`canAccessSharedFloLabsAccount()` in `application-store.ts` gates login — blocks `rejected` only; all other statuses can log in.
 
 ---
 
-## 🧪 Testing
+## Chronos Integration
 
-### Run Development Build
-```bash
-npm run dev
-```
+- `grantChronosAccess()` — sets `users.is_active = true` when status becomes `joined`
+- `revokeChronosAccess()` — sets `users.is_active = false` when status becomes `terminated`
+- `syncApplicantToChronos()` — pushes profile/stage/status to the Chronos `applicants` table
+- `chronosUserToApplicant()` — reads `users.is_active` to derive status: `false` → `terminated`, `true` → `joined`
 
-### Run Production Build Locally
-```bash
-npm run build
-npm start
-```
-
-### Check for Type Errors
-```bash
-npm run type-check
-```
-
-### Lint Code
-```bash
-npm run lint
-```
+These are triggered by `POST /api/admin/leads/stage`.
 
 ---
 
-## 📚 Useful Resources
+## Strapi CMS (Optional)
 
-- **Next.js Docs**: https://nextjs.org/docs
-- **Strapi Docs**: https://docs.strapi.io
-- **TypeScript Handbook**: https://www.typescriptlang.org/docs/
-- **Tailwind CSS**: https://tailwindcss.com/docs
-- **Vercel Docs**: https://vercel.com/docs
-- **Railway Docs**: https://docs.railway.app
+Strapi is used **only for public marketing pages**. The HR platform works entirely without it. If `CONTENT_STRAPI_URL` is not set, a build warning is logged and everything else runs normally.
+
+See `strapi/README.md` and `CMS_USER_GUIDE.md` for Strapi-specific details.
 
 ---
 
-## 🤝 Contributing
+## Troubleshooting
 
-### Git Workflow
-1. Create feature branch: `git checkout -b feature/your-feature`
-2. Make changes and commit: `git commit -m "Description"`
-3. Push branch: `git push origin feature/your-feature`
-4. Create Pull Request on GitHub
-5. After approval, merge to `main`
+### Type errors after a status/stage change
+Run `npx tsc --noEmit` from `frontend/`. Status changes require updates in 5 places — see `CLAUDE.md`.
 
-### Code Style
-- Use TypeScript for all new code
-- Follow ESLint rules
-- Use Prettier for formatting
-- Write descriptive commit messages
+### CI/CD deploy failures
+Check GitHub Actions logs. Most common cause: missing SSM ARN in the IAM inline policy `github-actions-hephaestus-deploy`. Add the missing ARN to the `ReadSharedRuntimeSecrets` statement. See `DEPLOYMENT.md` for the IAM note.
 
----
+### App Runner not serving new image
+Use `aws apprunner describe-service` to check the running image tag vs the expected `git-<sha>`. See `DEPLOYMENT.md`.
 
-## 📞 Support & Contacts
-
-- **Repository**: https://github.com/FlomadLabsRD/hephaestus-international
-- **Strapi Admin**: https://strapi-production-7ecb.up.railway.app/admin
-- **Production Site**: https://hephaestus-international.vercel.app
-- **Issues**: Create GitHub issue for bugs/features
-
----
-
-## 🎯 Quick Commands Reference
-
-```bash
-# Frontend
-cd frontend
-npm install          # Install dependencies
-npm run dev         # Start dev server
-npm run build       # Build for production
-npm start           # Start production server
-vercel deploy --prod # Deploy to Vercel
-
-# Strapi
-cd strapi/app
-npm install         # Install dependencies
-npm run develop     # Start dev server with admin
-npm run build       # Build admin panel
-npm start           # Start production server
-
-# Scripts
-cd scripts
-npm install         # Install dependencies
-node import-wordpress-to-strapi.js  # Import internships
-node import-blog-posts.js           # Import blog posts
-node create-projects.js             # Create projects
-node upload-images-to-strapi.js     # Upload images
-```
-
----
-
-**Happy coding! 🚀**
+### Login form submitting wrong values in Playwright
+React hydration issue. Use `waitUntil: 'load'` and `waitFor({ state: 'visible' })` before `.fill()`. See `ARCHITECTURE.md`.

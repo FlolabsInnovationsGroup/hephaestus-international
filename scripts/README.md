@@ -1,39 +1,28 @@
-# Strapi Data Management Scripts
+# Scripts — Strapi Data Management
 
-This directory contains scripts for managing content in your Railway Strapi instance.
+> **Status: Migration complete.** These scripts were used to populate Strapi with marketing content migrated from a WordPress site. All 39 internships and other content have been synced. The scripts are kept for reference and potential re-sync.
+
+This directory contains Node.js scripts for managing content in the Strapi CMS instance.
+
+**Note:** These scripts interact with Strapi (the optional marketing CMS), not the HR applicant tracking database. For the HR pipeline, use the dashboard at `https://efestos.international/me/hr`.
+
+---
 
 ## Prerequisites
 
-1. **Strapi API Token**: You need an API token with full access permissions.
-
-### Getting Your API Token
-
-1. Go to your Strapi admin panel: <https://strapi-production-7ecb.up.railway.app/admin>
-2. Navigate to **Settings** → **API Tokens**
-3. Click **"Create new API Token"**
-4. Configure the token:
-   - **Name**: Data Management Script
-   - **Description**: Token for data import/export
-   - **Token duration**: Unlimited
-   - **Token type**: Full access
-5. Click **Save** and copy the token immediately
-
-## Setup
-
 1. Install dependencies:
+   ```bash
+   cd scripts
+   npm install
+   ```
 
-```bash
-cd scripts
-npm install
-```
+2. Set your Strapi API token:
+   ```bash
+   export STRAPI_API_TOKEN="your-token-here"
+   ```
+   Get a token from Strapi admin → Settings → API Tokens (Full access).
 
-2. Set your API token as an environment variable:
-
-```bash
-export STRAPI_API_TOKEN="your-token-here"
-```
-
-Or create a `.env` file in the scripts directory.
+---
 
 ## Available Scripts
 
@@ -43,7 +32,7 @@ Or create a `.env` file in the scripts directory.
 node sync-missing-internships.js
 ```
 
-**Note**: All 39 internships are now synced. This script is kept for reference. See `SYNC_INSTRUCTIONS.md` for detailed usage.
+All 39 internships are currently synced. Run this only if internships are missing after a Strapi reset.
 
 ### Create Projects
 
@@ -81,14 +70,14 @@ node populate-about-page.js
 node set-strapi-permissions.js
 ```
 
+---
+
 ## Removed Scripts
 
-The following scripts were used during migration and have been removed:
+The following were used during the initial WordPress migration and have been removed from the working directory (preserved in git history):
 
 - `import-wordpress-to-strapi.js`
 - `check-internships.js`, `compare-internships.js`, `check-projects.js`
 - `clear-projects-db.js`, `delete-null-projects.js`
 - `fix-homepage-flags.js`, `publish-all-projects.js`
 - `set-homepage-projects.js`, `update-*.js`
-
-These are preserved in git history if needed.

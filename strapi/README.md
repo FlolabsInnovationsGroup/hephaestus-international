@@ -1,15 +1,16 @@
-# Flo Labs Strapi CMS
+# Strapi CMS — Optional Marketing CMS
 
-Headless CMS for managing internships, projects, blog posts, and media for hephaestus.international.
+> **Context:** Strapi is the **optional marketing CMS** for Hephaestus. It powers public-facing pages (internship listings, blog posts, projects). The core HR applicant tracking platform (`https://efestos.international`) works without it — if `CONTENT_STRAPI_URL` is not set, a build warning is logged and the app runs normally.
+>
+> For the HR pipeline (applicant stages, Chronos sync, lead management), see `ARCHITECTURE.md` and `DEVELOPER_GUIDE.md`.
+
+---
 
 ## Quick Start
 
 ### 1. Generate Secrets
 
-Generate secure secrets for production:
-
 ```bash
-# Generate all secrets at once (macOS/Linux)
 echo "JWT_SECRET=$(openssl rand -base64 32)"
 echo "ADMIN_JWT_SECRET=$(openssl rand -base64 32)"
 echo "APP_KEYS=$(openssl rand -base64 32),$(openssl rand -base64 32),$(openssl rand -base64 32),$(openssl rand -base64 32)"
@@ -25,176 +26,86 @@ cd strapi
 docker-compose up -d
 ```
 
-This will:
-- Start PostgreSQL database on port 5433
-- Start Strapi on http://localhost:1337
-- Install dependencies automatically
+This starts PostgreSQL (port 5433) and Strapi (http://localhost:1337).
 
 ### 3. Create Admin User
 
-On first run, visit http://localhost:1337/admin and create your admin account.
+Visit http://localhost:1337/admin on first run.
 
-### 4. Import WordPress Data
+---
 
-After creating the admin user:
+## Content Types
 
-```bash
-cd ../scripts
-npm install
-node import-wordpress-to-strapi.js
-```
+- **Internship** — public internship listings for the marketing site
+- **Project** — FloLabs showcase projects
+- **Blog Post** — articles
+- **Benefit / Vertical / Methodology Item** — homepage sections
+- **Site Setting** — global config
+
+These are separate from `website_applicants` (the HR pipeline table in the shared RDS instance).
+
+---
 
 ## Managing Content
 
-### Access Admin Panel
+For content editors: see `CMS_USER_GUIDE.md`.
 
-Visit <http://localhost:1337/admin> and login with your admin credentials.
+For developers: see `strapi/app/README.md`.
 
-### Content Types
+---
 
-- **Internships**: Manage internship positions (title, description, requirements, etc.)
-- **Projects**: Showcase projects (MoodChanger, CAIPO, etc.)
-- **Blog Posts**: Write and publish blog articles
-- **Team Members**: Add team bios and photos
-- **Media Library**: Upload and manage all images
+## API Endpoints
 
-### For Non-Technical Editors
+### Public (no auth required)
 
-1. **Login**: Go to <http://localhost:1337/admin>
-2. **Navigate**: Click "Content Manager" in the left sidebar
-3. **Choose Content Type**: Click on Internships, Projects, or Blog Posts
-4. **Create Entry**: Click "+ Create new entry"
-5. **Fill Fields**: 
-   - Add title, description, images (drag & drop)
-   - Set status (Draft/Published)
-   - Click Save
-6. **Publish**: Click "Publish" to make it live on the website
+```
+GET /api/internships?populate=*
+GET /api/projects?populate=*&sort=order:asc
+GET /api/blog-posts?populate=*&sort=publishedDate:desc
+```
 
-### Uploading Images
+### Authenticated Write Operations
 
-1. Click "Media Library" in the left sidebar
-2. Click "Add new assets"
-3. Drag and drop images or click to browse
-4. Images are automatically optimized and available to use in content
+Use Bearer token from Settings → API Tokens in the Strapi admin.
 
-## API Access
+---
 
-### Public Endpoints (no auth required)
+## Production
 
-- GET `/api/internships?populate=*` - List all internships
-- GET `/api/projects?populate=*` - List all projects
-- GET `/api/blog-posts?populate=*` - List all blog posts
+The Strapi URL is stored in AWS SSM at `/hephaestus-international/CONTENT_STRAPI_URL` and injected into the Next.js build as `NEXT_PUBLIC_STRAPI_URL`. It is fetched at deploy time by the GitHub Actions workflow.
 
-### Authentication
+---
 
-For write operations (creating/updating content via API):
-
-1. Go to Settings > API Tokens in Strapi admin
-2. Create a new API token with appropriate permissions
-3. Use in requests: `Authorization: Bearer YOUR_TOKEN`
-
-## Development
-
-### View Logs
+## Docker Commands
 
 ```bash
+# Start
+docker-compose up -d
+
+# View logs
 docker-compose logs -f strapi
-```
 
-### Restart Strapi
-
-```bash
+# Restart
 docker-compose restart strapi
-```
 
-### Stop Services
-
-```bash
+# Stop
 docker-compose down
 ```
 
-### Reset Database (careful!)
-
-```bash
-docker-compose down -v
-docker-compose up -d
-```
-
-## Production Deployment
-
-### Option 1: Railway (Recommended)
-
-1. Push code to GitHub
-2. Connect Railway to your repo
-3. Add PostgreSQL database
-4. Set environment variables from `.env.example`
-5. Deploy
-
-### Option 2: DigitalOcean App Platform
-
-1. Create new App from Docker Hub or GitHub
-2. Add managed PostgreSQL database
-3. Set environment variables
-4. Deploy
-
-### Option 3: Strapi Cloud
-
-1. Sign up at https://cloud.strapi.io
-2. Connect your GitHub repo
-3. Follow deployment wizard
-
-## Environment Variables
-
-Required for production:
-
-```
-JWT_SECRET=<secure-random-string>
-ADMIN_JWT_SECRET=<secure-random-string>
-APP_KEYS=<key1>,<key2>,<key3>,<key4>
-API_TOKEN_SALT=<secure-random-string>
-DATABASE_CLIENT=postgres
-DATABASE_HOST=<your-db-host>
-DATABASE_PORT=5432
-DATABASE_NAME=<your-db-name>
-DATABASE_USERNAME=<your-db-user>
-DATABASE_PASSWORD=<your-db-password>
-PUBLIC_URL=https://cms.yourdomain.com
-```
+---
 
 ## Troubleshooting
 
-### Port already in use
-
-If port 1337 is already in use:
+### Port 1337 already in use
 
 ```bash
-# Kill process on port 1337
+# On macOS/Linux
 lsof -ti:1337 | xargs kill -9
 ```
 
-Or change the port in `docker-compose.yml` (change `1337:1337` to `1338:1337`).
-
 ### Can't connect to database
 
-Ensure PostgreSQL container is running:
-
 ```bash
-docker-compose ps
-```
-
-If postgres is not running:
-
-```bash
+docker-compose ps  # check postgres is running
 docker-compose up -d postgres
 ```
-
-### Reset admin password
-
-```bash
-docker-compose exec strapi npm run strapi admin:reset-user-password -- --email=admin@example.com --password=NewPassword123
-```
-
-## Support
-
-- Strapi Documentation: https://docs.strapi.io
-- Discord: https://discord.strapi.io

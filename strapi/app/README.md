@@ -1,14 +1,18 @@
-# Flo Labs Strapi CMS Application
+# Strapi App — Optional Marketing CMS
 
-Strapi v5.31.0 headless CMS for managing Hephaestus.International content.
+> **Context:** This Strapi instance powers public marketing pages for `efestos.international` (internship listings, blog posts, projects). It is **not** the HR applicant tracking system. The Next.js app works without Strapi — if `CONTENT_STRAPI_URL` is unset, a build warning is logged and everything else runs normally.
+>
+> For the HR pipeline, see `ARCHITECTURE.md`.
+
+---
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18-20 (use `nvm use 20` if using nvm)
-- PostgreSQL database (Railway provides this in production)
 
-### Installation
+- Node.js 18–20
+
+### Install
 
 ```bash
 npm install
@@ -16,7 +20,7 @@ npm install
 
 ### Environment Variables
 
-Create `.env` file:
+Create `.env`:
 
 ```env
 HOST=0.0.0.0
@@ -45,7 +49,7 @@ echo "JWT_SECRET=$(openssl rand -base64 32)"
 npm run develop
 ```
 
-Open [http://localhost:1337/admin](http://localhost:1337/admin) to access the admin panel.
+Admin panel: http://localhost:1337/admin
 
 ### Production
 
@@ -54,132 +58,82 @@ npm run build
 npm start
 ```
 
+---
+
 ## Content Types
 
-This Strapi instance manages:
-
 ### Collection Types
-- **Internship** (39 entries) - Internship positions with applications
-- **Project** (8 entries) - Showcase projects
-- **Blog Post** (13 entries) - Blog articles
-- **Benefit** - Homepage benefits section
-- **Vertical** - Homepage verticals section  
-- **Methodology Item** - Homepage methodology steps
-- **Section Content** - Dynamic page sections
-- **Intern** - Team member profiles
+- **Internship** — public internship listings
+- **Project** — showcase projects
+- **Blog Post** — blog articles
+- **Benefit / Vertical / Methodology Item** — homepage sections
+- **Intern** — team member profiles
 
 ### Single Types
-- **Site Setting** - Global site configuration
+- **Site Setting** — global site configuration
+
+---
 
 ## API Endpoints
 
-### Public Endpoints
-
 ```
 GET /api/internships?populate=*
-GET /api/internships?filters[slug][$eq]=slug-name&populate=*
 GET /api/projects?populate=*&sort=order:asc
 GET /api/blog-posts?populate=*&sort=publishedDate:desc
 GET /api/benefits?populate=*&sort=order:asc
-GET /api/verticals?populate=*&sort=order:asc
 GET /api/site-setting?populate=*
 ```
 
-### Authentication
+Authentication: `Authorization: Bearer <api-token>` (create tokens in Settings → API Tokens).
 
-Create API tokens in: **Settings → API Tokens → Create new API Token**
+---
 
-Use in requests:
-```
-Authorization: Bearer YOUR_TOKEN_HERE
-```
+## Developer Notes
 
-## Content Management
-
-### For Content Editors
-
-See **[CMS_USER_GUIDE.md](../../CMS_USER_GUIDE.md)** for detailed instructions.
-
-### For Developers
-
-#### Adding New Content Types
+### Adding a New Content Type
 
 1. Use Content-Type Builder in admin panel
-2. Define fields and relationships
-3. Set permissions in Settings → Roles → Public
-4. Add API function in `frontend/lib/strapi.ts`
-5. Add TypeScript interface in `frontend/lib/types.ts`
+2. Set permissions in Settings → Roles → Public
+3. Add API function in `frontend/lib/strapi.ts`
+4. Add TypeScript interface in `frontend/lib/types.ts`
 
-#### Media Library
+### Media
 
-Images are stored in `/public/uploads/` locally and in Railway storage in production.
+Images are stored in `/public/uploads/` locally. In production, configure an upload provider (S3, Cloudinary, etc.) via Strapi plugins.
 
-## Database
-
-PostgreSQL 16 database:
-- **Local**: Configure in `.env`
-- **Production**: Railway managed database
-
-### Migrations
-
-Migrations are stored in `database/migrations/` and run automatically.
-
-## Deployment
-
-### Railway (Production)
-
-Auto-deploys from `main` branch.
-
-**Required Environment Variables:**
-- `DATABASE_URL` (provided by Railway)
-- `APP_KEYS`
-- `API_TOKEN_SALT`
-- `ADMIN_JWT_SECRET`
-- `JWT_SECRET`
-- `TRANSFER_TOKEN_SALT`
-
-### Admin Panel Access
-
-Production: https://strapi-production-7ecb.up.railway.app/admin
+---
 
 ## Scripts
 
 ```bash
-npm run develop  # Development with admin UI and hot reload
+npm run develop  # Dev mode with hot reload and admin UI
 npm run start    # Production mode
 npm run build    # Build admin panel
-npm run strapi   # Strapi CLI commands
+npm run strapi   # Strapi CLI
 ```
+
+---
 
 ## Troubleshooting
 
-### Can't Access Admin Panel
+### Can't access admin panel
+- Verify Strapi is running: `http://localhost:1337/admin`
+- Clear browser cache or try incognito
 
-- Check Strapi is running: `http://localhost:1337/admin`
-- Clear browser cache
-- Try incognito/private window
+### Database connection errors
+- Check `DATABASE_URL` is correct
+- Ensure PostgreSQL is running
 
-### Database Connection Errors
-
-- Verify `DATABASE_URL` is correct
-- Check PostgreSQL is running
-- Ensure database exists
-
-### Reset Admin Password
-
-Run from the `strapi/app` directory:
+### Reset admin password
 
 ```bash
 node reset-admin.js
 ```
 
+---
+
 ## Documentation
 
-- **[Strapi Documentation](https://docs.strapi.io)** - Official Strapi docs
-- **[DEVELOPER_GUIDE.md](../../DEVELOPER_GUIDE.md)** - Project developer guide
-- **[CMS_USER_GUIDE.md](../../CMS_USER_GUIDE.md)** - Content editor guide
-
-## Support
-
-- **Strapi Discord**: https://discord.strapi.io
-- **GitHub Issues**: Create issues for bugs/features
+- `CMS_USER_GUIDE.md` — content editor guide
+- `DEVELOPER_GUIDE.md` — full Hephaestus developer guide
+- Strapi docs: https://docs.strapi.io

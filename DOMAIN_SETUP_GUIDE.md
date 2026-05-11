@@ -1,131 +1,56 @@
-# Domain Setup Guide for efestos.international
+# Domain Setup — efestos.international
 
-## ✅ What's Already Done
+## Current State
 
-The codebase has been updated to support **dynamic branding** based on the domain:
+The domain `efestos.international` is **already live and operational**. It is configured as a custom domain on the AWS App Runner service `hephaestus-international`.
 
-- `hephaestus.international` → Shows "Hephaestus Labs Institute"
-- `efestos.international` → Shows "Efestos Labs Institute"
+| | |
+|---|---|
+| Production domain | `https://efestos.international` |
+| AWS App Runner URL | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
+| App Runner service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
 
-All page titles, metadata, content, and branding automatically adjust based on which URL the visitor uses.
+Both URLs serve the same App Runner service. The custom domain is a DNS alias — no separate deployment exists.
 
 ---
 
-## 🔧 Steps to Complete Setup
+## How It Works
 
-### 1. Add Domain to Vercel (Required)
+App Runner custom domains use a CNAME in the registrar's DNS pointing to the App Runner service URL. SSL is managed automatically by App Runner via ACM (AWS Certificate Manager).
 
-Since the Vercel CLI requires additional permissions, please add the domain through the Vercel Dashboard:
+The `NEXTAUTH_URL` env var is set to the AWS URL (`https://fykgssqbvg.us-east-1.awsapprunner.com`) for auth callbacks; the custom domain works transparently on top.
 
-1. **Log in to Vercel Dashboard**: https://vercel.com/
-2. **Navigate to the project**: `hephaestus-international` (or `frontend`)
-3. **Go to Settings → Domains**
-4. **Click "Add Domain"**
-5. **Enter**: `efestos.international`
-6. **Click "Add"**
+---
 
-Vercel will provide DNS configuration instructions.
+## Verify Domain Health
 
-### 2. Configure DNS
+```bash
+curl -s https://efestos.international/api/health
+# Should return: { "ok": true, "commitSha": "...", ... }
 
-Point your domain registrar's DNS records to Vercel:
-
-**Option A: Use Vercel Nameservers (Recommended)**
-- Update nameservers at your domain registrar to Vercel's nameservers
-- Vercel will show you the exact nameservers to use
-
-**Option B: Manual DNS Records**
-Add these records at your domain registrar:
-```
-Type: A
-Name: @
-Value: 76.76.21.21
-
-Type: CNAME  
-Name: www
-Value: cname.vercel-dns.com
+# Compare with the App Runner URL
+curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health
 ```
 
-### 3. Verify Domain
-
-After DNS propagation (can take 24-48 hours):
-1. Go back to Vercel → Settings → Domains
-2. The domain should show as "Active" with a green checkmark
-3. Test both domains:
-   - https://hephaestus.international
-   - https://efestos.international
+Both should return the same `commitSha`.
 
 ---
 
-## 🧪 Testing the Dynamic Branding
+## Checking Domain Status in App Runner
 
-Once the domain is active, verify the branding works correctly:
-
-### Test Checklist:
-
-#### On hephaestus.international:
-- [ ] Homepage title shows "Hephaestus Labs Institute..."
-- [ ] Footer shows "HEPHAESTUS" 
-- [ ] About page shows "Hephaestus Labs Institute"
-- [ ] Contact email is `info@hephaestus.international`
-
-#### On efestos.international:
-- [ ] Homepage title shows "Efestos Labs Institute..."
-- [ ] Footer shows "EFESTOS"
-- [ ] About page shows "Efestos Labs Institute"  
-- [ ] Contact email is `info@efestos.international`
+```bash
+aws apprunner describe-custom-domains \
+  --service-arn arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7 \
+  --region us-east-1
+```
 
 ---
 
-## 📧 Email Setup (Optional but Recommended)
+## If the Domain Stops Working
 
-To make `info@efestos.international` functional:
+1. Check App Runner service status: `aws apprunner describe-service --service-arn <arn> --region us-east-1`
+2. Verify the service is `RUNNING` and the image tag matches the latest deploy
+3. Check DNS propagation if the domain was recently reconfigured
+4. Check the custom domain association in the App Runner console
 
-1. **Set up email forwarding** at your domain registrar
-2. Forward `info@efestos.international` → your main email
-3. Or set up a full email hosting solution (Google Workspace, Microsoft 365, etc.)
-
----
-
-## 🔍 How It Works Technically
-
-The site detects the domain from the request headers:
-- Server-side: Uses Next.js `headers()` to get the hostname
-- Client-side: Uses `window.location.hostname`
-- CMS content: Automatically transforms "Hephaestus" → "Efestos" when needed
-
-All branding is controlled in `frontend/lib/branding.ts` - you can customize:
-- Brand names
-- Full institute names
-- Taglines
-- Email addresses
-- Website URLs
-
----
-
-## 🛠️ Troubleshooting
-
-### Domain shows "Invalid Configuration"
-- **Cause**: DNS not propagated yet
-- **Solution**: Wait 24-48 hours and check again
-
-### Content still shows "Hephaestus" on efestos.international
-- **Cause**: Browser cache or CDN cache
-- **Solution**: Hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows)
-
-### Both domains show the same branding
-- **Cause**: Detection not working
-- **Solution**: Check browser console for errors, verify deployment is latest
-
----
-
-## 📞 Need Help?
-
-If you encounter issues:
-1. Check the Vercel deployment logs
-2. Verify DNS settings with your domain registrar
-3. Contact Vercel support for domain-specific issues
-
----
-
-**Last Updated**: December 2, 2025
+The AWS App Runner URL (`fykgssqbvg.us-east-1.awsapprunner.com`) is always the authoritative fallback — it does not depend on DNS.
