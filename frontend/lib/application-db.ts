@@ -561,7 +561,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     profilePictureUrl: '',
     roleAppliedFor: hasHrAccess ? 'FloLabs team member' : row.role,
     stage: 'joined',
-    status: row.is_active === false ? 'terminated' : 'active',
+    status: row.is_active === false ? 'terminated' : 'joined',
     joinedAt: new Date(row.created_at ?? Date.now()).toISOString(),
     lastVisitedAt: new Date(row.updated_at ?? Date.now()).toISOString(),
     notes: 'Authenticated through shared Chronos users table.',
@@ -909,9 +909,7 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
                   ? 'applying'
                   : chronos.status === 'terminated'
                     ? 'terminated'
-                    : chronos.status === 'active'
-                      ? 'active'
-                      : 'joined';
+                    : 'joined';
       const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? stage) as ApplicantProfile['stage'];
       return {
         id: chronos.id,
@@ -1161,9 +1159,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
                   ? 'applying'
                   : chronos.status === 'terminated'
                     ? 'terminated'
-                    : chronos.status === 'active'
-                      ? 'active'
-                      : 'joined';
+                    : 'joined';
       const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? current.stage) as ApplicantProfile['stage'];
       return {
         id: chronos.id,

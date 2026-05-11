@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, applicant, chronosSync: null, chronosRevoke: revoke });
   }
 
-  const shouldGrant = applicant && (incomingStatus === 'joined' || incomingStatus === 'active');
+  const shouldGrant = applicant && incomingStatus === 'joined';
   const chronosGrant = shouldGrant ? await grantChronosAccess(applicant) : null;
 
   const shouldSync = applicant && (
@@ -27,8 +27,7 @@ export async function POST(request: Request) {
     body.stage === 'chronos_synced' ||
     body.stage === 'joined' ||
     incomingStatus === 'signed' ||
-    incomingStatus === 'joined' ||
-    incomingStatus === 'active'
+    incomingStatus === 'joined'
   );
   const chronosSync = shouldSync ? await syncApplicantToChronos(applicant) : null;
   return NextResponse.json({ ok: true, applicant, chronosSync, chronosGrant });

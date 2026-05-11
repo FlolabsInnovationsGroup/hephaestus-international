@@ -14,7 +14,7 @@ export type ApplicationStage =
   | 'chronos_synced'
   | 'joined';
 
-export type ApplicantStatus = 'applying' | 'active' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined' | 'terminated';
+export type ApplicantStatus = 'applying' | 'waiting' | 'approved' | 'rejected' | 'signed' | 'joined' | 'terminated';
 export type UserRole = 'applicant' | 'admin' | 'hr';
 
 export interface DuplicateCandidate {
@@ -107,7 +107,7 @@ export const demoApplicants: ApplicantProfile[] = [
     cvFileName: 'ava-ross-cv.pdf',
     roleAppliedFor: 'AI Product Intern',
     stage: 'before_meeting',
-    status: 'active',
+    status: 'applying',
     joinedAt: '2026-04-06T09:10:00.000Z',
     lastVisitedAt: '2026-04-11T17:20:00.000Z',
     notes: 'Strong motivation, asked detailed questions.',
