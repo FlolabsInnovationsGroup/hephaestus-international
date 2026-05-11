@@ -58,15 +58,14 @@ From **GitHub Actions secrets**: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_
 
 ## Applicant Status System
 
-### The 8 Statuses
+### The 7 Statuses
 
 | Status | Meaning | Hephaestus login | Chronos access |
 |---|---|---|---|
 | `applying` | Applied; hasn't reached second meeting stage | ✅ | ❌ |
 | `waiting` | Passed second meeting; agreement not yet signed | ✅ | ❌ |
 | `signed` | Agreement signed; pending Chronos onboarding | ✅ | ❌ |
-| `joined` | Onboarded to Chronos; not yet using timers | ✅ | ✅ (`is_active = true`) |
-| `active` | Actively using Chronos (has timer sessions) | ✅ | ✅ (`is_active = true`) |
+| `joined` | Onboarded to Chronos (includes actively using timers) | ✅ | ✅ (`is_active = true`) |
 | `approved` | Manual HR override | ✅ | ❌ |
 | `rejected` | Rejected; all platform access revoked | ❌ | ❌ |
 | `terminated` | Chronos access revoked; Hephaestus account preserved | ✅ | ❌ (`is_active = false`) |
@@ -90,12 +89,12 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 | 11 | `agreement_sent` | `waiting` |
 | 12 | `agreement_signed` | `signed` |
 | 13 | `chronos_synced` | `joined` |
-| 14 | `joined` | `active` |
+| 14 | `joined` | `joined` |
 
 ### Access Control
 
 - **Hephaestus login** (`canAccessSharedFloLabsAccount()` in `application-store.ts`): blocks `rejected` only; all other statuses can log in.
-- **Chronos `users.is_active`**: `grantChronosAccess()` sets it to `true` for `joined` and `active` status. `revokeChronosAccess()` sets it to `false` for `terminated`.
+- **Chronos `users.is_active`**: `grantChronosAccess()` sets it to `true` for `joined` status. `revokeChronosAccess()` sets it to `false` for `terminated`.
 
 ---
 
@@ -111,7 +110,7 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 | `POST /api/applications/profile` | Update applicant profile |
 | `POST /api/applications/profile-picture` | Upload profile picture |
 | `GET /api/admin/leads` | List applicants (HR/admin) |
-| `POST /api/admin/leads/stage` | Update stage/status; calls `revokeChronosAccess()` for `terminated`, `syncApplicantToChronos()` for others |
+| `POST /api/admin/leads/stage` | Update stage/status; calls `revokeChronosAccess()` for `terminated`, `grantChronosAccess()` + `syncApplicantToChronos()` for `joined` |
 | `GET /api/health` | Build metadata; returns `{ ok, commitSha, imageTag, ... }` |
 
 ---
@@ -139,7 +138,7 @@ Hephaestus and Chronos share **one AWS RDS PostgreSQL instance** and connect wit
 **Hephaestus-managed table:** `website_applicants` — created by `ensurePostgresSchema()` in `application-db.ts`. This is the primary source for the HR pipeline.
 
 **Chronos tables read/written by Hephaestus:**
-- `users` — `is_active` written by `revokeChronosAccess()`; read by `chronosUserToApplicant()` to derive applicant status (`is_active = false` → `terminated`, `is_active = true` → `active`)
+- `users` — `is_active` written by `revokeChronosAccess()`; read by `chronosUserToApplicant()` to derive applicant status (`is_active = false` → `terminated`, `is_active = true` → `joined`)
 - `applicants` — written via `syncApplicantToChronos()` when stage/status changes
 
 **Data flow:** `website_applicants` (Hephaestus source) → Chronos `applicants` (via sync) → Chronos `users` (for active users with timer sessions)

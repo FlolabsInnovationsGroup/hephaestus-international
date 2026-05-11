@@ -37,15 +37,16 @@ This is not a public SaaS. It is an internal FloLabs operations tool.
 - **Email:** Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`)
 - **Deploy:** AWS App Runner via GitHub Actions — see `DEPLOYMENT.md`
 
-## Status System (8 statuses)
+## Status System (7 statuses)
 
 ```
-applying | waiting | signed | joined | active | approved | rejected | terminated
+applying | waiting | signed | joined | approved | rejected | terminated
 ```
 
 - `rejected` → cannot log into Hephaestus
 - `terminated` → Chronos `users.is_active = false` (auto-revoked on save); Hephaestus login still works
-- All other statuses → Hephaestus login allowed
+- `joined` → Chronos `users.is_active = true` (granted on save); covers all active Chronos users
+- All other statuses → Hephaestus login allowed, no Chronos access change
 
 See `ARCHITECTURE.md` for the full stage-to-status mapping table and access control rules.
 

@@ -48,6 +48,10 @@ For Hephaestus, the normal deploy path must **not** depend on the local machine:
 | VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` |
 | Region / Account | `us-east-1` / `975049954782` |
 
+## IAM Policy Note
+
+The GitHub Actions role (`hephaestus-international-github-actions-deploy`) inline policy `github-actions-hephaestus-deploy` must grant `ssm:GetParameter` on every SSM parameter listed below. If a new parameter is added to the deploy workflow, update the IAM policy's `ReadSharedRuntimeSecrets` statement to include its ARN (`arn:aws:ssm:us-east-1:975049954782:parameter/<name>`) — otherwise the "Resolve runtime secrets" step will fail with `AccessDeniedException`.
+
 ## Runtime Secret Source of Truth
 
 All runtime values are sourced from **AWS SSM** during the GitHub Actions deploy:

@@ -7,8 +7,7 @@
 | `applying` | Applied; has not yet reached the second meeting stage | ✅ Yes | ❌ No |
 | `waiting` | Passed second meeting; waiting for agreement to be signed | ✅ Yes | ❌ No |
 | `signed` | Agreement signed; pending Chronos onboarding | ✅ Yes | ❌ No |
-| `joined` | Onboarded to Chronos; not yet using timers | ✅ Yes | ✅ Yes (is_active = true) |
-| `active` | Actively using Chronos (has timer sessions) | ✅ Yes | ✅ Yes (is_active = true) |
+| `joined` | Onboarded to Chronos (includes actively using timers) | ✅ Yes | ✅ Yes (is_active = true) |
 | `approved` | Approved by HR for a specific path (manual override) | ✅ Yes | ❌ No |
 | `rejected` | Rejected; all platform access revoked | ❌ No | ❌ No |
 | `terminated` | Chronos access revoked; FloLabs account preserved | ✅ Yes | ❌ No (is_active = false) |
@@ -32,7 +31,7 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 | 11 | `agreement_sent` | Agreement sent | `waiting` |
 | 12 | `agreement_signed` | Agreement signed | `signed` |
 | 13 | `chronos_synced` | Chronos synced | `joined` |
-| 14 | `joined` | Joined | `active` |
+| 14 | `joined` | Joined | `joined` |
 
 ## Access Control Rules
 
@@ -42,7 +41,6 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 
 ### Chronos access (users.is_active):
 - `joined` → `is_active = true` (granted automatically when HR sets status)
-- `active` → `is_active = true` (granted automatically when HR sets status)
 - `terminated` → `is_active = false` (revoked automatically when HR sets status)
 - All other statuses → no Chronos access change
 
@@ -50,8 +48,8 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 
 ### TC-01: Status filter and stage controls parity
 **Test file:** `e2e/hr-status-filter.spec.ts`
-- [ ] The `select[name="status"]` filter dropdown contains exactly: `applying`, `waiting`, `signed`, `joined`, `active`, `approved`, `rejected`, `terminated`
-- [ ] The HR stage controls status select contains the same 8 values
+- [ ] The `select[name="status"]` filter dropdown contains exactly: `applying`, `waiting`, `signed`, `joined`, `approved`, `rejected`, `terminated`
+- [ ] The HR stage controls status select contains the same 7 values (no `active`)
 - [ ] Both selects sorted are identical
 
 ### TC-02: Stage-to-status auto-suggest
@@ -61,7 +59,7 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 - [ ] Selecting stage 11 (agreement_sent) auto-sets status to `waiting`
 - [ ] Selecting stage 12 (agreement_signed) auto-sets status to `signed`
 - [ ] Selecting stage 13 (chronos_synced) auto-sets status to `joined`
-- [ ] Selecting stage 14 (joined) auto-sets status to `active`
+- [ ] Selecting stage 14 (joined) auto-sets status to `joined`
 
 ### TC-03: Terminated status — Chronos revocation
 **Test file:** `e2e/hr-stage-lifecycle.spec.ts` → "Terminated status"
@@ -89,8 +87,8 @@ When HR moves a lead to a stage, the status should auto-update to the value in t
 - [ ] They land on `/me/application`, not HR dashboard
 - [ ] They can see their current stage in the application pipeline
 
-### TC-08: Active Chronos users show as `active` in HR dashboard
-- [ ] Users in the Chronos `users` table with `is_active = true` appear in the HR dashboard with status `active`
+### TC-08: Chronos users show correct status in HR dashboard
+- [ ] Users in the Chronos `users` table with `is_active = true` appear in the HR dashboard with status `joined`
 - [ ] Users in the Chronos `users` table with `is_active = false` appear with status `terminated`
 
 ### TC-09: New applicant default status
@@ -115,8 +113,8 @@ After each deploy to AWS App Runner:
 
 - [ ] `GET /api/health` returns 200
 - [ ] HR dashboard loads at `/me/hr` (HR credentials)
-- [ ] Status filter shows 8 options (applying, waiting, signed, joined, active, approved, rejected, terminated)
-- [ ] Stage controls status select shows same 8 options
+- [ ] Status filter shows 7 options (applying, waiting, signed, joined, approved, rejected, terminated) — no `active`
+- [ ] Stage controls status select shows same 7 options
 - [ ] Changing stage auto-updates status to canonical value
 - [ ] Save with `terminated` status calls Chronos revocation
 - [ ] Filter by `applying` works without JS errors
