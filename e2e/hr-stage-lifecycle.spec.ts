@@ -35,7 +35,7 @@ const STAGE_STATUS_MAP: Record<string, string> = {
   agreement_sent: 'waiting',
   agreement_signed: 'signed',
   chronos_synced: 'joined',
-  joined: 'active',
+  joined: 'joined',
 };
 
 async function loginAsHr(page: Parameters<Parameters<typeof test>[1]>[0]) {
@@ -80,7 +80,7 @@ test.describe('HR stage lifecycle', () => {
     }
   });
 
-  test('Status filter contains all 8 canonical statuses', async ({ page }) => {
+  test('Status filter contains all 7 canonical statuses', async ({ page }) => {
     await loginAsHr(page);
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
@@ -90,7 +90,7 @@ test.describe('HR stage lifecycle', () => {
     const options = await filterSelect.locator('option').allTextContents();
     const statuses = options.map((o) => o.trim()).filter((o) => o && o !== 'All statuses');
 
-    const canonical = ['applying', 'waiting', 'signed', 'joined', 'active', 'approved', 'rejected', 'terminated'];
+    const canonical = ['applying', 'waiting', 'signed', 'joined', 'approved', 'rejected', 'terminated'];
     for (const s of canonical) {
       expect(statuses, `Status filter should contain "${s}"`).toContain(s);
     }

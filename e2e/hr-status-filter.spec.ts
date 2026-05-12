@@ -65,8 +65,8 @@ test.describe('HR dashboard — status filter matches status selector', () => {
     // Both selectors should offer the same set of status options
     expect(filterStatusOptions.sort()).toEqual(stageStatusOptions.sort());
 
-    // Verify all canonical statuses are present
-    const canonical = ['applying', 'waiting', 'signed', 'joined', 'active', 'approved', 'rejected', 'terminated'];
+    // Verify all canonical statuses are present (7-status system; 'active' was removed)
+    const canonical = ['applying', 'waiting', 'signed', 'joined', 'approved', 'rejected', 'terminated'];
     for (const s of canonical) {
       expect(filterStatusOptions).toContain(s);
     }
