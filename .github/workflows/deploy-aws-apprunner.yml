@@ -110,6 +110,7 @@ jobs:
           EMAIL_FROM=$(aws ssm get-parameter --name /flolabs-chronos/EMAIL_FROM --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
           RESEND_API_KEY=$(aws ssm get-parameter --name /flolabs-chronos/RESEND_API_KEY --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
           NOTION_API_KEY=$(aws ssm get-parameter --name /flolabs-chronos/NOTION_API_KEY --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
+          CRON_SECRET=$(aws ssm get-parameter --name /flolabs-chronos/CRON_SECRET --with-decryption --region "${AWS_REGION}" --query 'Parameter.Value' --output text 2>/dev/null || true)
           {
             echo "database_url<<EOF"
             echo "$DATABASE_URL"
@@ -137,6 +138,9 @@ jobs:
             echo "EOF"
             echo "notion_api_key<<EOF"
             echo "$NOTION_API_KEY"
+            echo "EOF"
+            echo "cron_secret<<EOF"
+            echo "$CRON_SECRET"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -173,6 +177,7 @@ jobs:
                   "RESEND_API_KEY": "${{ steps.runtime-secrets.outputs.resend_api_key }}",
                   "EMAIL_FROM": "${{ steps.runtime-secrets.outputs.email_from }}",
                   "NOTION_API_KEY": "${{ steps.runtime-secrets.outputs.notion_api_key }}",
+                  "CRON_SECRET": "${{ steps.runtime-secrets.outputs.cron_secret }}",
                   "NOTION_TEAM_MEMBERS_DB_ID": "286a1576955180d6acdec21f7a45dfcc",
                   "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
                   "BUILD_COMMIT_SHA": "${{ github.sha }}",
