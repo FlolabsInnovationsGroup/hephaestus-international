@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     roleAppliedFor: String(body.roleAppliedFor ?? ''),
     notes: String(body.notes ?? ''),
     alternateEmails,
+    notionTeamMemberPageUrl: String(body.notionTeamMemberPageUrl ?? ''),
   });
 
   if (!updated) {

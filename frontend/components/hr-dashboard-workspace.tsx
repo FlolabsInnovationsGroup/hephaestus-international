@@ -44,6 +44,7 @@ type Lead = {
   mergedLinkedinUrls?: string[];
   mergedCountries?: string[];
   mergedCities?: string[];
+  notionTeamMemberPageUrl?: string;
 };
 
 type Message = {
@@ -135,6 +136,7 @@ export function HrDashboardWorkspace({
     source: '',
     roleAppliedFor: '',
     notes: '',
+    notionTeamMemberPageUrl: '',
   });
 
   useEffect(() => {
@@ -194,6 +196,7 @@ export function HrDashboardWorkspace({
       source: activeLead.source ?? '',
       roleAppliedFor: activeLead.roleAppliedFor ?? '',
       notes: '',
+      notionTeamMemberPageUrl: activeLead.notionTeamMemberPageUrl ?? '',
     });
   }, [editOpen, activeLead]);
 
@@ -416,6 +419,9 @@ export function HrDashboardWorkspace({
                 <p><strong>Countries:</strong> {displayJoined(activeLead.mergedCountries, activeLead.country)}</p>
                 <p><strong>Source:</strong> {activeLead.source}</p>
                 <p><strong>Education:</strong> {activeLead.education}</p>
+                <p><strong>Notion Team Member page:</strong> {activeLead.notionTeamMemberPageUrl ? (
+                  <a href={activeLead.notionTeamMemberPageUrl} target="_blank" rel="noreferrer" className="text-[#00349B] underline break-all">{activeLead.notionTeamMemberPageUrl}</a>
+                ) : '—'}</p>
               </div>
               {activeLead.duplicateCandidates && activeLead.duplicateCandidates.length > 0 && (
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -566,6 +572,14 @@ export function HrDashboardWorkspace({
             </div>
 
             <div className="mt-3">
+              <NotionPageSearchField
+                value={editForm.notionTeamMemberPageUrl}
+                onChange={(value) => setEditForm((c) => ({ ...c, notionTeamMemberPageUrl: value }))}
+                leadName={`${editForm.firstName} ${editForm.lastName}`.trim()}
+              />
+            </div>
+
+            <div className="mt-3">
               <label className="text-sm font-semibold text-gray-800">Notes</label>
               <textarea
                 value={editForm.notes}
@@ -636,6 +650,87 @@ function EditField({ label, value, onChange }: { label: string; value: string; o
         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
       />
     </label>
+  );
+}
+
+function NotionPageSearchField({
+  value,
+  onChange,
+  leadName,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  leadName: string;
+}) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Array<{ id: string; title: string; url: string }>>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+
+  async function searchPages() {
+    const q = query.trim() || leadName;
+    if (!q) return;
+    setSearching(true);
+    setSearchError('');
+    setResults([]);
+    const res = await fetch(`/api/admin/notion/team-members/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+    const data = await res.json().catch(() => ({ error: 'Search failed' }));
+    setSearching(false);
+    if (!res.ok) {
+      setSearchError(data.error ?? 'Search failed');
+      return;
+    }
+    setResults(data.results ?? []);
+  }
+
+  return (
+    <div>
+      <label className="text-sm font-semibold text-gray-800">Notion Team Member page</label>
+      <div className="mt-1 flex gap-2">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://notion.so/..."
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+        />
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void searchPages(); } }}
+          placeholder={`Search Notion for "${leadName || 'team member'}"…`}
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+        />
+        <button
+          type="button"
+          onClick={() => void searchPages()}
+          disabled={searching}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {searching ? 'Searching…' : 'Search Notion'}
+        </button>
+      </div>
+      {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
+      {results.length > 0 && (
+        <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          {results.map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              onClick={() => { onChange(page.url); setResults([]); setQuery(''); }}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[#eef5ff]"
+            >
+              <span className="font-medium text-gray-900">{page.title}</span>
+              <span className="ml-2 truncate text-xs text-gray-400">{page.url}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {results.length === 0 && !searching && !searchError && query && (
+        <p className="mt-1 text-xs text-gray-500">No results found. You can paste the URL directly above.</p>
+      )}
+    </div>
   );
 }
 

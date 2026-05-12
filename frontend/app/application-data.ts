@@ -67,6 +67,7 @@ export interface ApplicantProfile {
   /** When set, applicant is briefly held on a review step before automatic rollback + Paula message (low-effort path). */
   lowEffortRollbackAfter?: string | null;
   lowEffortReturnStage?: ApplicationStage | null;
+  notionTeamMemberPageUrl?: string;
 }
 
 export interface ConversationMessage {

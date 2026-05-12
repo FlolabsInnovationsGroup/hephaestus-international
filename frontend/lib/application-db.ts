@@ -105,6 +105,7 @@ async function ensureApplicantLowEffortHoldColumns() {
   try {
     await sql`alter table website_applicants add column if not exists low_effort_rollback_after timestamptz`;
     await sql`alter table website_applicants add column if not exists low_effort_return_stage text`;
+    await sql`alter table website_applicants add column if not exists notion_team_member_page_url text`;
   } catch (e) {
     console.warn('[ensureApplicantLowEffortHoldColumns]', e);
   }
@@ -305,6 +306,7 @@ function rowToApplicant(row: any): ApplicantProfile {
     lowEffortReturnStage: row.low_effort_return_stage
       ? (row.low_effort_return_stage as ApplicationStage)
       : null,
+    notionTeamMemberPageUrl: row.notion_team_member_page_url ?? '',
   };
 }
 
@@ -1153,6 +1155,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           profile_picture_url = ${next.profilePictureUrl ?? ''},
           cv_file_name = ${next.cvFileName ?? ''},
           cv_url = ${next.cvUrl ?? ''},
+          notion_team_member_page_url = ${next.notionTeamMemberPageUrl ?? ''},
           last_visited_at = now(),
           updated_at = now()
       where id = ${applicantId}
