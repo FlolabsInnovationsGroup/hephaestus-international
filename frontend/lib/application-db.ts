@@ -1105,6 +1105,9 @@ export async function resetApplicantPassword(userId: string, password: string, t
 
 async function persistEmailAliases(db: typeof sql, userId: string, primaryEmail: string, alternateEmails: string[]) {
   if (!db) return;
+  // user_email_aliases has a FK on users.id — skip for website_applicants-only users
+  const inUsers = await db`select id from users where id = ${userId} limit 1`.catch(() => []);
+  if (!inUsers.length) return;
   await db`
     create table if not exists user_email_aliases (
       id uuid primary key default gen_random_uuid(),
