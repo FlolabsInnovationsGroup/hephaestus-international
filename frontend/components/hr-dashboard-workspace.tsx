@@ -45,6 +45,7 @@ type Lead = {
   mergedCountries?: string[];
   mergedCities?: string[];
   notionTeamMemberPageUrl?: string;
+  chronosLastActiveAt?: string | null;
 };
 
 type Message = {
@@ -361,8 +362,10 @@ export function HrDashboardWorkspace({
                   <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
                     <span>Stage: {formatStageLabel(lead.stage)}</span>
                     <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
-                    <span>Visited: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
-                    <span>City: {lead.city}</span>
+                    <span title="Last seen on Hephaestus">Hephaestus: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
+                    {lead.chronosLastActiveAt
+                      ? <span title="Last active on Chronos" className="text-emerald-700">Chronos: {new Date(lead.chronosLastActiveAt).toLocaleDateString()}</span>
+                      : <span className="text-gray-400">Chronos: —</span>}
                   </div>
                 </button>
               </div>
@@ -411,7 +414,27 @@ export function HrDashboardWorkspace({
                 <p><strong>Status:</strong> {activeLead.status}</p>
                 <p><strong>Stage:</strong> {formatStageLabel(activeLead.stage)}</p>
                 <p><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
-                <p><strong>Last website visit:</strong> {new Date(activeLead.lastVisitedAt).toLocaleString()}</p>
+                <div className="rounded-xl border border-blue-100 bg-[#f7faff] px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B] mb-2">Platform activity</p>
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5 font-medium text-gray-700">
+                        <span className="inline-block h-2 w-2 rounded-full bg-[#00349B]" />
+                        Hephaestus
+                      </span>
+                      <span className="text-gray-600">{new Date(activeLead.lastVisitedAt).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5 font-medium text-gray-700">
+                        <span className={`inline-block h-2 w-2 rounded-full ${activeLead.chronosLastActiveAt ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                        Chronos
+                      </span>
+                      {activeLead.chronosLastActiveAt
+                        ? <span className="text-gray-600">{new Date(activeLead.chronosLastActiveAt).toLocaleString()}</span>
+                        : <span className="text-gray-400 italic">No Chronos account</span>}
+                    </div>
+                  </div>
+                </div>
                 <p><strong>Emails:</strong> {displayJoined([activeLead.email, ...(activeLead.alternateEmails ?? [])], activeLead.email)}</p>
                 <p><strong>Phone numbers:</strong> {displayJoined(activeLead.mergedPhoneNumbers, activeLead.phoneNumber)}</p>
                 <p><strong>LinkedIn:</strong> {displayJoined(activeLead.mergedLinkedinUrls, activeLead.linkedinUrl)}</p>

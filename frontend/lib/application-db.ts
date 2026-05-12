@@ -307,6 +307,7 @@ function rowToApplicant(row: any): ApplicantProfile {
       ? (row.low_effort_return_stage as ApplicationStage)
       : null,
     notionTeamMemberPageUrl: row.notion_team_member_page_url ?? '',
+    chronosLastActiveAt: null,
   };
 }
 
@@ -577,6 +578,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     notes: 'Authenticated through shared Chronos users table.',
     safeSendersConfirmed: true,
     communicationConsent: true,
+    chronosLastActiveAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
   };
 }
 
@@ -684,10 +686,18 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
 export async function getApplicants() {
   const db = await readDb();
   const byEmail = new Map(db.applicants.map((applicant) => [applicant.email.toLowerCase(), applicant]));
+  const chronosLastActiveByEmail = new Map<string, string>();
 
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users order by created_at desc`;
+
+    for (const row of chronosRows) {
+      const email = String(row.email ?? '').toLowerCase();
+      if (email && row.updated_at) {
+        chronosLastActiveByEmail.set(email, new Date(row.updated_at).toISOString());
+      }
+    }
 
     for (const row of chronosRows) {
       const email = String(row.email ?? '').toLowerCase();
@@ -782,6 +792,7 @@ export async function getApplicants() {
       mergedCities: uniqueNonEmpty([applicant.city, ...related.map((item) => item.city)]),
       duplicateCandidates: candidates,
       duplicateNeedsReview: pendingCandidates.some((candidate) => candidate.score < 7 || candidate.reasons.length < 2),
+      chronosLastActiveAt: chronosLastActiveByEmail.get(applicant.email.toLowerCase()) ?? applicant.chronosLastActiveAt ?? null,
     };
   });
 }

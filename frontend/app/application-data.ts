@@ -68,6 +68,8 @@ export interface ApplicantProfile {
   lowEffortRollbackAfter?: string | null;
   lowEffortReturnStage?: ApplicationStage | null;
   notionTeamMemberPageUrl?: string;
+  /** Last time this user was active in the Chronos time-tracking platform (users.updated_at proxy). Null if no Chronos account. */
+  chronosLastActiveAt?: string | null;
 }
 
 export interface ConversationMessage {
