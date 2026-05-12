@@ -608,7 +608,7 @@ export async function findUserByEmail(email: string) {
     `;
     if (aliasRows[0]) return chronosUserToApplicant(aliasRows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where lower(email) = lower(${email}) limit 1`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where lower(email) = lower(${email}) limit 1`.catch(() => sql!`select id, email, name, password, role, is_active, created_at, updated_at from users where lower(email) = lower(${email}) limit 1`);
     return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
@@ -621,7 +621,7 @@ export async function getUserById(id: string) {
     const rows = await sql`select * from website_applicants where id = ${id} limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where id = ${id} limit 1`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where id = ${id} limit 1`.catch(() => sql!`select id, email, name, password, role, is_active, created_at, updated_at from users where id = ${id} limit 1`);
     return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
@@ -690,7 +690,12 @@ export async function getApplicants() {
 
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users order by created_at desc`;
+    let chronosRows: any[] = [];
+    try {
+      chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users order by created_at desc`;
+    } catch {
+      chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users order by created_at desc`;
+    }
 
     for (const row of chronosRows) {
       const email = String(row.email ?? '').toLowerCase();
