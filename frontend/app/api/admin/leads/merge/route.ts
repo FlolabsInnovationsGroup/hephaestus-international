@@ -183,6 +183,29 @@ export async function POST(request: Request) {
   `;
 
   const secondaryLeadIds = leadIds.filter((id) => id !== canonicalLeadId);
+
+  // Re-point time_entries from secondary accounts to the canonical account.
+  // user_id FK references users.id — only re-point if canonical exists there.
+  const canonicalInUsers = await sql`select id from users where id = ${canonicalLeadId} limit 1`.catch(() => []);
+  if (canonicalInUsers[0]) {
+    await sql`
+      update time_entries set user_id = ${canonicalLeadId}, updated_at = now()
+      where user_id = any(${secondaryLeadIds}::uuid[])
+    `.catch(() => null);
+  }
+  // flolabs_id / applicant_id FK references applicants.id
+  const canonicalInApplicants = await sql`select id from applicants where id = ${canonicalLeadId} limit 1`.catch(() => []);
+  if (canonicalInApplicants[0]) {
+    await sql`
+      update time_entries set flolabs_id = ${canonicalLeadId}, updated_at = now()
+      where flolabs_id = any(${secondaryLeadIds}::uuid[])
+    `.catch(() => null);
+    await sql`
+      update time_entries set applicant_id = ${canonicalLeadId}, updated_at = now()
+      where applicant_id = any(${secondaryLeadIds}::uuid[])
+    `.catch(() => null);
+  }
+
   for (const secondaryId of secondaryLeadIds) {
     await sql`
       insert into applicant_duplicate_reviews (primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes, reviewed_at, updated_at)

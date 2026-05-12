@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
@@ -420,7 +420,9 @@ export function HrDashboardWorkspace({
                 <p><strong>Source:</strong> {activeLead.source}</p>
                 <p><strong>Education:</strong> {activeLead.education}</p>
                 <p><strong>Notion Team Member page:</strong> {activeLead.notionTeamMemberPageUrl ? (
-                  <a href={activeLead.notionTeamMemberPageUrl} target="_blank" rel="noreferrer" className="text-[#00349B] underline break-all">{activeLead.notionTeamMemberPageUrl}</a>
+                  <a href={activeLead.notionTeamMemberPageUrl} target="_blank" rel="noreferrer" className="text-[#00349B] underline">
+                    {notionTitleFromUrl(activeLead.notionTeamMemberPageUrl) || activeLead.notionTeamMemberPageUrl}
+                  </a>
                 ) : '—'}</p>
               </div>
               {activeLead.duplicateCandidates && activeLead.duplicateCandidates.length > 0 && (
@@ -653,6 +655,16 @@ function EditField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
+function notionTitleFromUrl(url: string): string {
+  if (!url) return '';
+  try {
+    const slug = new URL(url).pathname.split('/').filter(Boolean).pop() ?? '';
+    return slug.replace(/-?[0-9a-f]{32}$/i, '').replace(/-/g, ' ').trim();
+  } catch {
+    return '';
+  }
+}
+
 function NotionPageSearchField({
   value,
   onChange,
@@ -666,69 +678,121 @@ function NotionPageSearchField({
   const [results, setResults] = useState<Array<{ id: string; title: string; url: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function searchPages() {
-    const q = query.trim() || leadName;
-    if (!q) return;
+  const selectedTitle = notionTitleFromUrl(value);
+
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  async function doSearch(q: string) {
+    if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     setSearchError('');
-    setResults([]);
-    const res = await fetch(`/api/admin/notion/team-members/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+    const res = await fetch(`/api/admin/notion/team-members/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' });
     const data = await res.json().catch(() => ({ error: 'Search failed' }));
     setSearching(false);
-    if (!res.ok) {
-      setSearchError(data.error ?? 'Search failed');
-      return;
-    }
+    if (!res.ok) { setSearchError(data.error ?? 'Search failed'); return; }
     setResults(data.results ?? []);
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    setOpen(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void doSearch(q || leadName); }, 300);
+  }
+
+  function handleFocus() {
+    const q = query || selectedTitle || leadName;
+    setQuery(q);
+    setOpen(true);
+    void doSearch(q);
+  }
+
+  function choose(page: { id: string; title: string; url: string }) {
+    onChange(page.url);
+    setOpen(false);
+    setResults([]);
+    setQuery('');
+  }
+
+  function clear() {
+    onChange('');
+    setQuery('');
+    setResults([]);
+    setOpen(false);
+  }
+
+  const visibleValue = open ? query : (selectedTitle || '');
+
   return (
-    <div>
+    <div className="relative" ref={containerRef}>
       <label className="text-sm font-semibold text-gray-800">Notion Team Member page</label>
-      <div className="mt-1 flex gap-2">
+      <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 min-h-[42px] focus-within:border-[#00349B] focus-within:ring-1 focus-within:ring-[#00349B] transition-shadow">
+        <span className="material-symbols-outlined shrink-0 text-[#00349B]" style={{ fontSize: '18px' }}>person_search</span>
         <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="https://notion.so/..."
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+          type="text"
+          value={visibleValue}
+          onFocus={handleFocus}
+          onChange={handleInputChange}
+          placeholder={`Search for ${leadName || 'team member'}…`}
+          className="flex-1 bg-transparent outline-none text-sm text-gray-900 placeholder:text-gray-400"
         />
+        {searching && <span className="text-xs text-gray-400 shrink-0">Searching…</span>}
+        {value && !searching && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clear}
+            className="p-0.5 rounded text-gray-400 hover:text-gray-700 transition-colors shrink-0"
+            aria-label="Clear"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+          </button>
+        )}
       </div>
-      <div className="mt-2 flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void searchPages(); } }}
-          placeholder={`Search Notion for "${leadName || 'team member'}"…`}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
-        />
-        <button
-          type="button"
-          onClick={() => void searchPages()}
-          disabled={searching}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {searching ? 'Searching…' : 'Search Notion'}
-        </button>
-      </div>
-      {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
-      {results.length > 0 && (
-        <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          {results.map((page) => (
-            <button
-              key={page.id}
-              type="button"
-              onClick={() => { onChange(page.url); setResults([]); setQuery(''); }}
-              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[#eef5ff]"
-            >
-              <span className="font-medium text-gray-900">{page.title}</span>
-              <span className="ml-2 truncate text-xs text-gray-400">{page.url}</span>
-            </button>
-          ))}
-        </div>
+      {value && !open && (
+        <a href={value} target="_blank" rel="noreferrer" className="mt-0.5 block truncate text-xs text-[#00349B] underline">
+          {value}
+        </a>
       )}
-      {results.length === 0 && !searching && !searchError && query && (
-        <p className="mt-1 text-xs text-gray-500">No results found. You can paste the URL directly above.</p>
+      {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
+      {open && (results.length > 0 || (!searching && !searchError && query.trim())) && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+          {results.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-gray-500">No results found.</p>
+          ) : results.map((page) => {
+            const active = page.url === value;
+            return (
+              <button
+                key={page.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(page)}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  active ? 'bg-[#eef5ff] text-gray-900' : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="material-symbols-outlined shrink-0 text-[#00349B]" style={{ fontSize: '16px' }}>person</span>
+                <span className="flex-1 truncate font-medium">{page.title}</span>
+                {active && (
+                  <span className="material-symbols-outlined ml-auto shrink-0 text-[#00349B]" style={{ fontSize: '16px' }}>check</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
