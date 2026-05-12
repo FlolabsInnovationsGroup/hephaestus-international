@@ -578,7 +578,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
     notes: 'Authenticated through shared Chronos users table.',
     safeSendersConfirmed: true,
     communicationConsent: true,
-    chronosLastActiveAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+    chronosLastActiveAt: (row.last_login_at ?? row.updated_at) ? new Date(row.last_login_at ?? row.updated_at).toISOString() : null,
   };
 }
 
@@ -608,7 +608,7 @@ export async function findUserByEmail(email: string) {
     `;
     if (aliasRows[0]) return chronosUserToApplicant(aliasRows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where lower(email) = lower(${email}) limit 1`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where lower(email) = lower(${email}) limit 1`;
     return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
@@ -621,7 +621,7 @@ export async function getUserById(id: string) {
     const rows = await sql`select * from website_applicants where id = ${id} limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users where id = ${id} limit 1`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where id = ${id} limit 1`;
     return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
   }
   const db = await readDb();
@@ -690,12 +690,13 @@ export async function getApplicants() {
 
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users order by created_at desc`;
+    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users order by created_at desc`;
 
     for (const row of chronosRows) {
       const email = String(row.email ?? '').toLowerCase();
-      if (email && row.updated_at) {
-        chronosLastActiveByEmail.set(email, new Date(row.updated_at).toISOString());
+      const activeAt = row.last_login_at ?? row.updated_at;
+      if (email && activeAt) {
+        chronosLastActiveByEmail.set(email, new Date(activeAt).toISOString());
       }
     }
 
