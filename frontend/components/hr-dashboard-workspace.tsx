@@ -46,6 +46,8 @@ type Lead = {
   mergedCities?: string[];
   notionTeamMemberPageUrl?: string;
   chronosLastActiveAt?: string | null;
+  role?: string;
+  hrBinaryRole?: boolean;
 };
 
 type Message = {
@@ -99,6 +101,10 @@ export function HrDashboardWorkspace({
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  const [roleForm, setRoleForm] = useState({ role: 'applicant', hrBinaryRole: false });
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [roleError, setRoleError] = useState('');
+  const [roleSaved, setRoleSaved] = useState(false);
   const router = useRouter();
 
   const activeLead = useMemo(
@@ -202,6 +208,13 @@ export function HrDashboardWorkspace({
   }, [editOpen, activeLead]);
 
   useEffect(() => {
+    if (!activeLead) return;
+    setRoleForm({ role: activeLead.role ?? 'applicant', hrBinaryRole: activeLead.hrBinaryRole ?? false });
+    setRoleError('');
+    setRoleSaved(false);
+  }, [activeLead?.id]);
+
+  useEffect(() => {
     if (!activeLead) {
       setConversation([]);
       return;
@@ -279,6 +292,26 @@ export function HrDashboardWorkspace({
       return;
     }
     setEditOpen(false);
+    router.refresh();
+  }
+
+  async function saveRoleChange() {
+    if (!activeLead) return;
+    setRoleSaving(true);
+    setRoleError('');
+    setRoleSaved(false);
+    const res = await fetch('/api/admin/leads/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicantId: activeLead.id, role: roleForm.role, hrBinaryRole: roleForm.hrBinaryRole }),
+    });
+    const data = await res.json().catch(() => ({ error: 'Update failed' }));
+    setRoleSaving(false);
+    if (!res.ok) {
+      setRoleError(data.error ?? 'Update failed');
+      return;
+    }
+    setRoleSaved(true);
     router.refresh();
   }
 
@@ -414,6 +447,46 @@ export function HrDashboardWorkspace({
                 <p><strong>Status:</strong> {activeLead.status}</p>
                 <p><strong>Stage:</strong> {formatStageLabel(activeLead.stage)}</p>
                 <p><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
+                <div className="rounded-xl border border-blue-100 bg-[#f7faff] px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B] mb-2">Role & access</p>
+                  <div className="grid gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-700 w-20 shrink-0">Role</label>
+                      <select
+                        data-testid="role-select"
+                        value={roleForm.role}
+                        onChange={(e) => setRoleForm((f) => ({ ...f, role: e.target.value }))}
+                        className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs outline-none focus:border-[#00349B]"
+                      >
+                        <option value="applicant">Applicant</option>
+                        <option value="hr">HR</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={roleForm.hrBinaryRole}
+                        onChange={(e) => setRoleForm((f) => ({ ...f, hrBinaryRole: e.target.checked }))}
+                        className="rounded"
+                      />
+                      HR dashboard access
+                    </label>
+                    {roleError && <p className="text-xs text-red-600">{roleError}</p>}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        data-testid="save-role"
+                        disabled={roleSaving}
+                        onClick={saveRoleChange}
+                        className="rounded-lg bg-[#00349B] px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                      >
+                        {roleSaving ? 'Saving…' : 'Save role'}
+                      </button>
+                      {roleSaved && <span data-testid="role-saved" className="text-xs font-semibold text-emerald-600">Saved</span>}
+                    </div>
+                  </div>
+                </div>
                 <div className="rounded-xl border border-blue-100 bg-[#f7faff] px-4 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B] mb-2">Platform activity</p>
                   <div className="grid gap-2">

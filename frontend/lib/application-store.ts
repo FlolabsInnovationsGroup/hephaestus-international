@@ -24,6 +24,7 @@ import {
   touchApplicantWebsiteVisit,
   updateApplicantProfile,
   updateApplicantStage,
+  updateUserRole,
   setLowEffortPendingHold,
   clearLowEffortPendingHold,
   type PassingCondition,
@@ -843,4 +844,8 @@ export async function getStageStats() {
 
 export async function getResponsesForHr() {
   return await getStageResponsesForHr();
+}
+
+export async function updateApplicantRole(applicantId: string, role: string, hrBinaryRole: boolean) {
+  return updateUserRole(applicantId, role, hrBinaryRole);
 }

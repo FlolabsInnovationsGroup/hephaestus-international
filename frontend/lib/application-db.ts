@@ -1677,6 +1677,28 @@ export async function getStageDefinitions(baseSteps: StageStep[]) {
   }) as StageDefinitionRecord[];
 }
 
+export async function updateUserRole(applicantId: string, role: string, hrBinaryRole: boolean) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const rows = await sql`
+      update website_applicants
+      set role = ${role},
+          hr_binary_role = ${hrBinaryRole},
+          updated_at = now()
+      where id = ${applicantId}
+      returning *
+    `;
+    return rows[0] ? rowToApplicant(rows[0]) : null;
+  }
+  const db = await readDb();
+  const applicant = db.applicants.find((a) => a.id === applicantId);
+  if (!applicant) return null;
+  applicant.role = role as ApplicantProfile['role'];
+  applicant.hrBinaryRole = hrBinaryRole;
+  await writeDb(db);
+  return applicant;
+}
+
 export async function saveStageDefinition(input: {
   stageId: string;
   shortLabel: string;

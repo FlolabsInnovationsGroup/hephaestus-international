@@ -18,6 +18,7 @@ type HrFiltersProps = {
     visitedFrom?: string;
     visitedTo?: string;
     duplicateReview?: string;
+    hasNotion?: string;
     more?: string;
   };
   stageOptions: string[];
@@ -48,6 +49,7 @@ export function HrFilters({ params, stageOptions, statusOptions, sourceOptions, 
             <FilterField label="Source"><select name="source" defaultValue={params.source ?? ''} className={inputClass}><option value="">All sources</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></FilterField>
             <FilterField label="Sort by"><select name="sort" defaultValue={params.sort ?? 'joined_desc'} className={inputClass}><option value="joined_desc">Newest joined</option><option value="joined_asc">Oldest joined</option><option value="visited_desc">Recently visited</option><option value="visited_asc">Least recently visited</option><option value="name_asc">Name A-Z</option><option value="name_desc">Name Z-A</option></select></FilterField>
             <FilterField label="Duplicate review"><select name="duplicateReview" defaultValue={params.duplicateReview ?? ''} className={inputClass}><option value="">Any</option><option value="has_pending">Has pending review</option><option value="confirmed_duplicate">Confirmed duplicate</option><option value="different_people">Different people</option><option value="merged">Merged</option><option value="none">No duplicate review</option></select></FilterField>
+            <FilterField label="Notion page"><select name="hasNotion" defaultValue={params.hasNotion ?? ''} className={inputClass}><option value="">All leads</option><option value="yes">Has Notion page</option><option value="no">No Notion page</option></select></FilterField>
             <FilterField label="More"><button type="button" onClick={() => setMoreOpen((v) => !v)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button></FilterField>
             <FilterField label="Apply"><button className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button></FilterField>
           </div>

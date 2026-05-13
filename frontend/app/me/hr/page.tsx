@@ -45,7 +45,7 @@ function buildUniqueProfileCount(
   return uniqueRoots.size;
 }
 
-export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; duplicateReview?: string; more?: string }> }) {
+export default async function HrPage({ searchParams }: { searchParams: Promise<{ lead?: string; q?: string; stage?: string; status?: string; source?: string; country?: string; city?: string; sort?: string; joinedFrom?: string; joinedTo?: string; visitedFrom?: string; visitedTo?: string; duplicateReview?: string; hasNotion?: string; more?: string }> }) {
   const viewer = await getSessionUser();
   if (!viewer) redirect('/login');
   if (!viewer.hrBinaryRole) redirect('/me/application');
@@ -63,6 +63,7 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   const visitedFrom = params.visitedFrom ?? '';
   const visitedTo = params.visitedTo ?? '';
   const duplicateReview = params.duplicateReview ?? '';
+  const hasNotion = params.hasNotion ?? '';
   const allApplicants = await getApplicantsForAdmin();
   const sourceOptions = Array.from(new Set(allApplicants.map((lead) => lead.source).filter(Boolean))).sort();
   const countryOptions = Array.from(new Set(allApplicants.map((lead) => lead.country).filter(Boolean))).sort();
@@ -86,7 +87,9 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
       || (duplicateReview === 'has_pending' && reviewStatuses.includes('pending'))
       || (duplicateReview === 'none' && reviewStatuses.length === 0)
       || reviewStatuses.includes(duplicateReview as 'confirmed_duplicate' | 'different_people' | 'merged');
-    return matchesQ && matchesStage && matchesStatus && matchesSource && matchesCountry && matchesCity && matchesJoinedFrom && matchesJoinedTo && matchesVisitedFrom && matchesVisitedTo && matchesDuplicateReview;
+    const matchesNotion = !hasNotion
+      || (hasNotion === 'yes' ? Boolean(lead.notionTeamMemberPageUrl) : !lead.notionTeamMemberPageUrl);
+    return matchesQ && matchesStage && matchesStatus && matchesSource && matchesCountry && matchesCity && matchesJoinedFrom && matchesJoinedTo && matchesVisitedFrom && matchesVisitedTo && matchesDuplicateReview && matchesNotion;
   }).sort((a, b) => {
     switch (sort) {
       case 'name_asc':
@@ -122,13 +125,14 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
   if (params.visitedFrom) queryParams.visitedFrom = params.visitedFrom;
   if (params.visitedTo) queryParams.visitedTo = params.visitedTo;
   if (params.duplicateReview) queryParams.duplicateReview = params.duplicateReview;
+  if (params.hasNotion) queryParams.hasNotion = params.hasNotion;
 
   return (
     <Section className="bg-[#f7faff] pt-28 pb-16 min-h-screen">
       <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <HrFilters
-            params={params}
+            params={{ ...params, hasNotion: hasNotion || '' }}
             stageOptions={Array.from(new Set(allApplicants.map((lead) => lead.stage))).sort((a, b) => getStageOrder(a) - getStageOrder(b) || a.localeCompare(b))}
             statusOptions={['applying', 'waiting', 'signed', 'joined', 'approved', 'rejected', 'terminated']}
             sourceOptions={sourceOptions}
