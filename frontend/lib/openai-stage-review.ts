@@ -6,6 +6,7 @@ export type StageReviewBlock = {
   stageTitle: string;
   stageDescription: string;
   items: { title: string; prompt: string; response: string }[];
+  customAiPrompt?: string;
 };
 
 export type StageReviewOutcome = 'next' | 'stay' | 'previous';
@@ -62,7 +63,11 @@ Rules:
   { "decisions": [ { "stageId": string, "outcome": "next"|"stay"|"previous", "reason": string } ] }
 - The "decisions" array must include every stageId from the input, in any order.`;
 
-  const userContent = JSON.stringify({ stages });
+  const stagesWithNotes = stages.map(({ customAiPrompt, ...rest }) => ({
+    ...rest,
+    ...(customAiPrompt ? { reviewerNotes: customAiPrompt } : {}),
+  }));
+  const userContent = JSON.stringify({ stages: stagesWithNotes });
 
   try {
     const response = await openai.chat.completions.create({

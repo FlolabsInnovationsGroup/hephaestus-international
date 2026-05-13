@@ -25,6 +25,7 @@ import {
   updateApplicantStage,
   setLowEffortPendingHold,
   clearLowEffortPendingHold,
+  type PassingCondition,
 } from '@/lib/application-db';
 import {
   getStageOrder,
@@ -140,6 +141,7 @@ async function buildBatchStageReviewBlocks(
       stageTitle: stepMeta?.title ?? stageId,
       stageDescription: stepMeta?.description ?? '',
       items,
+      customAiPrompt: stepMeta?.passingConditionAiPrompt?.trim() || undefined,
     });
   }
   return stages;
@@ -234,6 +236,33 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
   }
 
   const managed = await getManagedSteps();
+  const currentManagedMeta = managed.find((s) => s.id === stageAtStart);
+  const passingCondition = currentManagedMeta?.passingCondition ?? 'ai';
+
+  if (passingCondition === 'none') {
+    const nextStageId = resolveNextPipelineStage(stageAtStart);
+    if (nextStageId) {
+      await updateApplicantStage(applicantId, nextStageId);
+      const nextMeta = managed.find((s) => s.id === nextStageId);
+      return {
+        evaluated: false,
+        stageChanged: true,
+        newStage: nextStageId,
+        newStageTitle: nextMeta?.title ?? nextStageId,
+        applicantMessage: `You have been moved to the next step: ${nextMeta?.title ?? nextStageId}.`,
+      };
+    }
+    return { evaluated: false, stageChanged: false };
+  }
+
+  if (passingCondition === 'hr') {
+    return {
+      evaluated: false,
+      stageChanged: false,
+      applicantMessage:
+        'This step requires approval from our team. You will be moved forward when HR is ready — there is nothing to submit here.',
+    };
+  }
   const responses = await getStageResponsesForApplicant(applicantId);
 
   const currentResources = await getStageResources(stageAtStart);
@@ -636,6 +665,8 @@ export async function getManagedSteps(options?: { includeInactive?: boolean }) {
     applicantAction: item.applicantAction,
     adminAction: item.adminAction,
     active: item.active,
+    passingCondition: item.passingCondition,
+    passingConditionAiPrompt: item.passingConditionAiPrompt,
   }));
   return options?.includeInactive ? mapped : mapped.filter((item) => item.active);
 }
@@ -651,6 +682,8 @@ export async function updateManagedStep(input: {
   title: string;
   description: string;
   applicantAction: string;
+  passingCondition?: PassingCondition;
+  passingConditionAiPrompt?: string;
 }) {
   const all = await getManagedSteps({ includeInactive: true });
   const existing = all.find((item) => item.id === input.stageId);
@@ -663,6 +696,8 @@ export async function updateManagedStep(input: {
     applicantAction: input.applicantAction,
     adminAction: existing.adminAction,
     active: existing.active,
+    passingCondition: input.passingCondition ?? existing.passingCondition,
+    passingConditionAiPrompt: input.passingConditionAiPrompt ?? existing.passingConditionAiPrompt,
   });
 }
 
@@ -678,6 +713,8 @@ export async function deleteManagedStep(stageId: string) {
     applicantAction: existing.applicantAction,
     adminAction: existing.adminAction,
     active: false,
+    passingCondition: existing.passingCondition,
+    passingConditionAiPrompt: existing.passingConditionAiPrompt,
   });
 }
 
@@ -696,6 +733,8 @@ export async function activateManagedStep(stageId: string) {
     applicantAction: existing?.applicantAction ?? baseStep.applicantAction,
     adminAction: existing?.adminAction ?? baseStep.adminAction,
     active: true,
+    passingCondition: existing?.passingCondition ?? 'ai',
+    passingConditionAiPrompt: existing?.passingConditionAiPrompt ?? '',
   });
 
   return await getManagedStepById(stageId);
@@ -723,6 +762,10 @@ export async function submitStageResponse(input: { resourceId: string; applicant
 
 export async function getStageResourcesForApplicant(stage: string, applicantId: string) {
   if (isApplicantReviewWaitStage(stage)) {
+    return [];
+  }
+  const stepMeta = await getManagedStepById(stage);
+  if (stepMeta?.passingCondition === 'none') {
     return [];
   }
   const [resources, responses] = await Promise.all([

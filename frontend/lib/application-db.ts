@@ -76,6 +76,8 @@ export interface HrStageResponseRecord extends StageResourceResponseRecord {
   resourceTitle: string;
 }
 
+export type PassingCondition = 'none' | 'ai' | 'hr';
+
 export interface StageDefinitionRecord {
   stageId: string;
   shortLabel: string;
@@ -85,6 +87,8 @@ export interface StageDefinitionRecord {
   adminAction: string;
   active: boolean;
   updatedAt: string;
+  passingCondition: PassingCondition;
+  passingConditionAiPrompt: string;
 }
 
 async function ensureDb() {
@@ -258,6 +262,8 @@ async function ensureStageFeatureSchema() {
         updated_at timestamptz not null default now()
       );
     `;
+    await sql`alter table website_stage_definitions add column if not exists passing_condition text not null default 'ai'`;
+    await sql`alter table website_stage_definitions add column if not exists passing_condition_ai_prompt text not null default ''`;
     return true;
   } catch (error) {
     console.error('Stage feature schema unavailable:', error);
@@ -1559,6 +1565,19 @@ export async function getStageResponsesForHr() {
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()) as HrStageResponseRecord[];
 }
 
+const HR_DEFAULT_STAGE_IDS = new Set([
+  'interested_review', 'meeting_recordings_submitted', 'saturday_meeting',
+  'masterclass_submitted', 'second_meeting', 'agreement_sent',
+  'agreement_signed', 'chronos_synced', 'joined',
+]);
+const NONE_DEFAULT_STAGE_IDS = new Set(['application_submitted', 'new']);
+
+function defaultPassingCondition(stageId: string): PassingCondition {
+  if (HR_DEFAULT_STAGE_IDS.has(stageId)) return 'hr';
+  if (NONE_DEFAULT_STAGE_IDS.has(stageId)) return 'none';
+  return 'ai';
+}
+
 export async function getStageDefinitions(baseSteps: StageStep[]) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
@@ -1576,7 +1595,7 @@ export async function getStageDefinitions(baseSteps: StageStep[]) {
       })) as StageDefinitionRecord[];
     }
     const rows = await sql`
-      select stage_id, short_label, title, description, applicant_action, admin_action, active, updated_at
+      select stage_id, short_label, title, description, applicant_action, admin_action, active, updated_at, passing_condition, passing_condition_ai_prompt
       from website_stage_definitions
     `;
     const byId = new Map(
@@ -1589,6 +1608,8 @@ export async function getStageDefinitions(baseSteps: StageStep[]) {
         adminAction: String(row.admin_action),
         active: Boolean(row.active),
         updatedAt: new Date(row.updated_at).toISOString(),
+        passingCondition: (String(row.passing_condition || 'ai')) as PassingCondition,
+        passingConditionAiPrompt: String(row.passing_condition_ai_prompt ?? ''),
       } as StageDefinitionRecord]),
     );
     return baseSteps.map((step) => byId.get(step.id) ?? {
@@ -1600,20 +1621,27 @@ export async function getStageDefinitions(baseSteps: StageStep[]) {
       adminAction: step.adminAction,
       active: true,
       updatedAt: new Date().toISOString(),
+      passingCondition: defaultPassingCondition(step.id),
+      passingConditionAiPrompt: '',
     }) as StageDefinitionRecord[];
   }
 
   const db = await readDb();
   const byId = new Map((db.stageDefinitions ?? []).map((item) => [item.stageId, item]));
-  return baseSteps.map((step) => byId.get(step.id) ?? {
-    stageId: step.id,
-    shortLabel: step.shortLabel,
-    title: step.title,
-    description: step.description,
-    applicantAction: step.applicantAction,
-    adminAction: step.adminAction,
-    active: true,
-    updatedAt: new Date().toISOString(),
+  return baseSteps.map((step) => {
+    const saved = byId.get(step.id);
+    return {
+      stageId: step.id,
+      shortLabel: saved?.shortLabel ?? step.shortLabel,
+      title: saved?.title ?? step.title,
+      description: saved?.description ?? step.description,
+      applicantAction: saved?.applicantAction ?? step.applicantAction,
+      adminAction: saved?.adminAction ?? step.adminAction,
+      active: saved?.active ?? true,
+      updatedAt: saved?.updatedAt ?? new Date().toISOString(),
+      passingCondition: saved?.passingCondition ?? defaultPassingCondition(step.id),
+      passingConditionAiPrompt: saved?.passingConditionAiPrompt ?? '',
+    };
   }) as StageDefinitionRecord[];
 }
 
@@ -1625,14 +1653,16 @@ export async function saveStageDefinition(input: {
   applicantAction: string;
   adminAction: string;
   active: boolean;
+  passingCondition: PassingCondition;
+  passingConditionAiPrompt: string;
 }) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) throw new Error('Stage definitions are unavailable in this environment');
     await sql`
-      insert into website_stage_definitions (stage_id, short_label, title, description, applicant_action, admin_action, active, updated_at)
-      values (${input.stageId}, ${input.shortLabel}, ${input.title}, ${input.description}, ${input.applicantAction}, ${input.adminAction}, ${input.active}, now())
+      insert into website_stage_definitions (stage_id, short_label, title, description, applicant_action, admin_action, active, passing_condition, passing_condition_ai_prompt, updated_at)
+      values (${input.stageId}, ${input.shortLabel}, ${input.title}, ${input.description}, ${input.applicantAction}, ${input.adminAction}, ${input.active}, ${input.passingCondition}, ${input.passingConditionAiPrompt}, now())
       on conflict (stage_id)
       do update set
         short_label = excluded.short_label,
@@ -1641,6 +1671,8 @@ export async function saveStageDefinition(input: {
         applicant_action = excluded.applicant_action,
         admin_action = excluded.admin_action,
         active = excluded.active,
+        passing_condition = excluded.passing_condition,
+        passing_condition_ai_prompt = excluded.passing_condition_ai_prompt,
         updated_at = now()
     `;
     return;

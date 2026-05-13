@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { activateManagedStep, deleteManagedStep, getSessionUser, updateManagedStep } from '@/lib/application-store';
+import type { PassingCondition } from '@/lib/application-db';
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
@@ -27,13 +28,20 @@ export async function PATCH(request: Request) {
   const title = String(body?.title ?? '').trim();
   const description = String(body?.description ?? '').trim();
   const applicantAction = String(body?.applicantAction ?? '');
+  const passingConditionRaw = String(body?.passingCondition ?? '').trim();
+  const passingCondition = (passingConditionRaw === 'none' || passingConditionRaw === 'ai' || passingConditionRaw === 'hr')
+    ? passingConditionRaw as PassingCondition
+    : undefined;
+  const passingConditionAiPrompt = body?.passingConditionAiPrompt !== undefined
+    ? String(body.passingConditionAiPrompt)
+    : undefined;
 
   if (!stageId || !shortLabel || !title || !description) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
-    await updateManagedStep({ stageId, shortLabel, title, description, applicantAction });
+    await updateManagedStep({ stageId, shortLabel, title, description, applicantAction, passingCondition, passingConditionAiPrompt });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status: 404 });
