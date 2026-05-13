@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, updateApplicantRole } from '@/lib/application-store';
 
-const VALID_ROLES = new Set(['applicant', 'admin', 'hr']);
+const VALID_ROLES = new Set(['member', 'team_lead', 'admin', 'applicant', 'hr']);
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();

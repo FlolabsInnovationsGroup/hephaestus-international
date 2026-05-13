@@ -6,7 +6,7 @@ import { formatStageLabel, orderedStageIds } from '@/lib/stage-definitions';
 
 const stageOptions = orderedStageIds;
 
-const statusOptions = ['applying', 'waiting', 'signed', 'joined', 'approved', 'rejected', 'terminated'];
+const statusOptions = ['applying', 'waiting', 'signed', 'joined', 'approved', 'rejected', 'graduated', 'terminated'];
 const blacklistedCountries = ['Afghanistan', 'Belarus', 'Iran', 'North Korea', 'Russia', 'Syria'];
 
 function statusForStage(stageId: string): string {

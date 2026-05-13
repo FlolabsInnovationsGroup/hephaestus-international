@@ -454,12 +454,12 @@ export function HrDashboardWorkspace({
                       <label className="text-xs font-medium text-gray-700 w-20 shrink-0">Role</label>
                       <select
                         data-testid="role-select"
-                        value={roleForm.role}
+                        value={roleForm.role === 'applicant' ? 'member' : roleForm.role === 'hr' ? 'member' : roleForm.role}
                         onChange={(e) => setRoleForm((f) => ({ ...f, role: e.target.value }))}
                         className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs outline-none focus:border-[#00349B]"
                       >
-                        <option value="applicant">Applicant</option>
-                        <option value="hr">HR</option>
+                        <option value="member">Member</option>
+                        <option value="team_lead">Team Lead</option>
                         <option value="admin">Admin</option>
                       </select>
                     </div>
