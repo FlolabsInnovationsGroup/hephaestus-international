@@ -94,13 +94,10 @@ test.describe('Applicant view as tesororeptilipotermius', () => {
     // Try password-based login first; fall back to cookie injection if credentials changed
     if (APPLICANT_USER_ID) {
       await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
-      const baseUrl = 'https://fykgssqbvg.us-east-1.awsapprunner.com';
       await page.context().addCookies([{
         name: 'fl_preview_session',
         value: APPLICANT_USER_ID,
-        url: baseUrl,
-        httpOnly: true,
-        sameSite: 'Lax',
+        domain: 'fykgssqbvg.us-east-1.awsapprunner.com',
         path: '/',
       }]);
       return;
