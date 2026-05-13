@@ -76,6 +76,9 @@ export function HrStagesWorkspace({
   const [conditionAiPrompt, setConditionAiPrompt] = useState('');
   const [savingCondition, setSavingCondition] = useState(false);
   const [conditionSaved, setConditionSaved] = useState(false);
+  const [inlineApplicantAction, setInlineApplicantAction] = useState('');
+  const [savingApplicantAction, setSavingApplicantAction] = useState(false);
+  const [applicantActionSaved, setApplicantActionSaved] = useState(false);
   const inactiveStages = useMemo(
     () => allSteps.filter((item) => !localSteps.some((active) => active.id === item.id)),
     [allSteps, localSteps],
@@ -230,6 +233,8 @@ export function HrStagesWorkspace({
     setConditionType(stage?.passingCondition ?? 'ai');
     setConditionAiPrompt(stage?.passingConditionAiPrompt ?? '');
     setConditionSaved(false);
+    setInlineApplicantAction(stage?.applicantAction ?? '');
+    setApplicantActionSaved(false);
   }, [activeStageId, stage]);
 
   async function savePassingCondition() {
@@ -260,6 +265,31 @@ export function HrStagesWorkspace({
     ));
     setConditionSaved(true);
     setTimeout(() => setConditionSaved(false), 2000);
+  }
+
+  async function saveApplicantAction() {
+    if (!stage) return;
+    setSavingApplicantAction(true);
+    const res = await fetch('/api/admin/stages/definitions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stageId: stage.id,
+        shortLabel: stage.shortLabel,
+        title: stage.title,
+        description: stage.description,
+        applicantAction: inlineApplicantAction,
+        passingCondition: stage.passingCondition,
+        passingConditionAiPrompt: stage.passingConditionAiPrompt,
+      }),
+    });
+    setSavingApplicantAction(false);
+    if (!res.ok) return;
+    setLocalSteps((current) => current.map((item) =>
+      item.id === stage.id ? { ...item, applicantAction: inlineApplicantAction } : item,
+    ));
+    setApplicantActionSaved(true);
+    setTimeout(() => setApplicantActionSaved(false), 2000);
   }
 
   function openEditModal(stageToEdit: Step) {
@@ -371,13 +401,26 @@ export function HrStagesWorkspace({
           <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900">What applicants see</h3>
             <p className="mt-2 text-sm text-gray-700">{stage.description}</p>
-            <div className="mt-4 rounded-xl bg-[#f7faff] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#00349B]">Applicant action</p>
-              <p className="mt-2 text-sm text-gray-700">{stage.applicantAction}</p>
-            </div>
-            <div className="mt-4 rounded-xl bg-[#f7faff] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#00349B]">HR action</p>
-              <p className="mt-2 text-sm text-gray-700">{stage.adminAction}</p>
+            <div className="mt-4">
+              <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[#00349B]">Applicant action</label>
+              <p className="mt-1 text-xs text-gray-500">Message shown under "What to do now" on the applicant's dashboard.</p>
+              <textarea
+                value={inlineApplicantAction}
+                onChange={(e) => { setInlineApplicantAction(e.target.value); setApplicantActionSaved(false); }}
+                rows={3}
+                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#00349B]"
+              />
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={savingApplicantAction}
+                  onClick={() => void saveApplicantAction()}
+                  className="rounded-xl bg-[#00349B] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {savingApplicantAction ? 'Saving…' : 'Save'}
+                </button>
+                {applicantActionSaved && <p className="text-sm font-medium text-green-600">Saved</p>}
+              </div>
             </div>
           </div>
 
