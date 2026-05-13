@@ -46,28 +46,31 @@ export async function reviewStagesBatch(
 
   const requiredIds = stages.map((s) => s.stageId);
 
+  const stageNotes = stages
+    .filter((s) => s.customAiPrompt?.trim())
+    .map((s) => `- ${s.stageTitle} (${s.stageId}): ${s.customAiPrompt!.trim()}`)
+    .join('\n');
+
   const systemPrompt = `You are a fair, consistent reviewer for FloLabs internship applicants.
 Each block is one pipeline stage with question/answer pairs after the applicant consumed stage materials.
 
 For EVERY stage in the JSON input you MUST return exactly one decision object with the same "stageId".
 
 Outcomes (pick one per stage):
-- "next": responses are substantive, on-prompt, and show genuine effort — ready for the very next pipeline step in the program (often a short team review step with no new form, then later more content).
-- "stay": mixed quality, too thin, or uneven — applicant should improve answers on this stage before advancing (do NOT move them forward or backward).
-- "previous": clearly low effort overall (gibberish, one-word non-answers, obvious spam, hostile, or copy-paste filler across the stage) — they should not advance; the system will handle routing (redo / review) — use this outcome for that case.
+- "next": responses are substantive, on-prompt, and show genuine effort — ready for the very next pipeline step.
+- "stay": mixed quality, too thin, or uneven — applicant should improve answers on this stage before advancing.
+- "previous": clearly low effort overall (gibberish, one-word non-answers, obvious spam, hostile, or copy-paste filler across the stage) — use this sparingly, only for clearly unacceptable work.
 
 Rules:
 - Be lenient on grammar and non-native English when ideas and specifics are present.
-- Use "previous" sparingly — only for clearly unacceptable work, not merely brief but sincere answers.
 - You must respond with a single JSON object only, no markdown, shape:
   { "decisions": [ { "stageId": string, "outcome": "next"|"stay"|"previous", "reason": string } ] }
-- The "decisions" array must include every stageId from the input, in any order.`;
+- The "decisions" array must include every stageId from the input, in any order.${
+    stageNotes ? `\n\nStage-specific reviewer instructions:\n${stageNotes}` : ''
+  }`;
 
-  const stagesWithNotes = stages.map(({ customAiPrompt, ...rest }) => ({
-    ...rest,
-    ...(customAiPrompt ? { reviewerNotes: customAiPrompt } : {}),
-  }));
-  const userContent = JSON.stringify({ stages: stagesWithNotes });
+  // customAiPrompt is now in the system prompt; strip it from the user payload
+  const userContent = JSON.stringify({ stages: stages.map(({ customAiPrompt: _, ...rest }) => rest) });
 
   try {
     const response = await openai.chat.completions.create({
