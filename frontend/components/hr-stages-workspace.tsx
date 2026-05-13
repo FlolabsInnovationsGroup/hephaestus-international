@@ -463,8 +463,8 @@ export function HrStagesWorkspace({
                 </a>
                 <span className="text-gray-500"> — embedding is blocked for some URLs.</span>
               </p>
-              <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <iframe title={resource.title} src={toEmbedUrl(resource.url)} className="h-72 w-full" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 aspect-video portrait:aspect-[4/3]">
+                <iframe title={resource.title} src={toEmbedUrl(resource.url)} className="h-full w-full" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
               </div>
             </div>
           ))}
