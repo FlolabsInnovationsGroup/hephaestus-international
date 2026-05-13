@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
     ? String(body.passingConditionAiPrompt)
     : undefined;
 
-  if (!stageId || !shortLabel || !title || !description) {
+  if (!stageId || !shortLabel || !title) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 

@@ -395,7 +395,7 @@ export function HrStagesWorkspace({
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="stage-resource-list">
           {stageResources.length === 0 && <p className="rounded-2xl border border-blue-100 bg-white p-5 text-sm text-gray-500 shadow-sm">No content URLs configured for this stage yet.</p>}
           {stageResources.map((resource) => (
             <div key={resource.id} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
@@ -618,6 +618,7 @@ function PassingConditionCard({
               key={option.value}
               type="button"
               disabled={isDisabled}
+              data-selected={isSelected ? 'true' : 'false'}
               onClick={() => !isDisabled && onConditionChange(option.value)}
               className={`rounded-xl border p-4 text-left transition-colors ${
                 isSelected
