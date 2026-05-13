@@ -74,6 +74,7 @@ export interface HrStageResponseRecord extends StageResourceResponseRecord {
   applicantName: string;
   stage: string;
   resourceTitle: string;
+  aiOutcome: string | null;
 }
 
 export type PassingCondition = 'none' | 'ai' | 'hr';
@@ -264,6 +265,16 @@ async function ensureStageFeatureSchema() {
     `;
     await sql`alter table website_stage_definitions add column if not exists passing_condition text not null default 'ai'`;
     await sql`alter table website_stage_definitions add column if not exists passing_condition_ai_prompt text not null default ''`;
+    await sql`
+      create table if not exists website_stage_ai_reviews (
+        id uuid primary key default gen_random_uuid(),
+        applicant_id uuid not null,
+        stage text not null,
+        outcome text not null,
+        reason text not null default '',
+        reviewed_at timestamptz not null default now()
+      )
+    `;
     return true;
   } catch (error) {
     console.error('Stage feature schema unavailable:', error);
@@ -1481,6 +1492,18 @@ export async function saveStageResourceResponse(input: { resourceId: string; app
   await writeDb(db);
 }
 
+export async function saveStageAiReview(input: { applicantId: string; stage: string; outcome: string; reason: string }) {
+  if (USE_POSTGRES && sql) {
+    await ensurePostgresSchema();
+    const ready = await ensureStageFeatureSchema();
+    if (!ready) return;
+    await sql`
+      insert into website_stage_ai_reviews (id, applicant_id, stage, outcome, reason, reviewed_at)
+      values (${randomUUID()}, ${input.applicantId}, ${input.stage}, ${input.outcome}, ${input.reason}, now())
+    `;
+  }
+}
+
 export async function getStageResponsesForApplicant(applicantId: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
@@ -1526,12 +1549,19 @@ export async function getStageResponsesForHr() {
           )
         ) as applicant_last_name,
         s.stage as stage,
-        s.title as resource_title
+        s.title as resource_title,
+        ar.outcome as ai_outcome
       from website_stage_resource_responses r
       inner join website_stage_resources s on s.id = r.resource_id
       left join website_applicants w on w.id = r.applicant_id
       left join users u on u.id = r.applicant_id
       left join applicants a on a.id = r.applicant_id
+      left join lateral (
+        select outcome from website_stage_ai_reviews
+        where applicant_id = r.applicant_id and stage = s.stage
+        order by reviewed_at desc
+        limit 1
+      ) ar on true
       order by r.submitted_at desc
     `;
     return rows.map((row) => ({
@@ -1544,6 +1574,7 @@ export async function getStageResponsesForHr() {
       applicantName: `${String(row.applicant_first_name ?? '').trim()} ${String(row.applicant_last_name ?? '').trim()}`.trim() || 'Unknown applicant',
       stage: String(row.stage),
       resourceTitle: String(row.resource_title),
+      aiOutcome: row.ai_outcome != null ? String(row.ai_outcome) : null,
     })) as HrStageResponseRecord[];
   }
 
@@ -1560,6 +1591,7 @@ export async function getStageResponsesForHr() {
         applicantName: applicant ? `${applicant.firstName} ${applicant.lastName}`.trim() : 'Unknown applicant',
         stage: resource?.stage ?? '',
         resourceTitle: resource?.title ?? '',
+        aiOutcome: null,
       };
     })
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()) as HrStageResponseRecord[];

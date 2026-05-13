@@ -20,6 +20,7 @@ import {
   getStageDefinitions,
   saveStageDefinition,
   saveStageResourceResponse,
+  saveStageAiReview,
   touchApplicantWebsiteVisit,
   updateApplicantProfile,
   updateApplicantStage,
@@ -323,6 +324,13 @@ export async function completeApplicantStageReviewBatch(applicantId: string): Pr
       applicantMessage: 'We could not complete an automatic review just now. Your answers are saved — please try again later or wait for HR.',
     };
   }
+
+  // Persist every decision so HR can see them on the responses page
+  await Promise.all(
+    batch.decisions.map((d) =>
+      saveStageAiReview({ applicantId, stage: d.stageId, outcome: d.outcome, reason: d.reason }),
+    ),
+  );
 
   const currentDecision = batch.decisions.find((d) => d.stageId === stageAtStart);
   if (!currentDecision) {

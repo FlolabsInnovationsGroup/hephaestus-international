@@ -4,6 +4,17 @@ import { useState, useMemo } from 'react';
 import stepsData from '@/app/STEPS.json';
 
 const steps = stepsData as { id: string; title: string; shortLabel: string }[];
+
+function AiOutcomeBadge({ outcome }: { outcome: string | null }) {
+  if (!outcome) return <span className="text-gray-300">—</span>;
+  if (outcome === 'next') {
+    return <span className="inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Passed</span>;
+  }
+  if (outcome === 'previous') {
+    return <span className="inline-block rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Declined</span>;
+  }
+  return <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Redo</span>;
+}
 const stageTitleMap = new Map(steps.map((s) => [s.id, s.title]));
 const stageOrderMap = new Map(steps.map((s, i) => [s.id, i]));
 
@@ -15,6 +26,7 @@ type Row = {
   resourceTitle: string;
   responseText: string;
   submittedAt: string;
+  aiOutcome: string | null;
 };
 
 export function HrResponsesTable({ rows }: { rows: Row[] }) {
@@ -82,13 +94,14 @@ export function HrResponsesTable({ rows }: { rows: Row[] }) {
                 {!selectedStage && <th className="px-3 py-2">Stage</th>}
                 <th className="px-3 py-2">Content</th>
                 <th className="px-3 py-2">Response</th>
+                <th className="px-3 py-2">AI</th>
                 <th className="px-3 py-2">Submitted</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-3 py-4 text-gray-500" colSpan={selectedStage ? 4 : 5}>
+                  <td className="px-3 py-4 text-gray-500" colSpan={selectedStage ? 5 : 6}>
                     No responses yet.
                   </td>
                 </tr>
@@ -106,6 +119,7 @@ export function HrResponsesTable({ rows }: { rows: Row[] }) {
                   )}
                   <td className="px-3 py-3 text-gray-700">{row.resourceTitle}</td>
                   <td className="px-3 py-3 text-gray-700 max-w-[520px] whitespace-pre-wrap">{row.responseText}</td>
+                  <td className="px-3 py-3"><AiOutcomeBadge outcome={row.aiOutcome} /></td>
                   <td className="px-3 py-3 text-gray-600 whitespace-nowrap">
                     {new Date(row.submittedAt).toLocaleString()}
                   </td>
