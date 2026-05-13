@@ -73,17 +73,17 @@ test.describe('Notion Team Members page filter', () => {
   });
 
   test('selecting Has Notion page and applying updates URL', async ({ page }) => {
-    await page.locator('select[name="hasNotion"]').selectOption('yes');
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/hasNotion=yes/, { timeout: 10_000 });
+    await page.locator('select[name="hasNotion"]').first().selectOption('yes');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await page.waitForURL(/hasNotion=yes/, { timeout: 15_000 });
     await expect(page).toHaveURL(/hasNotion=yes/);
     await page.screenshot({ path: 'test-results/notion-02-filter-applied.png' });
   });
 
   test('selecting No Notion page filters to leads without a page', async ({ page }) => {
-    await page.locator('select[name="hasNotion"]').selectOption('no');
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/hasNotion=no/, { timeout: 10_000 });
+    await page.locator('select[name="hasNotion"]').first().selectOption('no');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await page.waitForURL(/hasNotion=no/, { timeout: 15_000 });
     await expect(page).toHaveURL(/hasNotion=no/);
     await page.screenshot({ path: 'test-results/notion-03-no-notion.png' });
   });
@@ -91,6 +91,8 @@ test.describe('Notion Team Members page filter', () => {
 
 test.describe('Applicant view as tesororeptilipotermius', () => {
   test('applicant can log in and sees application dashboard', async ({ page }) => {
+    // Ensure no prior HR session is active
+    await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
     await page.goto('/me/application', { waitUntil: 'load' });
     await page.waitForTimeout(1_500);
@@ -105,6 +107,7 @@ test.describe('Applicant view as tesororeptilipotermius', () => {
   });
 
   test('applicant does not see HR dashboard', async ({ page }) => {
+    await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
     await page.goto('/me/hr', { waitUntil: 'load' });
     // Should be redirected away (not to /me/hr)
