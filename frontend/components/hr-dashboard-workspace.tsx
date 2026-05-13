@@ -101,7 +101,7 @@ export function HrDashboardWorkspace({
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
-  const [roleForm, setRoleForm] = useState({ role: 'applicant', hrBinaryRole: false });
+  const [roleForm, setRoleForm] = useState({ role: 'member', hrBinaryRole: false });
   const [roleSaving, setRoleSaving] = useState(false);
   const [roleError, setRoleError] = useState('');
   const [roleSaved, setRoleSaved] = useState(false);
@@ -209,7 +209,9 @@ export function HrDashboardWorkspace({
 
   useEffect(() => {
     if (!activeLead) return;
-    setRoleForm({ role: activeLead.role ?? 'applicant', hrBinaryRole: activeLead.hrBinaryRole ?? false });
+    const rawRole = activeLead.role ?? 'applicant';
+    const role = (rawRole === 'applicant' || rawRole === 'hr') ? 'member' : rawRole;
+    setRoleForm({ role, hrBinaryRole: activeLead.hrBinaryRole ?? false });
     setRoleError('');
     setRoleSaved(false);
   }, [activeLead?.id]);
@@ -454,7 +456,7 @@ export function HrDashboardWorkspace({
                       <label className="text-xs font-medium text-gray-700 w-20 shrink-0">Role</label>
                       <select
                         data-testid="role-select"
-                        value={roleForm.role === 'applicant' ? 'member' : roleForm.role === 'hr' ? 'member' : roleForm.role}
+                        value={roleForm.role}
                         onChange={(e) => setRoleForm((f) => ({ ...f, role: e.target.value }))}
                         className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs outline-none focus:border-[#00349B]"
                       >
