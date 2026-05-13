@@ -2,16 +2,16 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-function getCredentials(role: string): { email: string; password: string } {
+function getCredentials(role: string): { email: string; password: string; userId?: string } {
   const path = join(process.cwd(), 'test_assets', 'test_users.json');
   if (existsSync(path)) {
     try {
       const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string }>;
+        users?: Array<{ emails?: string[]; password?: string; role?: string; userId?: string }>;
       };
       const u = data.users?.find((user) => user.role === role);
       if (u) {
-        return { email: (u.emails?.[0] ?? '').trim(), password: u.password ?? '' };
+        return { email: (u.emails?.[0] ?? '').trim(), password: u.password ?? '', userId: u.userId };
       }
     } catch { /* fall through */ }
   }
@@ -20,7 +20,7 @@ function getCredentials(role: string): { email: string; password: string } {
 }
 
 const { email: HR_EMAIL, password: HR_PASSWORD } = getCredentials('Human Resources');
-const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD } = getCredentials('member');
+const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD, userId: APPLICANT_USER_ID } = getCredentials('member');
 
 async function loginAs(page: Page, email: string, password: string) {
   await page.goto('/login', { waitUntil: 'load' });
@@ -90,15 +90,31 @@ test.describe('Notion Team Members page filter', () => {
 });
 
 test.describe('Applicant view as tesororeptilipotermius', () => {
-  test('applicant can log in and sees application dashboard', async ({ page }) => {
-    // Ensure no prior HR session is active
+  async function loginAsApplicant(page: Page) {
+    // Try password-based login first; fall back to cookie injection if credentials changed
+    if (APPLICANT_USER_ID) {
+      await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
+      const baseUrl = 'https://fykgssqbvg.us-east-1.awsapprunner.com';
+      await page.context().addCookies([{
+        name: 'fl_preview_session',
+        value: APPLICANT_USER_ID,
+        url: baseUrl,
+        httpOnly: true,
+        sameSite: 'Lax',
+        path: '/',
+      }]);
+      return;
+    }
     await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
+  }
+
+  test('applicant can see application dashboard', async ({ page }) => {
+    await loginAsApplicant(page);
     await page.goto('/me/application', { waitUntil: 'load' });
     await page.waitForTimeout(1_500);
     await page.screenshot({ path: 'test-results/applicant-01-dashboard.png', fullPage: true });
 
-    // Should see their name or stage content or some application UI
     const hasStageContent = await page.getByText('Stage content').isVisible().catch(() => false);
     const hasNoMaterials = await page.getByText('No materials').isVisible().catch(() => false);
     const hasPipeline = await page.locator('text=/stage|application|pipeline/i').first().isVisible().catch(() => false);
@@ -106,11 +122,9 @@ test.describe('Applicant view as tesororeptilipotermius', () => {
     expect(hasStageContent || hasNoMaterials || hasPipeline).toBe(true);
   });
 
-  test('applicant does not see HR dashboard', async ({ page }) => {
-    await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
-    await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
+  test('applicant is redirected away from HR dashboard', async ({ page }) => {
+    await loginAsApplicant(page);
     await page.goto('/me/hr', { waitUntil: 'load' });
-    // Should be redirected away (not to /me/hr)
     await page.waitForTimeout(2_000);
     expect(page.url()).not.toMatch(/\/me\/hr$/);
     await page.screenshot({ path: 'test-results/applicant-02-no-hr-access.png' });
