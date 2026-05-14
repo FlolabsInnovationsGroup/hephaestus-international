@@ -28,99 +28,19 @@ export async function POST(request: Request) {
 
   const leads = await sql`
     select id, email, first_name, last_name, phone_number, linkedin_url, city, country, role_applied_for, education, source, notes
-    from website_applicants
+    from flolabs_users
     where id = any(${leadIds}::uuid[])
   `;
   if (leads.length !== leadIds.length) {
-    const existingIds = new Set(leads.map((lead) => String(lead.id)));
-    const missingIds = leadIds.filter((id) => !existingIds.has(id));
-
-    if (missingIds.length > 0) {
-      await sql`
-        insert into website_applicants (
-          id, email, password, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
-          latitude, longitude, linkedin_url, education, source, referral_name, cv_file_name, cv_url, profile_picture_url,
-          role_applied_for, stage, status, joined_at, last_visited_at, notes, safe_senders_confirmed, communication_consent
-        )
-        select
-          u.id,
-          u.email,
-          u.password,
-          case when lower(u.role) = 'hr' then 'admin' else 'applicant' end,
-          case when lower(u.role) = 'hr' then true else false end,
-          split_part(coalesce(u.name, u.email), ' ', 1),
-          coalesce(nullif(trim(replace(coalesce(u.name, ''), split_part(coalesce(u.name, ''), ' ', 1), '')), ''), ''),
-          '',
-          '',
-          '',
-          '',
-          0,
-          0,
-          '',
-          '',
-          'Chronos users',
-          '',
-          '',
-          '',
-          '',
-          case when lower(u.role) = 'hr' then 'FloLabs team member' else coalesce(u.role, 'Applicant') end,
-          'joined',
-          case when u.is_active then 'joined' else 'waiting' end,
-          coalesce(u.created_at, now()),
-          coalesce(u.updated_at, now()),
-          'Hydrated from Chronos users for HR merge operation.',
-          true,
-          true
-        from users u
-        where u.id = any(${missingIds}::uuid[])
-        on conflict (id) do nothing
-      `;
-
-      await sql`
-        insert into website_applicants (
-          id, email, password, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
-          latitude, longitude, linkedin_url, education, source, referral_name, cv_file_name, cv_url, profile_picture_url,
-          role_applied_for, stage, status, joined_at, last_visited_at, notes, safe_senders_confirmed, communication_consent
-        )
-        select
-          a.id,
-          a.email,
-          '__external_account__',
-          'applicant',
-          false,
-          split_part(coalesce(a.name, a.email), ' ', 1),
-          coalesce(nullif(trim(replace(coalesce(a.name, ''), split_part(coalesce(a.name, ''), ' ', 1), '')), ''), ''),
-          coalesce(a.phone, ''),
-          coalesce(a.country, ''),
-          coalesce(a.state_region, ''),
-          coalesce(a.city, ''),
-          0,
-          0,
-          coalesce(a.linkedin_url, ''),
-          coalesce(a.education, ''),
-          coalesce(a.source, 'Chronos applicants'),
-          '',
-          '',
-          '',
-          '',
-          coalesce(a.role_applied_for, 'Imported applicant'),
-          coalesce(a.stage, 'new'),
-          case when a.status = 'joined' then 'joined' when a.status = 'closed' then 'rejected' else 'waiting' end,
-          coalesce(a.joined_at, a.created_at, now()),
-          coalesce(a.last_website_visit, a.updated_at, now()),
-          coalesce(a.hubspot_status, 'Hydrated from Chronos applicants for HR merge operation.'),
-          false,
-          true
-        from applicants a
-        where a.id = any(${missingIds}::uuid[])
-        on conflict (id) do nothing
-      `;
-    }
+    return NextResponse.json(
+      { error: 'Some selected leads were not found in flolabs_users (shared identity store).' },
+      { status: 404 },
+    );
   }
 
   const hydratedLeads = await sql`
     select id, email, first_name, last_name, phone_number, linkedin_url, city, country, role_applied_for, education, source, notes
-    from website_applicants
+    from flolabs_users
     where id = any(${leadIds}::uuid[])
   `;
   if (hydratedLeads.length !== leadIds.length) {
@@ -144,6 +64,10 @@ export async function POST(request: Request) {
   const selectedLastNames = unique(Array.isArray(keep.lastNames) ? keep.lastNames as string[] : hydratedLeads.map((lead) => String(lead.last_name ?? '')));
 
   const primaryEmail = selectedEmails.find((value) => value.toLowerCase() === String(canonical.email ?? '').toLowerCase()) ?? selectedEmails[0] ?? String(canonical.email ?? '');
+  const mergedName = [
+    selectedFirstNames.join(' / ') || String(canonical.first_name ?? ''),
+    selectedLastNames.join(' / ') || String(canonical.last_name ?? ''),
+  ].filter(Boolean).join(' ').trim() || primaryEmail;
   const mergedSummary = {
     mergedLeadIds: leadIds,
     kept: {
@@ -165,9 +89,10 @@ export async function POST(request: Request) {
   const mergedNotes = [String(canonical.notes ?? '').trim(), `MERGE_RECORD ${JSON.stringify(mergedSummary)}`].filter(Boolean).join('\n\n');
 
   await sql`
-    update website_applicants
+    update flolabs_users
     set
       email = ${primaryEmail},
+      name = ${mergedName},
       first_name = ${selectedFirstNames.join(' / ') || String(canonical.first_name ?? '')},
       last_name = ${selectedLastNames.join(' / ') || String(canonical.last_name ?? '')},
       phone_number = ${selectedPhoneNumbers.join(', ') || String(canonical.phone_number ?? '')},
@@ -184,82 +109,36 @@ export async function POST(request: Request) {
 
   const secondaryLeadIds = leadIds.filter((id) => id !== canonicalLeadId);
 
-  // Propagate merged profile to Chronos-owned tables so changes are visible in Chronos.
-  // applicants.id != website_applicants.id for Chronos-origin records, so match by old email too.
-  const mergedName = [
-    selectedFirstNames.join(' / ') || String(canonical.first_name ?? ''),
-    selectedLastNames.join(' / ') || String(canonical.last_name ?? ''),
-  ].filter(Boolean).join(' ');
-  const canonicalOldEmail = String(canonical.email ?? '');
-  await sql`
-    update applicants
-    set
-      email        = ${primaryEmail},
-      name         = ${mergedName},
-      phone        = ${selectedPhoneNumbers.join(', ') || String(canonical.phone_number ?? '')},
-      country      = ${selectedCountries.join(', ') || String(canonical.country ?? '')},
-      city         = ${selectedCities.join(', ') || String(canonical.city ?? '')},
-      linkedin_url = ${selectedLinkedinUrls.join(', ') || String(canonical.linkedin_url ?? '')},
-      education    = ${selectedEducation.join(' | ') || String(canonical.education ?? '')},
-      role_applied_for = ${selectedRoles.join(' | ') || String(canonical.role_applied_for ?? '')},
-      source       = ${selectedSources.join(' | ') || String(canonical.source ?? '')},
-      updated_at   = now()
-    where id = ${canonicalLeadId}
-       or lower(email) = lower(${canonicalOldEmail})
-  `.catch(() => null);
+  // Mark merged-away profiles inactive / closed (skip elevated roles).
   if (secondaryLeadIds.length > 0) {
     const secondaryEmails = hydratedLeads
       .filter((lead) => secondaryLeadIds.includes(String(lead.id)))
       .map((lead) => String(lead.email ?? '').toLowerCase())
       .filter(Boolean);
     await sql`
-      update applicants
-      set status = 'closed', updated_at = now()
-      where id = any(${secondaryLeadIds}::uuid[])
-         or lower(email) = any(${secondaryEmails}::text[])
-    `.catch(() => null);
-  }
-
-  // users table: update canonical name+email, deactivate secondary accounts (skip HR/admin roles).
-  await sql`
-    update users
-    set email      = ${primaryEmail},
-        name       = ${mergedName},
-        updated_at = now()
-    where id = ${canonicalLeadId}
-       or lower(email) = lower(${canonicalOldEmail})
-  `.catch(() => null);
-  if (secondaryLeadIds.length > 0) {
-    const secondaryEmails = hydratedLeads
-      .filter((lead) => secondaryLeadIds.includes(String(lead.id)))
-      .map((lead) => String(lead.email ?? '').toLowerCase())
-      .filter(Boolean);
-    await sql`
-      update users
-      set is_active = false, updated_at = now()
+      update flolabs_users
+      set status = 'closed', is_active = false, updated_at = now()
       where (id = any(${secondaryLeadIds}::uuid[]) or lower(email) = any(${secondaryEmails}::text[]))
         and lower(role) not in ('admin', 'hr')
     `.catch(() => null);
   }
 
   // Re-point time_entries from secondary accounts to the canonical account.
-  // users.id may differ from website_applicants.id — look up canonical by email, not just by id.
   const canonicalUserRow = await sql`
-    select id from users
+    select id from flolabs_users
     where id = ${canonicalLeadId}
        or lower(email) = lower(${primaryEmail})
     limit 1
   `.catch(() => []);
   const chronosCanonicalUserId = canonicalUserRow[0] ? String(canonicalUserRow[0].id) : null;
 
-  // Secondary accounts may also have users.id ≠ website_applicants.id; collect them by email too.
   const secondaryEmailsLower = hydratedLeads
     .filter((l) => secondaryLeadIds.includes(String(l.id)))
     .map((l) => String(l.email ?? '').toLowerCase())
     .filter(Boolean);
   const secondaryUserRows = secondaryEmailsLower.length > 0
     ? await sql`
-        select id from users
+        select id from flolabs_users
         where id = any(${secondaryLeadIds}::uuid[])
            or lower(email) = any(${secondaryEmailsLower}::text[])
       `.catch(() => [])
@@ -274,6 +153,14 @@ export async function POST(request: Request) {
       update time_entries set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
       where user_id = any(${secondaryUserIds}::uuid[])
     `.catch(() => null);
+    await sql`
+      update time_entries set flolabs_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      where flolabs_id = any(${secondaryUserIds}::uuid[])
+    `.catch(() => null);
+    await sql`
+      update time_entries set applicant_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      where applicant_id = any(${secondaryUserIds}::uuid[])
+    `.catch(() => null);
     // Move tags owned by secondary users to the canonical (skip names that would conflict).
     await sql`
       update tags set user_id = ${chronosCanonicalUserId}::uuid
@@ -287,45 +174,6 @@ export async function POST(request: Request) {
       delete from tags
       where user_id = any(${secondaryUserIds}::uuid[])
     `.catch(() => null);
-  }
-  // Update applicants.chronos_user_id for the canonical so the Chronos Users page overlay works.
-  if (chronosCanonicalUserId) {
-    await sql`
-      update applicants set chronos_user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
-      where lower(email) = lower(${primaryEmail})
-    `.catch(() => null);
-  }
-
-  // flolabs_id / applicant_id FK references applicants.id — find canonical's applicants.id by email.
-  const canonicalApplicantRow = await sql`
-    select id from applicants
-    where id = ${canonicalLeadId}
-       or lower(email) = lower(${primaryEmail})
-    limit 1
-  `.catch(() => []);
-  if (canonicalApplicantRow[0]) {
-    const chronosCanonicalApplicantId = String(canonicalApplicantRow[0].id);
-    const secondaryApplicantRows = secondaryEmailsLower.length > 0
-      ? await sql`
-          select id from applicants
-          where id = any(${secondaryLeadIds}::uuid[])
-             or lower(email) = any(${secondaryEmailsLower}::text[])
-        `.catch(() => [])
-      : [];
-    const secondaryApplicantIds = [...new Set([
-      ...secondaryLeadIds,
-      ...secondaryApplicantRows.map((r: Record<string, unknown>) => String(r['id'])),
-    ])].filter((id) => id !== chronosCanonicalApplicantId);
-    if (secondaryApplicantIds.length > 0) {
-      await sql`
-        update time_entries set flolabs_id = ${chronosCanonicalApplicantId}::uuid, updated_at = now()
-        where flolabs_id = any(${secondaryApplicantIds}::uuid[])
-      `.catch(() => null);
-      await sql`
-        update time_entries set applicant_id = ${chronosCanonicalApplicantId}::uuid, updated_at = now()
-        where applicant_id = any(${secondaryApplicantIds}::uuid[])
-      `.catch(() => null);
-    }
   }
 
   for (const secondaryId of secondaryLeadIds) {
@@ -349,7 +197,7 @@ export async function POST(request: Request) {
   `;
 
   const canonicalUser = await sql`
-    select id, email from users where id = ${canonicalLeadId} or lower(email) = lower(${primaryEmail}) limit 1
+    select id, email from flolabs_users where id = ${canonicalLeadId} or lower(email) = lower(${primaryEmail}) limit 1
   `;
   if (canonicalUser[0]?.id) {
     for (const email of selectedEmails) {

@@ -17,6 +17,7 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 | `e2e/hr-stage-lifecycle.spec.ts` | Stage → status mapping, filter views, terminated access | 5 tests |
 | `e2e/passing-condition-and-content.spec.ts` | Passing condition card, stage content resources, applicant view | 8 tests |
 | `e2e/forgot-password.spec.ts` | Forgot-password UI + API; token creation; anti-enumeration | 3 tests |
+| `e2e/hubspot-csv-sync-admin.spec.ts` | HubSpot CSV admin sync API | 403 without HR; HR upload minimal CSV |
 
 ### What the automated suite covers
 
@@ -30,12 +31,19 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 - **Stage content** — `contacted` = 9 resources, `before_meeting` = 4, `attended` = 6
 - **Applicant dashboard** — shows stage content cards, no-materials message, or on-review message
 
+## Shared identity (`flolabs_users`)
+
+- After deploy, confirm **`SELECT to_regclass('public.flolabs_users');`** is not null on the shared RDS URL used by both apps.
+- **Merge legacy Hephaestus + HubSpot export:** run `pnpm run db:merge:contacts` in **FloLabs_Chronos** (see script `scripts/merge-legacy-and-hubspot-csv-contacts.ts`) to pull in `website_applicants_legacy` rows and upsert every contact from `FloLabs_Hermes/old_workflow_assets/all-contacts_2026-04-12.csv` (override path with `--csv-path=`). Use `--dry-run` first.
+- **Ongoing sync from the app:** HR-only **`POST /api/admin/contacts/hubspot-csv-sync`** (multipart field `file`) — see `frontend/lib/hubspot-contacts-csv-sync.ts` and [`TESTING.md`](./TESTING.md).
+- Edit a lead in **HR** (name or stage); open **Chronos** (same email) and confirm the **Users** directory / settings reflect the change without waiting for a batch sync.
+- Run Playwright from repo root (`npx playwright test`) against `PLAYWRIGHT_BASE_URL`; credentials in `test_assets/test_users.json`.
+- **Lead merge** (`POST /api/admin/leads/merge`): canonical row keeps merged emails; secondaries are `status = closed` and `is_active = false`; spot-check `time_entries.user_id` for affected accounts.
+
 ### What is NOT automated (manual checks)
 
 | Check | Why manual | How to test |
 |---|---|---|
-| Chronos user sync on `joined` | Requires Chronos DB inspection | Set status → `joined`, check Chronos `users.is_active = true` |
-| Chronos access revocation on `terminated` | Requires Chronos DB + login attempt | Set status → `terminated`, check `is_active = false`, verify timer app 401 |
 | Resend email delivery | No inbox automation; token creation is verified automatically | Spot-check inbox after a deploy that touches email code |
 | AI stage review output | Subjective / non-deterministic | Submit applicant content, check HR review panel |
 | New application form → DB row | End-to-end form submission | Fill out efestos.international/apply, verify row in HR dashboard |

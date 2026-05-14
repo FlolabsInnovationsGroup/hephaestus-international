@@ -108,9 +108,11 @@ async function ensureDb() {
 async function ensureApplicantLowEffortHoldColumns() {
   if (!sql) return;
   try {
-    await sql`alter table website_applicants add column if not exists low_effort_rollback_after timestamptz`;
-    await sql`alter table website_applicants add column if not exists low_effort_return_stage text`;
-    await sql`alter table website_applicants add column if not exists notion_team_member_page_url text`;
+    await sql`alter table flolabs_users add column if not exists notion_team_member_id text`;
+    await sql`alter table flolabs_users add column if not exists last_login_at timestamptz`;
+    await sql`alter table flolabs_users add column if not exists low_effort_rollback_after timestamptz`;
+    await sql`alter table flolabs_users add column if not exists low_effort_return_stage text`;
+    await sql`alter table flolabs_users add column if not exists notion_team_member_page_url text`;
   } catch (e) {
     console.warn('[ensureApplicantLowEffortHoldColumns]', e);
   }
@@ -124,7 +126,7 @@ export async function setLowEffortPendingHold(
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     await sql`
-      update website_applicants
+      update flolabs_users
       set low_effort_return_stage = ${returnStage},
           low_effort_rollback_after = ${rollbackAfter.toISOString()},
           updated_at = now()
@@ -144,7 +146,7 @@ export async function clearLowEffortPendingHold(applicantId: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     await sql`
-      update website_applicants
+      update flolabs_users
       set low_effort_return_stage = null,
           low_effort_rollback_after = null,
           updated_at = now()
@@ -163,14 +165,29 @@ export async function clearLowEffortPendingHold(applicantId: string) {
 async function ensurePostgresSchema() {
   if (!sql) throw new Error('DATABASE_URL is required for postgres applicant storage');
   await sql`
-    create table if not exists website_applicants (
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'website_applicants'
+      ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'flolabs_users'
+      ) THEN
+        ALTER TABLE website_applicants RENAME TO flolabs_users;
+      END IF;
+    END $$;
+  `;
+  await sql`
+    create table if not exists flolabs_users (
       id uuid primary key default gen_random_uuid(),
       email text not null unique,
       password text not null,
+      name text not null default '',
       role text not null default 'applicant',
+      is_active boolean not null default true,
       hr_binary_role boolean default false,
-      first_name text not null,
-      last_name text not null,
+      first_name text not null default '',
+      last_name text not null default '',
       phone_number text,
       country text,
       state_region text,
@@ -200,7 +217,7 @@ async function ensurePostgresSchema() {
   await sql`
     create table if not exists website_applicant_conversations (
       id uuid primary key default gen_random_uuid(),
-      applicant_id uuid not null references website_applicants(id) on delete cascade,
+      applicant_id uuid not null references flolabs_users(id) on delete cascade,
       author text not null,
       text text not null,
       created_at timestamptz not null default now()
@@ -324,7 +341,9 @@ function rowToApplicant(row: any): ApplicantProfile {
       ? (row.low_effort_return_stage as ApplicationStage)
       : null,
     notionTeamMemberPageUrl: row.notion_team_member_page_url ?? '',
-    chronosLastActiveAt: null,
+    chronosLastActiveAt: (row.last_login_at ?? row.updated_at)
+      ? new Date(row.last_login_at ?? row.updated_at).toISOString()
+      : null,
   };
 }
 
@@ -341,7 +360,7 @@ function rowToConversation(row: any): ConversationMessage {
 export async function readDb(): Promise<ApplicationDbShape> {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const applicants = await sql`select * from website_applicants order by created_at asc`;
+    const applicants = await sql`select * from flolabs_users order by created_at asc`;
     const conversations = await sql`select * from website_applicant_conversations order by created_at asc`;
     return {
       applicants: applicants.map(rowToApplicant),
@@ -423,7 +442,7 @@ async function getDuplicateReviewRows() {
     );
   `;
   // These FK constraints were originally added against the Chronos `applicants` table,
-  // but website_applicants IDs can also come from the `users` table (different UUID space).
+  // but flolabs_users IDs can also come from the `users` table (different UUID space).
   // Drop them so merge operations aren't blocked by FK violations.
   await sql`
     alter table applicant_duplicate_reviews
@@ -602,7 +621,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
 export async function findUserByEmail(email: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const rows = await sql`select * from website_applicants where lower(email) = lower(${email}) limit 1`;
+    const rows = await sql`select * from flolabs_users where lower(email) = lower(${email}) limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
     await sql`
@@ -619,14 +638,13 @@ export async function findUserByEmail(email: string) {
     const aliasRows = await sql`
       select u.id, u.email, u.name, u.password, u.role, u.is_active, u.created_at, u.updated_at
       from user_email_aliases a
-      inner join users u on u.id = a.user_id
+      inner join flolabs_users u on u.id = a.user_id
       where lower(a.email) = lower(${email})
       limit 1
     `;
     if (aliasRows[0]) return chronosUserToApplicant(aliasRows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where lower(email) = lower(${email}) limit 1`.catch(() => sql!`select id, email, name, password, role, is_active, created_at, updated_at from users where lower(email) = lower(${email}) limit 1`);
-    return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
+    return null;
   }
   const db = await readDb();
   return db.applicants.find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
@@ -635,11 +653,10 @@ export async function findUserByEmail(email: string) {
 export async function getUserById(id: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    const rows = await sql`select * from website_applicants where id = ${id} limit 1`;
+    const rows = await sql`select * from flolabs_users where id = ${id} limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
-    const chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users where id = ${id} limit 1`.catch(() => sql!`select id, email, name, password, role, is_active, created_at, updated_at from users where id = ${id} limit 1`);
-    return chronosRows[0] ? chronosUserToApplicant(chronosRows[0]) : null;
+    return null;
   }
   const db = await readDb();
   return db.applicants.find((user) => user.id === id) ?? null;
@@ -649,12 +666,12 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const rows = await sql`
-      insert into website_applicants (
-        email, password, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
+      insert into flolabs_users (
+        email, password, name, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
         latitude, longitude, linkedin_url, education, source, referral_name, cv_file_name, cv_url, profile_picture_url,
         role_applied_for, stage, status, notes, safe_senders_confirmed, communication_consent
       ) values (
-        ${input.email}, ${input.password}, ${input.role}, ${input.hrBinaryRole ?? false}, ${input.firstName}, ${input.lastName}, ${input.phoneNumber}, ${input.country}, ${input.stateRegion ?? ''}, ${input.city},
+        ${input.email}, ${input.password}, ${`${input.firstName} ${input.lastName}`.trim()}, ${input.role}, ${input.hrBinaryRole ?? false}, ${input.firstName}, ${input.lastName}, ${input.phoneNumber}, ${input.country}, ${input.stateRegion ?? ''}, ${input.city},
         ${input.latitude}, ${input.longitude}, ${input.linkedinUrl}, ${input.education}, ${input.source}, ${input.referralName ?? ''}, ${input.cvFileName ?? ''}, ${input.cvUrl ?? ''}, ${input.profilePictureUrl ?? ''},
         ${input.roleAppliedFor}, ${input.stage}, ${input.status}, ${input.notes ?? ''}, ${input.safeSendersConfirmed ?? false}, ${input.communicationConsent ?? false}
       ) returning *
@@ -703,74 +720,14 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
 export async function getApplicants() {
   const db = await readDb();
   const byEmail = new Map(db.applicants.map((applicant) => [applicant.email.toLowerCase(), applicant]));
-  const chronosLastActiveByEmail = new Map<string, string>();
 
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    let chronosRows: any[] = [];
-    try {
-      chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at, last_login_at from users order by created_at desc`;
-    } catch {
-      chronosRows = await sql`select id, email, name, password, role, is_active, created_at, updated_at from users order by created_at desc`;
-    }
-
-    for (const row of chronosRows) {
+    const rows = await sql`select * from flolabs_users order by created_at desc`;
+    for (const row of rows) {
       const email = String(row.email ?? '').toLowerCase();
-      const activeAt = row.last_login_at ?? row.updated_at;
-      if (email && activeAt) {
-        chronosLastActiveByEmail.set(email, new Date(activeAt).toISOString());
-      }
-    }
-
-    for (const row of chronosRows) {
-      const email = String(row.email ?? '').toLowerCase();
-      if (!email || byEmail.has(email)) continue;
-      byEmail.set(email, chronosUserToApplicant(row));
-    }
-
-    const chronosApplicants = await sql`
-      select id, email, name, phone, country, state_region, city, linkedin_url, education, current_job_title,
-             role_applied_for, stage, status, joined_at, last_website_visit, source, created_at, updated_at,
-             hubspot_status, hubspot_owner
-      from applicants
-      order by joined_at desc nulls last, created_at desc nulls last
-    `;
-
-    for (const row of chronosApplicants) {
-      const email = String(row.email ?? '').toLowerCase();
-      if (!email || byEmail.has(email)) continue;
-      const name = String(row.name ?? '').trim();
-      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
-      byEmail.set(email, {
-        id: row.id,
-        email: row.email,
-        password: '',
-        role: 'applicant',
-        hrBinaryRole: false,
-        firstName: firstName || row.email,
-        lastName: rest.join(' '),
-        phoneNumber: row.phone ?? '',
-        country: row.country ?? '',
-        stateRegion: row.state_region ?? '',
-        city: row.city ?? '',
-        latitude: 0,
-        longitude: 0,
-        linkedinUrl: row.linkedin_url ?? '',
-        education: row.education ?? row.current_job_title ?? '',
-        source: row.source ?? row.hubspot_owner ?? 'Chronos HubSpot import',
-        referralName: '',
-        cvFileName: '',
-        cvUrl: '',
-        profilePictureUrl: '',
-        roleAppliedFor: row.role_applied_for ?? row.current_job_title ?? 'Imported contact',
-        stage: row.stage ?? 'new',
-        status: row.status === 'closed' ? 'rejected' : 'joined',
-        joinedAt: new Date(row.joined_at ?? row.created_at ?? Date.now()).toISOString(),
-        lastVisitedAt: new Date(row.last_website_visit ?? row.updated_at ?? row.created_at ?? Date.now()).toISOString(),
-        notes: row.hubspot_status ?? 'Imported from Chronos applicants.',
-        safeSendersConfirmed: false,
-        communicationConsent: true,
-      });
+      if (!email) continue;
+      byEmail.set(email, rowToApplicant(row));
     }
   }
 
@@ -815,7 +772,7 @@ export async function getApplicants() {
       mergedCities: uniqueNonEmpty([applicant.city, ...related.map((item) => item.city)]),
       duplicateCandidates: candidates,
       duplicateNeedsReview: pendingCandidates.some((candidate) => candidate.score < 7 || candidate.reasons.length < 2),
-      chronosLastActiveAt: chronosLastActiveByEmail.get(applicant.email.toLowerCase()) ?? applicant.chronosLastActiveAt ?? null,
+      chronosLastActiveAt: applicant.chronosLastActiveAt ?? null,
     };
   });
 }
@@ -857,11 +814,11 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const stageSchemaReady = await ensureStageFeatureSchema();
-    const previousRows = await sql`select stage from website_applicants where id = ${applicantId} limit 1`;
+    const previousRows = await sql`select stage from flolabs_users where id = ${applicantId} limit 1`;
     const previousWebsiteStage = String(previousRows[0]?.stage ?? '');
     const rows = status
-      ? await sql`update website_applicants set stage = ${stage}, status = ${status}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
-      : await sql`update website_applicants set stage = ${stage}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`;
+      ? await sql`update flolabs_users set stage = ${stage}, status = ${status}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
+      : await sql`update flolabs_users set stage = ${stage}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`;
     if (rows[0]) {
       const updatedWebsite = rows[0];
       if (stageSchemaReady && previousWebsiteStage !== stage) {
@@ -870,182 +827,9 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
           values (${randomUUID()}, ${applicantId}, ${stage}, now())
         `;
       }
-      if (status) {
-        await sql`
-          update applicants
-          set stage = ${stage},
-              status = ${status},
-              last_website_visit = now(),
-              updated_at = now()
-          where id = ${applicantId} or lower(email) = lower(${updatedWebsite.email})
-        `;
-      } else {
-        await sql`
-          update applicants
-          set stage = ${stage},
-              last_website_visit = now(),
-              updated_at = now()
-          where id = ${applicantId} or lower(email) = lower(${updatedWebsite.email})
-        `;
-      }
       return rowToApplicant(updatedWebsite);
     }
-
-    const chronosRows = status
-      ? await sql`
-          update applicants
-          set stage = ${stage},
-              status = ${status},
-              last_website_visit = now(),
-              updated_at = now()
-          where id = ${applicantId}
-          returning *
-        `
-      : await sql`
-          update applicants
-          set stage = ${stage},
-              last_website_visit = now(),
-              updated_at = now()
-          where id = ${applicantId}
-          returning *
-        `;
-
-    const chronos = chronosRows[0];
-    if (chronos) {
-      const previousChronosStage = String(chronos.stage ?? '');
-      if (status) {
-        await sql`
-          update website_applicants
-          set stage = ${stage},
-              status = ${status},
-              last_visited_at = now(),
-              updated_at = now()
-          where id = ${applicantId} or lower(email) = lower(${chronos.email})
-        `;
-      } else {
-        await sql`
-          update website_applicants
-          set stage = ${stage},
-              last_visited_at = now(),
-              updated_at = now()
-          where id = ${applicantId} or lower(email) = lower(${chronos.email})
-        `;
-      }
-      if (stageSchemaReady && previousChronosStage !== stage) {
-        await sql`
-          insert into website_applicant_stage_transitions (id, applicant_id, stage, reached_at)
-          values (${randomUUID()}, ${applicantId}, ${stage}, now())
-        `;
-      }
-      const name = String(chronos.name ?? '').trim();
-      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
-      const mappedStatus: ApplicantProfile['status'] = chronos.status === 'closed'
-        ? 'rejected'
-        : chronos.status === 'joined'
-          ? 'joined'
-          : chronos.status === 'waiting'
-            ? 'waiting'
-            : chronos.status === 'approved'
-              ? 'approved'
-              : chronos.status === 'signed'
-                ? 'signed'
-                : chronos.status === 'applying'
-                  ? 'applying'
-                  : chronos.status === 'terminated'
-                    ? 'terminated'
-                    : 'joined';
-      const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? stage) as ApplicantProfile['stage'];
-      return {
-        id: chronos.id,
-        email: chronos.email,
-        password: '',
-        role: 'applicant' as const,
-        hrBinaryRole: false,
-        firstName: firstName || chronos.email,
-        lastName: rest.join(' '),
-        phoneNumber: chronos.phone ?? '',
-        country: chronos.country ?? '',
-        stateRegion: chronos.state_region ?? '',
-        city: chronos.city ?? '',
-        latitude: 0,
-        longitude: 0,
-        linkedinUrl: chronos.linkedin_url ?? '',
-        education: chronos.education ?? chronos.current_job_title ?? '',
-        source: chronos.source ?? chronos.hubspot_owner ?? 'Chronos HubSpot import',
-        referralName: '',
-        cvFileName: '',
-        cvUrl: '',
-        profilePictureUrl: '',
-        roleAppliedFor: chronos.role_applied_for ?? chronos.current_job_title ?? 'Imported contact',
-        stage: mappedStage,
-        status: mappedStatus,
-        joinedAt: new Date(chronos.joined_at ?? chronos.created_at ?? Date.now()).toISOString(),
-        lastVisitedAt: new Date(chronos.last_website_visit ?? chronos.updated_at ?? Date.now()).toISOString(),
-        notes: chronos.hubspot_status ?? 'Imported from Chronos applicants.',
-        safeSendersConfirmed: false,
-        communicationConsent: true,
-      };
-    }
-
-    const userRows = await sql`
-      select id, email, name, password, role, is_active, created_at, updated_at
-      from users
-      where id = ${applicantId}
-      limit 1
-    `;
-    const user = userRows[0];
-    if (!user) return null;
-
-    const fullName = String(user.name ?? '').trim();
-    const [userFirstName, ...userRest] = fullName.split(/\s+/).filter(Boolean);
-    const fallbackStatus: ApplicantProfile['status'] = status ?? (user.is_active === false ? 'waiting' : 'joined');
-    const fallbackStage: ApplicantProfile['stage'] = stage ?? 'joined';
-
-    const hydratedRows = await sql`
-      insert into website_applicants (
-        id, email, password, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
-        latitude, longitude, linkedin_url, education, source, referral_name, cv_file_name, cv_url, profile_picture_url,
-        role_applied_for, stage, status, notes, safe_senders_confirmed, communication_consent, joined_at, last_visited_at, updated_at
-      ) values (
-        ${user.id},
-        ${user.email},
-        ${user.password},
-        'applicant',
-        false,
-        ${userFirstName || user.email},
-        ${userRest.join(' ')},
-        '',
-        '',
-        '',
-        '',
-        0,
-        0,
-        '',
-        '',
-        'Chronos users',
-        '',
-        '',
-        '',
-        '',
-        ${String(user.role ?? 'Team member')},
-        ${fallbackStage},
-        ${fallbackStatus},
-        'Hydrated from Chronos users for HR stage update.',
-        true,
-        true,
-        ${new Date(user.created_at ?? Date.now())},
-        now(),
-        now()
-      )
-      on conflict (id)
-      do update set
-        stage = excluded.stage,
-        status = excluded.status,
-        last_visited_at = now(),
-        updated_at = now()
-      returning *
-    `;
-    return hydratedRows[0] ? rowToApplicant(hydratedRows[0]) : null;
+    return null;
   }
   const db = await readDb();
   const applicant = db.applicants.find((candidate) => candidate.id === applicantId);
@@ -1117,18 +901,17 @@ export async function resetApplicantPassword(userId: string, password: string, t
   await ensurePostgresSchema();
   const hashedPassword = await hash(password, 12);
   const emailRows = await sql`
-    select email from users where id = ${userId}
+    select email from flolabs_users where id = ${userId}
     union
     select email from user_email_aliases where user_id = ${userId}
   `;
   const emails = Array.from(new Set(emailRows.map((row) => String(row.email ?? '').trim().toLowerCase()).filter(Boolean)));
 
-  await sql`update users set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
-  await sql`update website_applicants set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
+  await sql`update flolabs_users set password = ${hashedPassword}, updated_at = now() where id = ${userId}`;
 
   if (emails.length > 0) {
     await sql`
-      update website_applicants
+      update flolabs_users
       set password = ${hashedPassword}, updated_at = now()
       where lower(email) = any(${emails}::text[])
     `;
@@ -1139,9 +922,9 @@ export async function resetApplicantPassword(userId: string, password: string, t
 
 async function persistEmailAliases(db: typeof sql, userId: string, primaryEmail: string, alternateEmails: string[]) {
   if (!db) return;
-  // user_email_aliases has a FK on users.id — skip for website_applicants-only users
-  const inUsers = await db`select id from users where id = ${userId} limit 1`.catch(() => []);
-  if (!inUsers.length) return;
+  // user_email_aliases has a FK on users.id — skip for flolabs_users-only users
+  const inFlolabs = await db`select id from flolabs_users where id = ${userId} limit 1`.catch(() => []);
+  if (!inFlolabs.length) return;
   await db`
     create table if not exists user_email_aliases (
       id uuid primary key default gen_random_uuid(),
@@ -1175,9 +958,14 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
     const current = await getUserById(applicantId);
     if (!current) return null;
     const next = { ...current, ...updates };
+    const fullName = `${next.firstName} ${next.lastName}`.trim();
+    const notionUrlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
+    const notionPageIdMatch = notionUrlClean.match(/([0-9a-f]{32})\s*$/i);
+    const notionPageId = notionPageIdMatch ? notionPageIdMatch[1] : null;
     const rows = await sql`
-      update website_applicants
+      update flolabs_users
       set email = ${next.email},
+          name = ${fullName || next.email},
           first_name = ${next.firstName},
           last_name = ${next.lastName},
           phone_number = ${next.phoneNumber},
@@ -1193,6 +981,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           cv_file_name = ${next.cvFileName ?? ''},
           cv_url = ${next.cvUrl ?? ''},
           notion_team_member_page_url = ${next.notionTeamMemberPageUrl ?? ''},
+          notion_team_member_id = coalesce(${notionPageId}, notion_team_member_id),
           last_visited_at = now(),
           updated_at = now()
       where id = ${applicantId}
@@ -1202,136 +991,9 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       if (updates.alternateEmails !== undefined) {
         await persistEmailAliases(sql, applicantId, next.email, updates.alternateEmails);
       }
-      // Propagate to Chronos-owned tables in the shared DB.
-      // Match by old email because applicants.id != website_applicants.id for Chronos-origin records.
-      const fullName = `${next.firstName} ${next.lastName}`.trim();
-      const notionUrlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
-      const notionPageIdMatch = notionUrlClean.match(/([0-9a-f]{32})\s*$/i);
-      const notionPageId = notionPageIdMatch ? notionPageIdMatch[1] : null;
-      await sql`
-        update applicants
-        set email        = ${next.email.toLowerCase()},
-            name         = ${fullName},
-            phone        = ${next.phoneNumber},
-            country      = ${next.country},
-            state_region = ${next.stateRegion ?? ''},
-            city         = ${next.city},
-            linkedin_url = ${next.linkedinUrl},
-            education    = ${next.education},
-            role_applied_for = ${next.roleAppliedFor ?? ''},
-            source       = ${next.source ?? ''},
-            notion_team_member_id = coalesce(${notionPageId}, notion_team_member_id),
-            last_website_visit = now(),
-            updated_at   = now()
-        where lower(email) = lower(${current.email})
-           or id = ${applicantId}
-      `.catch(() => null);
-      await sql`
-        update users
-        set email      = ${next.email.toLowerCase()},
-            name       = ${fullName},
-            updated_at = now()
-        where lower(email) = lower(${current.email})
-           or id = ${applicantId}
-      `.catch(() => null);
       return rowToApplicant(rows[0]);
     }
-
-    const notionUrlClean2 = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
-    const notionPageIdMatch2 = notionUrlClean2.match(/([0-9a-f]{32})\s*$/i);
-    const notionPageId2 = notionPageIdMatch2 ? notionPageIdMatch2[1] : null;
-    // applicants.id != website_applicants.id for Chronos-origin records — match by email instead
-    const chronosApplicantRows = await sql`
-      update applicants
-      set email = ${next.email},
-          name = ${`${next.firstName} ${next.lastName}`.trim()},
-          phone = ${next.phoneNumber},
-          country = ${next.country},
-          state_region = ${next.stateRegion ?? ''},
-          city = ${next.city},
-          linkedin_url = ${next.linkedinUrl},
-          education = ${next.education},
-          role_applied_for = ${next.roleAppliedFor},
-          source = ${next.source ?? ''},
-          notion_team_member_id = coalesce(${notionPageId2}, notion_team_member_id),
-          last_website_visit = now(),
-          updated_at = now()
-      where lower(email) = lower(${current.email})
-      returning *
-    `;
-
-    if (chronosApplicantRows[0]) {
-      const chronos = chronosApplicantRows[0];
-      const name = String(chronos.name ?? '').trim();
-      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
-      const mappedStatus: ApplicantProfile['status'] = chronos.status === 'closed'
-        ? 'rejected'
-        : chronos.status === 'joined'
-          ? 'joined'
-          : chronos.status === 'waiting'
-            ? 'waiting'
-            : chronos.status === 'approved'
-              ? 'approved'
-              : chronos.status === 'signed'
-                ? 'signed'
-                : chronos.status === 'applying'
-                  ? 'applying'
-                  : chronos.status === 'terminated'
-                    ? 'terminated'
-                    : 'joined';
-      const mappedStage: ApplicantProfile['stage'] = (chronos.stage ?? current.stage) as ApplicantProfile['stage'];
-      return {
-        id: chronos.id,
-        email: chronos.email,
-        password: '',
-        role: 'applicant' as const,
-        hrBinaryRole: false,
-        firstName: firstName || chronos.email,
-        lastName: rest.join(' '),
-        phoneNumber: chronos.phone ?? '',
-        country: chronos.country ?? '',
-        stateRegion: chronos.state_region ?? '',
-        city: chronos.city ?? '',
-        latitude: 0,
-        longitude: 0,
-        linkedinUrl: chronos.linkedin_url ?? '',
-        education: chronos.education ?? chronos.current_job_title ?? '',
-        source: chronos.source ?? chronos.hubspot_owner ?? 'Chronos HubSpot import',
-        referralName: '',
-        cvFileName: '',
-        cvUrl: '',
-        profilePictureUrl: '',
-        roleAppliedFor: chronos.role_applied_for ?? chronos.current_job_title ?? 'Imported contact',
-        stage: mappedStage,
-        status: mappedStatus,
-        joinedAt: new Date(chronos.joined_at ?? chronos.created_at ?? Date.now()).toISOString(),
-        lastVisitedAt: new Date(chronos.last_website_visit ?? chronos.updated_at ?? Date.now()).toISOString(),
-        notes: chronos.hubspot_status ?? 'Imported from Chronos applicants.',
-        safeSendersConfirmed: false,
-        communicationConsent: true,
-      };
-    }
-
-    const notionUrlClean3 = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
-    const notionPageId3 = notionUrlClean3.match(/([0-9a-f]{32})\s*$/i)?.[1] ?? null;
-    if (notionPageId3) {
-      // No applicants row found by email — try inserting notion_team_member_id via chronos_user_id FK if column exists
-      await sql`
-        update applicants
-        set notion_team_member_id = coalesce(${notionPageId3}, notion_team_member_id),
-            updated_at = now()
-        where chronos_user_id = ${applicantId}
-      `.catch(() => null);
-    }
-    const chronosUserRows = await sql`
-      update users
-      set email = ${next.email},
-          name = ${`${next.firstName} ${next.lastName}`.trim()},
-          updated_at = now()
-      where id = ${applicantId}
-      returning id, email, name, password, role, is_active, created_at, updated_at
-    `;
-    return chronosUserRows[0] ? chronosUserToApplicant(chronosUserRows[0]) : null;
+    return null;
   }
   const db = await readDb();
   const applicant = db.applicants.find((candidate) => candidate.id === applicantId);
@@ -1344,11 +1006,9 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
 export async function touchApplicantWebsiteVisit(applicantId: string, email?: string) {
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
-    await sql`update website_applicants set last_visited_at = now(), updated_at = now() where id = ${applicantId}`;
-    await sql`update users set updated_at = now() where id = ${applicantId}`;
-    await sql`update applicants set last_website_visit = now(), updated_at = now() where id = ${applicantId}`;
+    await sql`update flolabs_users set last_visited_at = now(), updated_at = now() where id = ${applicantId}`;
     if (email) {
-      await sql`update applicants set last_website_visit = now(), updated_at = now() where lower(email) = lower(${email})`;
+      await sql`update flolabs_users set last_visited_at = now(), updated_at = now() where lower(email) = lower(${email})`;
     }
     return;
   }
@@ -1587,12 +1247,12 @@ export async function getStageResponsesForHr() {
         r.applicant_id,
         r.response_text,
         r.submitted_at,
-        coalesce(w.email, u.email, a.email, '') as applicant_email,
-        trim(coalesce(w.first_name, split_part(coalesce(u.name, a.name, ''), ' ', 1), '')) as applicant_first_name,
+        coalesce(w.email, '') as applicant_email,
+        trim(coalesce(w.first_name, split_part(coalesce(w.name, ''), ' ', 1), '')) as applicant_first_name,
         trim(
           coalesce(
             w.last_name,
-            regexp_replace(coalesce(u.name, a.name, ''), '^[^ ]+\s*', ''),
+            regexp_replace(coalesce(w.name, ''), '^[^ ]+\s*', ''),
             ''
           )
         ) as applicant_last_name,
@@ -1601,9 +1261,7 @@ export async function getStageResponsesForHr() {
         ar.outcome as ai_outcome
       from website_stage_resource_responses r
       inner join website_stage_resources s on s.id = r.resource_id
-      left join website_applicants w on w.id = r.applicant_id
-      left join users u on u.id = r.applicant_id
-      left join applicants a on a.id = r.applicant_id
+      left join flolabs_users w on w.id = r.applicant_id
       left join lateral (
         select outcome from website_stage_ai_reviews
         where applicant_id = r.applicant_id and stage = s.stage
@@ -1729,7 +1387,7 @@ export async function updateUserRole(applicantId: string, role: string, hrBinary
   if (USE_POSTGRES && sql) {
     await ensurePostgresSchema();
     const rows = await sql`
-      update website_applicants
+      update flolabs_users
       set role = ${role},
           hr_binary_role = ${hrBinaryRole},
           updated_at = now()
