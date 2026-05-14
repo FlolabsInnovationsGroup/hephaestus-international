@@ -274,15 +274,15 @@ export async function POST(request: Request) {
       update time_entries set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
       where user_id = any(${secondaryUserIds}::uuid[])
     `.catch(() => null);
-    // Also re-point tags owned by secondary users to the canonical.
+    // Move tags owned by secondary users to the canonical (skip names that would conflict).
     await sql`
-      update tags set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      update tags set user_id = ${chronosCanonicalUserId}::uuid
       where user_id = any(${secondaryUserIds}::uuid[])
         and lower(name) not in (
           select lower(name) from tags where user_id = ${chronosCanonicalUserId}::uuid
         )
     `.catch(() => null);
-    // Delete duplicate tags on secondary accounts that already exist on canonical.
+    // Delete remaining secondary tags (the ones that are duplicates already on canonical).
     await sql`
       delete from tags
       where user_id = any(${secondaryUserIds}::uuid[])
