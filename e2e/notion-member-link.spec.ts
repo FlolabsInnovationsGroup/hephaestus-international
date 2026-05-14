@@ -158,16 +158,16 @@ test.describe('grantChronosAccess creates Chronos account', () => {
     await loginAsHr(page);
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
-    // Look for a lead in "signed" status to promote to "joined"
-    await page.goto('/me/hr?status=signed', { waitUntil: 'domcontentloaded' });
+    // Use already-joined leads: re-applying "joined" is idempotent and safe.
+    await page.goto('/me/hr?status=joined', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 20_000 });
 
     const hrActionsSection = page.locator('div.rounded-2xl').filter({
       has: page.getByRole('heading', { name: /HR actions/i }),
     });
     const statusSelect = hrActionsSection.locator('select').nth(1);
-    const signedOption = await statusSelect.locator('option[value="signed"]').count();
-    if (!signedOption) {
+    const joinedOption = await statusSelect.locator('option[value="joined"]').count();
+    if (!joinedOption) {
       test.skip();
       return;
     }
@@ -177,6 +177,7 @@ test.describe('grantChronosAccess creates Chronos account', () => {
       { timeout: 30_000 },
     );
 
+    // Set to "joined" (idempotent — lead is already joined)
     await statusSelect.selectOption('joined');
     const saveButton = hrActionsSection.getByRole('button', { name: /save stage and status/i });
     await expect(saveButton).toBeVisible();
@@ -186,6 +187,7 @@ test.describe('grantChronosAccess creates Chronos account', () => {
     expect(res.ok()).toBe(true);
     const body = await res.json() as { ok?: boolean; chronosGrant?: { ok: boolean } };
     expect(body.ok).toBe(true);
+    // chronosGrant is set when status is "joined"
     expect(body.chronosGrant).toBeDefined();
     expect(body.chronosGrant?.ok).toBe(true);
   });
