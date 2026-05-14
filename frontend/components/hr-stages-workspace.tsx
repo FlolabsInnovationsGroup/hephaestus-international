@@ -235,7 +235,11 @@ export function HrStagesWorkspace({
     setConditionSaved(false);
     setInlineApplicantAction(stage?.applicantAction ?? '');
     setApplicantActionSaved(false);
-  }, [activeStageId, stage]);
+    // Only reset form state when the user navigates to a different stage.
+    // Excluding `stage` from deps prevents the save operation (which updates
+    // localSteps → stage) from immediately cancelling conditionSaved/applicantActionSaved.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStageId]);
 
   async function savePassingCondition() {
     if (!stage) return;
