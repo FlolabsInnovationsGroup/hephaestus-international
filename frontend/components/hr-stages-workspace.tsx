@@ -75,7 +75,12 @@ export function HrStagesWorkspace({
   const [conditionType, setConditionType] = useState<PassingCondition>('ai');
   const [conditionAiPrompt, setConditionAiPrompt] = useState('');
   const [savingCondition, setSavingCondition] = useState(false);
-  const [conditionSaved, setConditionSaved] = useState(false);
+  // Track the last-saved {type, prompt} so conditionSaved is derived rather than
+  // relying on a setTimeout-based boolean (which is prone to batching races).
+  const [savedConditionData, setSavedConditionData] = useState<{ type: PassingCondition; prompt: string } | null>(null);
+  const conditionSaved = savedConditionData != null
+    && savedConditionData.type === conditionType
+    && savedConditionData.prompt === conditionAiPrompt;
   const [inlineApplicantAction, setInlineApplicantAction] = useState('');
   const [savingApplicantAction, setSavingApplicantAction] = useState(false);
   const [applicantActionSaved, setApplicantActionSaved] = useState(false);
@@ -232,12 +237,9 @@ export function HrStagesWorkspace({
   useEffect(() => {
     setConditionType(stage?.passingCondition ?? 'ai');
     setConditionAiPrompt(stage?.passingConditionAiPrompt ?? '');
-    setConditionSaved(false);
+    setSavedConditionData(null);
     setInlineApplicantAction(stage?.applicantAction ?? '');
     setApplicantActionSaved(false);
-    // Only reset form state when the user navigates to a different stage.
-    // Excluding `stage` from deps prevents the save operation (which updates
-    // localSteps → stage) from immediately cancelling conditionSaved/applicantActionSaved.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStageId]);
 
@@ -267,8 +269,7 @@ export function HrStagesWorkspace({
       ? { ...item, passingCondition: conditionType, passingConditionAiPrompt: conditionAiPrompt }
       : item,
     ));
-    setConditionSaved(true);
-    setTimeout(() => setConditionSaved(false), 2000);
+    setSavedConditionData({ type: conditionType, prompt: conditionAiPrompt });
   }
 
   async function saveApplicantAction() {
@@ -396,8 +397,8 @@ export function HrStagesWorkspace({
           conditionAiPrompt={conditionAiPrompt}
           saving={savingCondition}
           saved={conditionSaved}
-          onConditionChange={(type) => { setConditionType(type); setConditionSaved(false); }}
-          onAiPromptChange={(prompt) => { setConditionAiPrompt(prompt); setConditionSaved(false); }}
+          onConditionChange={(type) => setConditionType(type)}
+          onAiPromptChange={(prompt) => setConditionAiPrompt(prompt)}
           onSave={() => void savePassingCondition()}
         />
 
