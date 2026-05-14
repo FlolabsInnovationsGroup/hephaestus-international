@@ -52,23 +52,19 @@ test.describe('Notion team member page linking', () => {
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
     // Open edit profile for the first visible lead
-    const editButton = page.getByRole('button', { name: /edit profile/i }).first();
+    const editButton = page.getByRole('button', { name: /edit lead/i }).first();
     await expect(editButton).toBeVisible({ timeout: 20_000 });
     await editButton.click();
 
     // The modal should appear
-    const modal = page.locator('[role="dialog"], [data-modal], .fixed.inset-0').first();
-    // If no ARIA modal, look for the Notion search label
-    const notionLabel = page.getByText('Notion Team Member page', { exact: true });
-    await expect(notionLabel).toBeVisible({ timeout: 10_000 });
+    const modalHeading = page.getByRole('heading', { name: /edit lead details/i });
+    await expect(modalHeading).toBeVisible({ timeout: 10_000 });
 
-    // Find the Notion search input (below the label)
-    const notionInput = page.locator('input[placeholder*="Search for"]').or(
-      page.locator('input[placeholder*="team member"]')
-    ).first();
+    // Find the Notion search input inside the modal
+    const notionInput = page.locator('input[placeholder*="Search for"]').first();
     await expect(notionInput).toBeVisible({ timeout: 5_000 });
 
-    // Focus and type a short query — this fires the debounce search
+    // Focus — this fires the debounce search immediately
     const searchDone = page.waitForResponse(
       (res) => res.url().includes('/api/admin/notion/team-members/search'),
       { timeout: 15_000 },
@@ -102,27 +98,31 @@ test.describe('Notion team member page linking', () => {
     const notionPage = searchBody.results[0];
 
     // Open edit for the first lead
-    const editButton = page.getByRole('button', { name: /edit profile/i }).first();
+    const editButton = page.getByRole('button', { name: /edit lead/i }).first();
     await expect(editButton).toBeVisible({ timeout: 20_000 });
     await editButton.click();
 
     // Get the applicant ID from the active lead element
-    const notionLabel = page.getByText('Notion Team Member page', { exact: true });
-    await expect(notionLabel).toBeVisible({ timeout: 10_000 });
+    const modalHeading2 = page.getByRole('heading', { name: /edit lead details/i });
+    await expect(modalHeading2).toBeVisible({ timeout: 10_000 });
 
-    const notionInput = page.locator('input[placeholder*="Search for"]').or(
-      page.locator('input[placeholder*="team member"]')
-    ).first();
+    const notionInput = page.locator('input[placeholder*="Search for"]').first();
+    // Click first (triggers handleFocus + initial search); then clear and type the known title.
     await notionInput.click();
-
-    // Wait for dropdown, click the first result that matches our known page
-    await page.waitForResponse(
-      (res) => res.url().includes('/api/admin/notion/team-members/search'),
+    await page.waitForTimeout(500);
+    await notionInput.fill('');
+    // Type character-by-character to trigger React onChange + debounce reliably
+    const searchDone2 = page.waitForResponse(
+      (res) => res.url().includes('/api/admin/notion/team-members/search')
+        && res.url().includes(encodeURIComponent(notionPage.title.split(' ')[0])),
       { timeout: 10_000 },
     );
+    await notionInput.pressSequentially(notionPage.title, { delay: 50 });
+    await searchDone2;
+    await page.waitForTimeout(300); // let React re-render the dropdown
 
     const resultButton = page.locator(`button:has-text("${notionPage.title}")`).first();
-    const resultVisible = await resultButton.isVisible().catch(() => false);
+    const resultVisible = await resultButton.isVisible({ timeout: 5_000 }).catch(() => false);
     if (!resultVisible) {
       test.skip();
       return;
@@ -135,8 +135,8 @@ test.describe('Notion team member page linking', () => {
     );
     await resultButton.click();
 
-    // Click Save profile
-    const saveBtn = page.getByRole('button', { name: /save profile/i }).first();
+    // Click Save changes
+    const saveBtn = page.getByRole('button', { name: /save changes/i }).first();
     await expect(saveBtn).toBeVisible({ timeout: 5_000 });
     await saveBtn.click();
 
