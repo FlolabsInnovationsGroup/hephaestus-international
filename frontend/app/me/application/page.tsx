@@ -9,6 +9,7 @@ import { ApplicantChat } from '@/components/applicant-chat';
 import { ApplicantStageContent } from '@/components/applicant-stage-content';
 import { StageCompletionNotice } from '@/components/stage-completion-notice';
 import {
+  completeApplicantStageReviewBatch,
   getApplicantById,
   getConversationForApplicant,
   getManagedStepById,
@@ -24,7 +25,15 @@ export default async function ApplicationDashboardPage() {
   if (viewer.role !== 'applicant') redirect('/me/hr');
 
   await processLowEffortRollbackIfDue(viewer.id);
-  const applicant = (await getApplicantById(viewer.id)) ?? viewer;
+  let applicant = (await getApplicantById(viewer.id)) ?? viewer;
+
+  let stepMeta = await getManagedStepById(applicant.stage);
+  for (let i = 0; i < 5 && stepMeta?.passingCondition === 'none'; i++) {
+    const result = await completeApplicantStageReviewBatch(viewer.id);
+    if (!result.stageChanged) break;
+    applicant = (await getApplicantById(viewer.id)) ?? applicant;
+    stepMeta = await getManagedStepById(applicant.stage);
+  }
 
   const steps = await getManagedSteps();
   const step = (await getManagedStepById(applicant.stage)) ?? steps[0];

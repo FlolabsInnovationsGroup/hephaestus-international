@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createApplicantAccount, getApplicantById, getSessionUser } from '@/lib/application-store';
+import { completeApplicantStageReviewBatch, createApplicantAccount, getApplicantById, getSessionUser } from '@/lib/application-store';
 import { syncApplicantToChronos } from '@/lib/chronos-sync';
 
 export async function GET() {
@@ -44,6 +44,11 @@ export async function POST(request: Request) {
     safeSendersConfirmed: Boolean(body.safeSendersConfirmed),
     communicationConsent: Boolean(body.communicationConsent),
   });
+
+  for (let i = 0; i < 5; i++) {
+    const result = await completeApplicantStageReviewBatch(applicant.id);
+    if (!result.stageChanged) break;
+  }
 
   let syncWarning: string | null = null;
   try {
