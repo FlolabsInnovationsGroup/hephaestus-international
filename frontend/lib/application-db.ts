@@ -1202,6 +1202,34 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       if (updates.alternateEmails !== undefined) {
         await persistEmailAliases(sql, applicantId, next.email, updates.alternateEmails);
       }
+      // Propagate to Chronos-owned tables in the shared DB.
+      // Match by old email because applicants.id != website_applicants.id for Chronos-origin records.
+      const fullName = `${next.firstName} ${next.lastName}`.trim();
+      await sql`
+        update applicants
+        set email        = ${next.email.toLowerCase()},
+            name         = ${fullName},
+            phone        = ${next.phoneNumber},
+            country      = ${next.country},
+            state_region = ${next.stateRegion ?? ''},
+            city         = ${next.city},
+            linkedin_url = ${next.linkedinUrl},
+            education    = ${next.education},
+            role_applied_for = ${next.roleAppliedFor ?? ''},
+            source       = ${next.source ?? ''},
+            last_website_visit = now(),
+            updated_at   = now()
+        where lower(email) = lower(${current.email})
+           or id = ${applicantId}
+      `.catch(() => null);
+      await sql`
+        update users
+        set email      = ${next.email.toLowerCase()},
+            name       = ${fullName},
+            updated_at = now()
+        where lower(email) = lower(${current.email})
+           or id = ${applicantId}
+      `.catch(() => null);
       return rowToApplicant(rows[0]);
     }
 

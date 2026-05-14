@@ -185,11 +185,12 @@ export async function POST(request: Request) {
   const secondaryLeadIds = leadIds.filter((id) => id !== canonicalLeadId);
 
   // Propagate merged profile to Chronos-owned tables so changes are visible in Chronos.
-  // applicants table: update canonical row, mark secondaries as closed.
+  // applicants.id != website_applicants.id for Chronos-origin records, so match by old email too.
   const mergedName = [
     selectedFirstNames.join(' / ') || String(canonical.first_name ?? ''),
     selectedLastNames.join(' / ') || String(canonical.last_name ?? ''),
   ].filter(Boolean).join(' ');
+  const canonicalOldEmail = String(canonical.email ?? '');
   await sql`
     update applicants
     set
@@ -204,27 +205,39 @@ export async function POST(request: Request) {
       source       = ${selectedSources.join(' | ') || String(canonical.source ?? '')},
       updated_at   = now()
     where id = ${canonicalLeadId}
+       or lower(email) = lower(${canonicalOldEmail})
   `.catch(() => null);
   if (secondaryLeadIds.length > 0) {
+    const secondaryEmails = hydratedLeads
+      .filter((lead) => secondaryLeadIds.includes(String(lead.id)))
+      .map((lead) => String(lead.email ?? '').toLowerCase())
+      .filter(Boolean);
     await sql`
       update applicants
       set status = 'closed', updated_at = now()
       where id = any(${secondaryLeadIds}::uuid[])
+         or lower(email) = any(${secondaryEmails}::text[])
     `.catch(() => null);
   }
 
-  // users table: update canonical email, deactivate secondary accounts (skip HR/admin roles).
+  // users table: update canonical name+email, deactivate secondary accounts (skip HR/admin roles).
   await sql`
     update users
-    set email = ${primaryEmail}, updated_at = now()
+    set email      = ${primaryEmail},
+        name       = ${mergedName},
+        updated_at = now()
     where id = ${canonicalLeadId}
-      and lower(email) != lower(${primaryEmail})
+       or lower(email) = lower(${canonicalOldEmail})
   `.catch(() => null);
   if (secondaryLeadIds.length > 0) {
+    const secondaryEmails = hydratedLeads
+      .filter((lead) => secondaryLeadIds.includes(String(lead.id)))
+      .map((lead) => String(lead.email ?? '').toLowerCase())
+      .filter(Boolean);
     await sql`
       update users
       set is_active = false, updated_at = now()
-      where id = any(${secondaryLeadIds}::uuid[])
+      where (id = any(${secondaryLeadIds}::uuid[]) or lower(email) = any(${secondaryEmails}::text[]))
         and lower(role) not in ('admin', 'hr')
     `.catch(() => null);
   }
