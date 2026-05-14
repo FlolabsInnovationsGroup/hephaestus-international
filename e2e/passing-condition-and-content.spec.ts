@@ -84,21 +84,26 @@ test.describe('Passing condition card', () => {
   test('save passing condition persists after reload', async ({ page }) => {
     // Find a non-locked stage (contacted)
     await page.getByRole('button', { name: /Websites and presentations|contacted/i }).first().click();
-    await page.waitForTimeout(500);
+    // Wait for the passing condition card to be ready for this stage
+    await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
-    // Select "No action required"
+    // Select "No action required" and save — wait for the PATCH to complete
     await page.getByText('No action required').click();
-    await page.getByRole('button', { name: 'Save condition' }).click();
+    const [saveResponse] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
+      page.getByRole('button', { name: 'Save condition' }).click(),
+    ]);
+    expect(saveResponse.status()).toBe(200);
 
-    // Wait for "Saved" confirmation
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 8_000 });
+    // "Saved" confirmation appears briefly after the response
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: 'test-results/04-condition-saved.png', fullPage: false });
 
     // Reload and verify it persists
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('text=Stages', { timeout: 15_000 });
     await page.getByRole('button', { name: /Websites and presentations|contacted/i }).first().click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
     // The "No action required" button should appear selected
     const noneBtn = page.locator('button', { hasText: 'No action required' });
@@ -107,8 +112,12 @@ test.describe('Passing condition card', () => {
 
     // Restore to AI evaluation
     await page.getByText('AI evaluation').click();
-    await page.getByRole('button', { name: 'Save condition' }).click();
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 8_000 });
+    const [restoreResponse] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
+      page.getByRole('button', { name: 'Save condition' }).click(),
+    ]);
+    expect(restoreResponse.status()).toBe(200);
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 5_000 });
   });
 });
 
@@ -150,11 +159,7 @@ test.describe('Stage content resources', () => {
 
 test.describe('Applicant view', () => {
   test('applicant sees content cards on their current stage', async ({ page }) => {
-    // First: push test applicant to contacted stage via HR
-    await loginAs(page, HR_EMAIL, HR_PASSWORD);
-
-    // Log out and log back in as applicant
-    await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
+    // Login as applicant (loginAs clears cookies first, so no explicit logout needed)
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
 
     await page.goto('/me/application', { waitUntil: 'load' });
