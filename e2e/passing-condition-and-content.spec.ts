@@ -27,10 +27,9 @@ const HR_LOCKED_STAGES = ['second_meeting', 'agreement_sent', 'agreement_signed'
 
 async function loginAs(page: Page, email: string, password: string) {
   await page.goto('/login', { waitUntil: 'load' });
-  const visibleInputs = page.locator('input:not([type="hidden"])');
-  await visibleInputs.first().waitFor({ state: 'visible' });
-  await visibleInputs.first().fill(email);
-  await visibleInputs.nth(1).fill(password);
+  await page.locator('input').first().waitFor({ state: 'visible' });
+  await page.locator('input').first().fill(email);
+  await page.locator('input[type="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/me/, { timeout: 15_000 });
 }
