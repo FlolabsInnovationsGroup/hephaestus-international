@@ -185,11 +185,33 @@ export async function revokeChronosAccess(applicant: ApplicantProfile): Promise<
 export async function grantChronosAccess(applicant: ApplicantProfile): Promise<{ ok: boolean; error?: string }> {
   if (!sql) return { ok: false, error: 'No database connection' };
   try {
+    const fullName = `${applicant.firstName ?? ''} ${applicant.lastName ?? ''}`.trim() || applicant.email;
+    // Upsert: create the users row if it doesn't exist yet, using website_applicants.id as UUID so IDs align.
+    // ON CONFLICT (email) handles the case where a Chronos-invite account already exists with a different id.
     await sql`
-      update users
-      set is_active = true, updated_at = now()
-      where lower(email) = lower(${applicant.email}) or id::text = ${applicant.id}
+      insert into users (id, email, name, password, role, is_active, created_at, updated_at)
+      values (
+        ${applicant.id}::uuid,
+        ${applicant.email.toLowerCase()},
+        ${fullName},
+        '__hephaestus_pending__',
+        'member',
+        true,
+        now(),
+        now()
+      )
+      on conflict (email) do update set
+        is_active = true,
+        name = excluded.name,
+        updated_at = now()
     `;
+    // Link the applicants pipeline row to the users row it belongs to.
+    await sql`
+      update applicants
+      set chronos_user_id = (select id from users where lower(email) = lower(${applicant.email}) limit 1),
+          updated_at = now()
+      where lower(email) = lower(${applicant.email})
+    `.catch(() => null);
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };

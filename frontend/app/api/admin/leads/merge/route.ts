@@ -243,25 +243,89 @@ export async function POST(request: Request) {
   }
 
   // Re-point time_entries from secondary accounts to the canonical account.
-  // user_id FK references users.id — only re-point if canonical exists there.
-  const canonicalInUsers = await sql`select id from users where id = ${canonicalLeadId} limit 1`.catch(() => []);
-  if (canonicalInUsers[0]) {
+  // users.id may differ from website_applicants.id — look up canonical by email, not just by id.
+  const canonicalUserRow = await sql`
+    select id from users
+    where id = ${canonicalLeadId}
+       or lower(email) = lower(${primaryEmail})
+    limit 1
+  `.catch(() => []);
+  const chronosCanonicalUserId = canonicalUserRow[0] ? String(canonicalUserRow[0].id) : null;
+
+  // Secondary accounts may also have users.id ≠ website_applicants.id; collect them by email too.
+  const secondaryEmailsLower = hydratedLeads
+    .filter((l) => secondaryLeadIds.includes(String(l.id)))
+    .map((l) => String(l.email ?? '').toLowerCase())
+    .filter(Boolean);
+  const secondaryUserRows = secondaryEmailsLower.length > 0
+    ? await sql`
+        select id from users
+        where id = any(${secondaryLeadIds}::uuid[])
+           or lower(email) = any(${secondaryEmailsLower}::text[])
+      `.catch(() => [])
+    : [];
+  const secondaryUserIds = [...new Set([
+    ...secondaryLeadIds,
+    ...secondaryUserRows.map((r: Record<string, unknown>) => String(r['id'])),
+  ])].filter((id) => id !== chronosCanonicalUserId);
+
+  if (chronosCanonicalUserId && secondaryUserIds.length > 0) {
     await sql`
-      update time_entries set user_id = ${canonicalLeadId}, updated_at = now()
-      where user_id = any(${secondaryLeadIds}::uuid[])
+      update time_entries set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      where user_id = any(${secondaryUserIds}::uuid[])
+    `.catch(() => null);
+    // Also re-point tags owned by secondary users to the canonical.
+    await sql`
+      update tags set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      where user_id = any(${secondaryUserIds}::uuid[])
+        and lower(name) not in (
+          select lower(name) from tags where user_id = ${chronosCanonicalUserId}::uuid
+        )
+    `.catch(() => null);
+    // Delete duplicate tags on secondary accounts that already exist on canonical.
+    await sql`
+      delete from tags
+      where user_id = any(${secondaryUserIds}::uuid[])
     `.catch(() => null);
   }
-  // flolabs_id / applicant_id FK references applicants.id
-  const canonicalInApplicants = await sql`select id from applicants where id = ${canonicalLeadId} limit 1`.catch(() => []);
-  if (canonicalInApplicants[0]) {
+  // Update applicants.chronos_user_id for the canonical so the Chronos Users page overlay works.
+  if (chronosCanonicalUserId) {
     await sql`
-      update time_entries set flolabs_id = ${canonicalLeadId}, updated_at = now()
-      where flolabs_id = any(${secondaryLeadIds}::uuid[])
+      update applicants set chronos_user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
+      where lower(email) = lower(${primaryEmail})
     `.catch(() => null);
-    await sql`
-      update time_entries set applicant_id = ${canonicalLeadId}, updated_at = now()
-      where applicant_id = any(${secondaryLeadIds}::uuid[])
-    `.catch(() => null);
+  }
+
+  // flolabs_id / applicant_id FK references applicants.id — find canonical's applicants.id by email.
+  const canonicalApplicantRow = await sql`
+    select id from applicants
+    where id = ${canonicalLeadId}
+       or lower(email) = lower(${primaryEmail})
+    limit 1
+  `.catch(() => []);
+  if (canonicalApplicantRow[0]) {
+    const chronosCanonicalApplicantId = String(canonicalApplicantRow[0].id);
+    const secondaryApplicantRows = secondaryEmailsLower.length > 0
+      ? await sql`
+          select id from applicants
+          where id = any(${secondaryLeadIds}::uuid[])
+             or lower(email) = any(${secondaryEmailsLower}::text[])
+        `.catch(() => [])
+      : [];
+    const secondaryApplicantIds = [...new Set([
+      ...secondaryLeadIds,
+      ...secondaryApplicantRows.map((r: Record<string, unknown>) => String(r['id'])),
+    ])].filter((id) => id !== chronosCanonicalApplicantId);
+    if (secondaryApplicantIds.length > 0) {
+      await sql`
+        update time_entries set flolabs_id = ${chronosCanonicalApplicantId}::uuid, updated_at = now()
+        where flolabs_id = any(${secondaryApplicantIds}::uuid[])
+      `.catch(() => null);
+      await sql`
+        update time_entries set applicant_id = ${chronosCanonicalApplicantId}::uuid, updated_at = now()
+        where applicant_id = any(${secondaryApplicantIds}::uuid[])
+      `.catch(() => null);
+    }
   }
 
   for (const secondaryId of secondaryLeadIds) {
