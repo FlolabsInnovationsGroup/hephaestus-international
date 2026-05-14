@@ -272,14 +272,16 @@ jobs:
         run: |
           set -euo pipefail
           APP_URL="https://fykgssqbvg.us-east-1.awsapprunner.com"
-          for attempt in {1..30}; do
-            BODY=$(curl -fsSL "${APP_URL}/api/health") && true || BODY=""
-            if [[ -n "$BODY" ]]; then
+          for attempt in {1..45}; do
+            BODY=""
+            if BODY=$(curl -fsSL --connect-timeout 10 --max-time 25 "${APP_URL}/api/health" 2>/dev/null); then
               echo "$BODY"
               if echo "$BODY" | grep -F '"ok":true' >/dev/null && \
                  echo "$BODY" | grep -F '"commitSha":"${{ github.sha }}"' >/dev/null; then
                 exit 0
               fi
+            else
+              echo "health fetch failed or timed out (attempt ${attempt}/45)"
             fi
             sleep 10
           done
