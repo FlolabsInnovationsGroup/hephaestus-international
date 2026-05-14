@@ -27,8 +27,8 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    const data = await res.json();
-    router.push(data.role === 'applicant' ? '/me/application' : '/me/hr');
+    await res.json();
+    router.push('/me');
     router.refresh();
   }
 
