@@ -52,13 +52,13 @@ test.describe('Passing condition card', () => {
   });
 
   test('AI prompt textarea appears only when AI evaluation is selected', async ({ page }) => {
-    // Click "AI evaluation" option
-    await page.getByText('AI evaluation').click();
+    // Click "AI evaluation" option button (use data-value to avoid partial-match ambiguity)
+    await page.locator('button[data-value="ai"]').click();
     await expect(page.getByText('AI evaluation prompt')).toBeVisible();
     await expect(page.locator('textarea[placeholder*="Pay special attention"]')).toBeVisible();
 
     // Switch to "No action required" — prompt should disappear
-    await page.getByText('No action required').click();
+    await page.locator('button[data-value="none"]').click();
     await expect(page.getByText('AI evaluation prompt')).not.toBeVisible();
     await page.screenshot({ path: 'test-results/02-no-ai-prompt-on-none.png', fullPage: false });
   });
@@ -88,14 +88,14 @@ test.describe('Passing condition card', () => {
     await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
     // Select "No action required" and save — wait for the PATCH to complete
-    await page.getByText('No action required').click();
+    await page.locator('button[data-value="none"]').click();
     const [saveResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
       page.getByRole('button', { name: 'Save condition' }).click(),
     ]);
     expect(saveResponse.status()).toBe(200);
 
-    // "Saved" confirmation appears briefly after the response
+    // "Saved" confirmation appears after the response
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: 'test-results/04-condition-saved.png', fullPage: false });
 
@@ -106,12 +106,11 @@ test.describe('Passing condition card', () => {
     await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
     // The "No action required" button should appear selected
-    const noneBtn = page.locator('button', { hasText: 'No action required' });
-    await expect(noneBtn).toHaveAttribute('data-selected', 'true', { timeout: 5_000 });
+    await expect(page.locator('button[data-value="none"]')).toHaveAttribute('data-selected', 'true', { timeout: 5_000 });
     await page.screenshot({ path: 'test-results/05-condition-persisted.png', fullPage: false });
 
     // Restore to AI evaluation
-    await page.getByText('AI evaluation').click();
+    await page.locator('button[data-value="ai"]').click();
     const [restoreResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
       page.getByRole('button', { name: 'Save condition' }).click(),

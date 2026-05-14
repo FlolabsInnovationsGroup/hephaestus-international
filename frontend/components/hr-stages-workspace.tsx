@@ -666,6 +666,7 @@ function PassingConditionCard({
               key={option.value}
               type="button"
               disabled={isDisabled}
+              data-value={option.value}
               data-selected={isSelected ? 'true' : 'false'}
               onClick={() => !isDisabled && onConditionChange(option.value)}
               className={`rounded-xl border p-4 text-left transition-colors ${
