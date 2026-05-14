@@ -1205,6 +1205,8 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       // Propagate to Chronos-owned tables in the shared DB.
       // Match by old email because applicants.id != website_applicants.id for Chronos-origin records.
       const fullName = `${next.firstName} ${next.lastName}`.trim();
+      const notionPageIdMatch = (next.notionTeamMemberPageUrl ?? '').match(/([0-9a-f]{32})\s*$/i);
+      const notionPageId = notionPageIdMatch ? notionPageIdMatch[1] : null;
       await sql`
         update applicants
         set email        = ${next.email.toLowerCase()},
@@ -1217,6 +1219,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
             education    = ${next.education},
             role_applied_for = ${next.roleAppliedFor ?? ''},
             source       = ${next.source ?? ''},
+            notion_team_member_id = coalesce(${notionPageId}, notion_team_member_id),
             last_website_visit = now(),
             updated_at   = now()
         where lower(email) = lower(${current.email})
@@ -1233,6 +1236,8 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       return rowToApplicant(rows[0]);
     }
 
+    const notionPageIdMatch2 = (next.notionTeamMemberPageUrl ?? '').match(/([0-9a-f]{32})\s*$/i);
+    const notionPageId2 = notionPageIdMatch2 ? notionPageIdMatch2[1] : null;
     const chronosApplicantRows = await sql`
       update applicants
       set email = ${next.email},
@@ -1245,6 +1250,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           education = ${next.education},
           role_applied_for = ${next.roleAppliedFor},
           source = ${next.source ?? ''},
+          notion_team_member_id = coalesce(${notionPageId2}, notion_team_member_id),
           last_website_visit = now(),
           updated_at = now()
       where id = ${applicantId}
