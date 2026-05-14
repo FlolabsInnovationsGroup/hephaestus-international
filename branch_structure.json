@@ -1,0 +1,48 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "dependabot/npm_and_yarn/frontend/next-16.2.6",
+    "dependabot/npm_and_yarn/js-yaml-4.3.0",
+    "dependabot/npm_and_yarn/multi-4b10dec7ea",
+    "dependabot/npm_and_yarn/multi-e105e7f041",
+    "dependabot/npm_and_yarn/scripts/axios-1.16.0",
+    "dependabot/npm_and_yarn/strapi/app/strapi/plugin-users-permissions-5.45.0",
+    "dependabot/npm_and_yarn/strapi/app/strapi/strapi-5.37.0",
+    "dependabot/npm_and_yarn/v1/multi-4b10dec7ea",
+    "dependabot/npm_and_yarn/v1/nanoid-3.3.18",
+    "dependabot/npm_and_yarn/v1/next-15.5.21",
+    "dependabot/npm_and_yarn/vite-7.3.6",
+    "main",
+    "text-structure-enhance"
+  ],
+  "parent": {
+    "dependabot/npm_and_yarn/frontend/next-16.2.6": "main",
+    "dependabot/npm_and_yarn/js-yaml-4.3.0": "main",
+    "dependabot/npm_and_yarn/multi-4b10dec7ea": "main",
+    "dependabot/npm_and_yarn/multi-e105e7f041": "main",
+    "dependabot/npm_and_yarn/scripts/axios-1.16.0": "main",
+    "dependabot/npm_and_yarn/strapi/app/strapi/plugin-users-permissions-5.45.0": "main",
+    "dependabot/npm_and_yarn/strapi/app/strapi/strapi-5.37.0": "main",
+    "dependabot/npm_and_yarn/v1/multi-4b10dec7ea": "main",
+    "dependabot/npm_and_yarn/v1/nanoid-3.3.18": "main",
+    "dependabot/npm_and_yarn/v1/next-15.5.21": "main",
+    "dependabot/npm_and_yarn/vite-7.3.6": "main",
+    "main": null,
+    "text-structure-enhance": "main"
+  },
+  "order": [
+    "main",
+    "dependabot/npm_and_yarn/frontend/next-16.2.6",
+    "dependabot/npm_and_yarn/js-yaml-4.3.0",
+    "dependabot/npm_and_yarn/multi-4b10dec7ea",
+    "dependabot/npm_and_yarn/multi-e105e7f041",
+    "dependabot/npm_and_yarn/scripts/axios-1.16.0",
+    "dependabot/npm_and_yarn/strapi/app/strapi/plugin-users-permissions-5.45.0",
+    "dependabot/npm_and_yarn/strapi/app/strapi/strapi-5.37.0",
+    "dependabot/npm_and_yarn/v1/multi-4b10dec7ea",
+    "dependabot/npm_and_yarn/v1/nanoid-3.3.18",
+    "dependabot/npm_and_yarn/v1/next-15.5.21",
+    "dependabot/npm_and_yarn/vite-7.3.6",
+    "text-structure-enhance"
+  ]
+}
