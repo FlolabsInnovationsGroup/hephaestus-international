@@ -12,6 +12,7 @@ Project context for coding agents working in this repository.
 
 ## Workflow
 
+- **Deploy and verify on every task.** After any code change: commit, `git push origin main`, wait for App Runner to reach RUNNING with the new commitSha, then run the relevant Playwright E2E suite against the live URL and confirm the changed behaviour works in the browser. A task is not done until this passes. If no E2E test covers the changed path, write one first.
 - **Default: push after work.** Commit and `git push origin main` after a coherent change to trigger the CI/CD pipeline.
 - **Production validation:** test only on the live AWS surface (`https://fykgssqbvg.us-east-1.awsapprunner.com`). Do not use the local dev server as deployment proof.
 - **Playwright E2E:** use the MCP Playwright browser tool (preferred for interactive debugging) or `npx playwright test` for running specs. Test credentials live in `test_assets/test_users.json`. The `baseUrl` in that file must always point to the AWS URL.
