@@ -12,16 +12,8 @@ export async function POST(req: Request) {
   }
 
   const user = await findUserByEmail(email);
-  const status = String(user?.status ?? '').toLowerCase();
-  const canRecover =
-    !!user &&
-    (user.hrBinaryRole ||
-      user.role === 'admin' ||
-      user.role === 'hr' ||
-      status === 'joined' ||
-      user.stage === 'joined');
 
-  if (!canRecover) {
+  if (!user) {
     return NextResponse.json({ ok: true });
   }
 

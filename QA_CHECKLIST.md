@@ -16,6 +16,7 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 | `e2e/hr-status-filter.spec.ts` | Status filter dropdown | 7-option parity, HR controls match |
 | `e2e/hr-stage-lifecycle.spec.ts` | Stage → status mapping, filter views, terminated access | 5 tests |
 | `e2e/passing-condition-and-content.spec.ts` | Passing condition card, stage content resources, applicant view | 8 tests |
+| `e2e/forgot-password.spec.ts` | Forgot-password UI + API; token creation; anti-enumeration | 3 tests |
 
 ### What the automated suite covers
 
@@ -35,7 +36,7 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 |---|---|---|
 | Chronos user sync on `joined` | Requires Chronos DB inspection | Set status → `joined`, check Chronos `users.is_active = true` |
 | Chronos access revocation on `terminated` | Requires Chronos DB + login attempt | Set status → `terminated`, check `is_active = false`, verify timer app 401 |
-| Resend email delivery | No email inbox automation | Submit test application, check inbox |
+| Resend email delivery | No inbox automation; token creation is verified automatically | Spot-check inbox after a deploy that touches email code |
 | AI stage review output | Subjective / non-deterministic | Submit applicant content, check HR review panel |
 | New application form → DB row | End-to-end form submission | Fill out efestos.international/apply, verify row in HR dashboard |
 
