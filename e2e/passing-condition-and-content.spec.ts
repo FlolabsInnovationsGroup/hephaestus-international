@@ -26,8 +26,9 @@ const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD } = getCredentials(
 const HR_LOCKED_STAGES = ['second_meeting', 'agreement_sent', 'agreement_signed', 'chronos_synced', 'joined'];
 
 async function loginAs(page: Page, email: string, password: string) {
-  // Logout first to ensure a fresh session regardless of current state
-  await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
+  // Clear cookies first so we always start from an unauthenticated state
+  await page.context().clearCookies();
+  await page.goto('/login', { waitUntil: 'load' });
   await page.locator('input:not([type="hidden"])').first().waitFor({ state: 'visible' });
   await page.locator('input:not([type="hidden"])').first().fill(email);
   await page.locator('input[type="password"]').fill(password);

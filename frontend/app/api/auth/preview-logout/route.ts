@@ -6,7 +6,7 @@ export async function POST() {
   return NextResponse.json({ ok: true });
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   await logoutPreview();
-  return NextResponse.redirect(new URL('/login', request.url));
+  return NextResponse.json({ ok: true });
 }
