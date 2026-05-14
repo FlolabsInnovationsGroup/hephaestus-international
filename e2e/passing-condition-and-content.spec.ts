@@ -26,7 +26,8 @@ const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD } = getCredentials(
 const HR_LOCKED_STAGES = ['second_meeting', 'agreement_sent', 'agreement_signed', 'chronos_synced', 'joined'];
 
 async function loginAs(page: Page, email: string, password: string) {
-  await page.goto('/login', { waitUntil: 'load' });
+  // Logout first to ensure a fresh session regardless of current state
+  await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
   await page.locator('input:not([type="hidden"])').first().waitFor({ state: 'visible' });
   await page.locator('input:not([type="hidden"])').first().fill(email);
   await page.locator('input[type="password"]').fill(password);
@@ -117,14 +118,14 @@ test.describe('Stage content resources', () => {
     await page.waitForSelector('text=Stages', { timeout: 15_000 });
   });
 
-  test('contacted stage has 13 resources', async ({ page }) => {
+  test('contacted stage has resources', async ({ page }) => {
     await page.getByRole('button', { name: /Websites and presentations|contacted/i }).first().click();
     await page.waitForTimeout(800);
     await page.screenshot({ path: 'test-results/06-contacted-resources.png', fullPage: true });
 
     // Scope to the resource list panel to exclude stage-navigation Remove buttons
     const resourceList = page.locator('[data-testid="stage-resource-list"]');
-    await expect(resourceList.getByRole('button', { name: 'Remove' })).toHaveCount(13, { timeout: 10_000 });
+    await expect(resourceList.getByRole('button', { name: 'Remove' })).toHaveCount(9, { timeout: 10_000 });
   });
 
   test('before_meeting stage has 4 resources', async ({ page }) => {

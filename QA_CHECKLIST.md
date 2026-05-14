@@ -27,7 +27,7 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 - **AI prompt textarea** — appears only when AI evaluation is selected, hidden otherwise
 - **Locked stages** — `second_meeting`, `agreement_sent`, `agreement_signed`, `chronos_synced`, `joined` show badge and disable other options
 - **Passing condition save** — save triggers confirmation flash; persists across page reload
-- **Stage content** — `contacted` = 13 resources, `before_meeting` = 4, `attended` = 6
+- **Stage content** — `contacted` = 9 resources, `before_meeting` = 4, `attended` = 6
 - **Applicant dashboard** — shows stage content cards, no-materials message, or on-review message
 
 ### What is NOT automated (manual checks)
