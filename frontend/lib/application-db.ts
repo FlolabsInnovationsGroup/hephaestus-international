@@ -1205,7 +1205,8 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       // Propagate to Chronos-owned tables in the shared DB.
       // Match by old email because applicants.id != website_applicants.id for Chronos-origin records.
       const fullName = `${next.firstName} ${next.lastName}`.trim();
-      const notionPageIdMatch = (next.notionTeamMemberPageUrl ?? '').match(/([0-9a-f]{32})\s*$/i);
+      const notionUrlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
+      const notionPageIdMatch = notionUrlClean.match(/([0-9a-f]{32})\s*$/i);
       const notionPageId = notionPageIdMatch ? notionPageIdMatch[1] : null;
       await sql`
         update applicants
@@ -1236,8 +1237,10 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       return rowToApplicant(rows[0]);
     }
 
-    const notionPageIdMatch2 = (next.notionTeamMemberPageUrl ?? '').match(/([0-9a-f]{32})\s*$/i);
+    const notionUrlClean2 = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
+    const notionPageIdMatch2 = notionUrlClean2.match(/([0-9a-f]{32})\s*$/i);
     const notionPageId2 = notionPageIdMatch2 ? notionPageIdMatch2[1] : null;
+    // applicants.id != website_applicants.id for Chronos-origin records — match by email instead
     const chronosApplicantRows = await sql`
       update applicants
       set email = ${next.email},
@@ -1253,7 +1256,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           notion_team_member_id = coalesce(${notionPageId2}, notion_team_member_id),
           last_website_visit = now(),
           updated_at = now()
-      where id = ${applicantId}
+      where lower(email) = lower(${current.email})
       returning *
     `;
 
@@ -1309,6 +1312,17 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
       };
     }
 
+    const notionUrlClean3 = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
+    const notionPageId3 = notionUrlClean3.match(/([0-9a-f]{32})\s*$/i)?.[1] ?? null;
+    if (notionPageId3) {
+      // No applicants row found by email — try inserting notion_team_member_id via chronos_user_id FK if column exists
+      await sql`
+        update applicants
+        set notion_team_member_id = coalesce(${notionPageId3}, notion_team_member_id),
+            updated_at = now()
+        where chronos_user_id = ${applicantId}
+      `.catch(() => null);
+    }
     const chronosUserRows = await sql`
       update users
       set email = ${next.email},
