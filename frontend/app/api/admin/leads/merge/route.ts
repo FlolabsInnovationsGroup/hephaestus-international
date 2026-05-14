@@ -184,6 +184,51 @@ export async function POST(request: Request) {
 
   const secondaryLeadIds = leadIds.filter((id) => id !== canonicalLeadId);
 
+  // Propagate merged profile to Chronos-owned tables so changes are visible in Chronos.
+  // applicants table: update canonical row, mark secondaries as closed.
+  const mergedName = [
+    selectedFirstNames.join(' / ') || String(canonical.first_name ?? ''),
+    selectedLastNames.join(' / ') || String(canonical.last_name ?? ''),
+  ].filter(Boolean).join(' ');
+  await sql`
+    update applicants
+    set
+      email        = ${primaryEmail},
+      name         = ${mergedName},
+      phone        = ${selectedPhoneNumbers.join(', ') || String(canonical.phone_number ?? '')},
+      country      = ${selectedCountries.join(', ') || String(canonical.country ?? '')},
+      city         = ${selectedCities.join(', ') || String(canonical.city ?? '')},
+      linkedin_url = ${selectedLinkedinUrls.join(', ') || String(canonical.linkedin_url ?? '')},
+      education    = ${selectedEducation.join(' | ') || String(canonical.education ?? '')},
+      role_applied_for = ${selectedRoles.join(' | ') || String(canonical.role_applied_for ?? '')},
+      source       = ${selectedSources.join(' | ') || String(canonical.source ?? '')},
+      updated_at   = now()
+    where id = ${canonicalLeadId}
+  `.catch(() => null);
+  if (secondaryLeadIds.length > 0) {
+    await sql`
+      update applicants
+      set status = 'closed', updated_at = now()
+      where id = any(${secondaryLeadIds}::uuid[])
+    `.catch(() => null);
+  }
+
+  // users table: update canonical email, deactivate secondary accounts (skip HR/admin roles).
+  await sql`
+    update users
+    set email = ${primaryEmail}, updated_at = now()
+    where id = ${canonicalLeadId}
+      and lower(email) != lower(${primaryEmail})
+  `.catch(() => null);
+  if (secondaryLeadIds.length > 0) {
+    await sql`
+      update users
+      set is_active = false, updated_at = now()
+      where id = any(${secondaryLeadIds}::uuid[])
+        and lower(role) not in ('admin', 'hr')
+    `.catch(() => null);
+  }
+
   // Re-point time_entries from secondary accounts to the canonical account.
   // user_id FK references users.id — only re-point if canonical exists there.
   const canonicalInUsers = await sql`select id from users where id = ${canonicalLeadId} limit 1`.catch(() => []);

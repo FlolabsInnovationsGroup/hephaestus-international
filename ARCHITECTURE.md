@@ -143,6 +143,21 @@ Hephaestus and Chronos share **one AWS RDS PostgreSQL instance** and connect wit
 
 **Data flow:** `website_applicants` (Hephaestus source) → Chronos `applicants` (via sync) → Chronos `users` (for active users with timer sessions)
 
+### Merge Sync Contract
+
+When HR merges duplicate leads via `POST /api/admin/leads/merge`, the operation propagates changes across all three tables to keep Chronos in sync:
+
+1. **`website_applicants` (canonical)** — merged profile (email, names, phone, linkedin, city, country, role, education, source) written to the canonical row.
+2. **`applicants` (canonical)** — same profile values written to the matching `applicants` row so Chronos reads fresh data.
+3. **`applicants` (secondaries)** — `status = 'closed'` set on all secondary rows so they are hidden from Chronos views.
+4. **`users` (canonical)** — `email` updated if the primary email changed.
+5. **`users` (secondaries)** — `is_active = false` set on secondary rows (skips rows with `role = 'admin'` or `role = 'hr'` to avoid locking out staff accounts).
+6. **`time_entries`** — re-pointed to canonical `user_id` / `flolabs_id` / `applicant_id` so history stays intact.
+7. **`user_email_aliases`** — all kept emails registered under the canonical user.
+8. **`applicant_duplicate_reviews`** — audit record written with `status = 'merged'`.
+
+After a merge, the secondary leads exist in the database but are invisible to Chronos (closed/inactive). The canonical lead shows the combined profile.
+
 ---
 
 ## Project Layout (relevant paths)
