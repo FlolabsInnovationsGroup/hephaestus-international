@@ -129,14 +129,15 @@ export default async function globalSetup() {
     console.warn(`[globalSetup] Bootstrap failed (non-fatal): ${(e as Error).message}`);
   }
 
-  // Login warm-up: trigger schemaReady() in the app process and verify hr access.
-  // /api/health only runs SELECT 1 — it does NOT call schemaReady(). The first call
-  // to schemaReady() happens inside findUserByEmail() during loginPreview(). If schema
-  // DDL is needed, it may block on RDS locks. Pre-warming here ensures schemaReady()
-  // is cached before the first Playwright test makes its own login request.
+  // Verify HR access via /api/auth/me. This also warms schemaReady() and the login path.
+  // Retries every 15 s for up to 25 minutes. Throws if HR access cannot be confirmed —
+  // tests cannot pass without it, so there is no point proceeding.
   const { email: hrEmail, password: hrPassword } = getHrCredentials();
   let loginWarmedUp = false;
-  for (let attempt = 1; attempt <= 5; attempt++) {
+  const hrVerifyStartMs = Date.now();
+  const hrVerifyMaxMs = 25 * 60 * 1000;
+
+  while (Date.now() - hrVerifyStartMs < hrVerifyMaxMs) {
     try {
       const loginRes = await fetch(`${baseUrl}/api/auth/preview-login`, {
         method: 'POST',
@@ -144,42 +145,65 @@ export default async function globalSetup() {
         body: JSON.stringify({ email: hrEmail, password: hrPassword }),
         signal: AbortSignal.timeout(45_000),
       });
-      const sessionCookieHeader = loginRes.headers.get('set-cookie') ?? '';
-      const loginBody = (await loginRes.json().catch(() => ({}))) as { ok?: boolean };
-
-      if (loginRes.ok && loginBody.ok) {
-        // Extract the session cookie value to verify hr redirect
-        const cookieMatch = sessionCookieHeader.match(/fl_preview_session=([^;]+)/);
-        const sessionCookie = cookieMatch ? `fl_preview_session=${cookieMatch[1]}` : '';
-
-        // GET /me — with the session cookie Next.js should 307 → /me/hr for HR users
-        const meRes = await fetch(`${baseUrl}/me`, {
-          headers: sessionCookie ? { Cookie: sessionCookie } : {},
-          redirect: 'manual',
-          signal: AbortSignal.timeout(30_000),
-        });
-        const location = meRes.headers.get('location') ?? '';
-        if (location.includes('/me/hr')) {
-          console.log(`[globalSetup] Login warm-up ok (attempt ${attempt}): /me → /me/hr`);
-          loginWarmedUp = true;
-          break;
-        } else {
-          console.warn(
-            `[globalSetup] Login warm-up (attempt ${attempt}): /me redirected to "${location}" — expected /me/hr. hrBinaryRole may not be set.`,
-          );
-        }
-      } else {
-        console.warn(
-          `[globalSetup] Login warm-up (attempt ${attempt}): status=${loginRes.status} ok=${loginBody.ok}`,
-        );
+      if (!loginRes.ok) {
+        console.warn(`[globalSetup] preview-login status=${loginRes.status}, retrying…`);
+        await new Promise((r) => setTimeout(r, 15_000));
+        continue;
       }
+      const loginBody = (await loginRes.json().catch(() => ({}))) as { ok?: boolean };
+      if (!loginBody.ok) {
+        console.warn(`[globalSetup] preview-login ok=false, retrying…`);
+        await new Promise((r) => setTimeout(r, 15_000));
+        continue;
+      }
+
+      const sessionCookieHeader = loginRes.headers.get('set-cookie') ?? '';
+      const cookieMatch = sessionCookieHeader.match(/fl_preview_session=([^;]+)/);
+      const sessionCookie = cookieMatch ? `fl_preview_session=${cookieMatch[1]}` : '';
+      if (!sessionCookie) {
+        console.warn(`[globalSetup] No session cookie returned from login, retrying…`);
+        await new Promise((r) => setTimeout(r, 15_000));
+        continue;
+      }
+
+      const meRes = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { Cookie: sessionCookie },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!meRes.ok) {
+        console.warn(`[globalSetup] /api/auth/me status=${meRes.status}, re-bootstrapping…`);
+        await fetch(`${baseUrl}/api/admin/bootstrap`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: '6IXvIoMfk8MCMOvWzBPAWgnlwl0T6gAPaAxpYMtO8xkA', email: hrEmail }),
+          signal: AbortSignal.timeout(30_000),
+        }).catch(() => { /* best-effort */ });
+        await new Promise((r) => setTimeout(r, 15_000));
+        continue;
+      }
+
+      const meBody = (await meRes.json().catch(() => ({}))) as { ok?: boolean; hrBinaryRole?: boolean };
+      if (meBody.ok && meBody.hrBinaryRole) {
+        console.log(`[globalSetup] HR access confirmed (${Math.round((Date.now() - hrVerifyStartMs) / 1000)}s) ✓`);
+        loginWarmedUp = true;
+        break;
+      }
+
+      // Authenticated but hrBinaryRole is false — re-bootstrap and retry
+      console.warn(`[globalSetup] hrBinaryRole=false for ${hrEmail}, re-bootstrapping…`);
+      await fetch(`${baseUrl}/api/admin/bootstrap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: '6IXvIoMfk8MCMOvWzBPAWgnlwl0T6gAPaAxpYMtO8xkA', email: hrEmail }),
+        signal: AbortSignal.timeout(30_000),
+      }).catch(() => { /* best-effort */ });
     } catch (e) {
-      console.warn(`[globalSetup] Login warm-up (attempt ${attempt}) failed: ${(e as Error).message}`);
+      console.warn(`[globalSetup] HR verification error: ${(e as Error).message}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 5_000));
+    await new Promise((r) => setTimeout(r, 15_000));
   }
 
   if (!loginWarmedUp) {
-    console.warn('[globalSetup] Login warm-up did not confirm /me/hr redirect — tests may fail if hrBinaryRole is unset');
+    throw new Error('[globalSetup] Could not verify HR access after 25 minutes — aborting test run');
   }
 }

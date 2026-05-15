@@ -59,6 +59,65 @@ function getStageSchemaReady(): Promise<boolean> {
   return _stageSchemaReadyPromise;
 }
 
+// user_email_aliases DDL — run once per process.
+let _aliasTableReadyPromise: Promise<void> | null = null;
+function aliasTableReady(): Promise<void> {
+  if (!_aliasTableReadyPromise) {
+    _aliasTableReadyPromise = (sql
+      ? sql`
+          create table if not exists user_email_aliases (
+            id uuid primary key default gen_random_uuid(),
+            user_id uuid not null,
+            email text not null unique,
+            is_primary boolean not null default false,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+          );
+        `.then(() => undefined)
+      : Promise.resolve()
+    ).catch((err) => {
+      _aliasTableReadyPromise = null;
+      throw err;
+    });
+  }
+  return _aliasTableReadyPromise;
+}
+
+// applicant_duplicate_reviews DDL — run once per process.
+let _duplicateTableReadyPromise: Promise<void> | null = null;
+function duplicateTableReady(): Promise<void> {
+  if (!_duplicateTableReadyPromise) {
+    _duplicateTableReadyPromise = (async () => {
+      if (!sql) return;
+      await sql`
+        create table if not exists applicant_duplicate_reviews (
+          id uuid primary key default gen_random_uuid(),
+          primary_applicant_id uuid not null,
+          duplicate_applicant_id uuid not null,
+          status text not null default 'pending',
+          confidence_score bigint not null default 0,
+          reasons jsonb not null default '[]'::jsonb,
+          reviewed_by_id uuid,
+          reviewed_at timestamptz,
+          notes text,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          constraint applicant_duplicate_reviews_pair_unique unique (primary_applicant_id, duplicate_applicant_id)
+        );
+      `;
+      await sql`
+        alter table applicant_duplicate_reviews
+          drop constraint if exists applicant_duplicate_reviews_primary_applicant_id_applicants_id_,
+          drop constraint if exists applicant_duplicate_reviews_duplicate_applicant_id_applicants_i;
+      `;
+    })().catch((err) => {
+      _duplicateTableReadyPromise = null;
+      throw err;
+    });
+  }
+  return _duplicateTableReadyPromise;
+}
+
 interface ApplicationDbShape {
   applicants: ApplicantProfile[];
   conversations: ConversationMessage[];
@@ -463,50 +522,14 @@ interface NormalizedApplicantSignals {
 
 async function getUserEmailAliasRows() {
   if (!(USE_POSTGRES && sql)) return [] as UserEmailAliasRow[];
-
-  await sql`
-    create table if not exists user_email_aliases (
-      id uuid primary key default gen_random_uuid(),
-      user_id uuid not null,
-      email text not null unique,
-      is_primary boolean not null default false,
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    );
-  `;
-
+  await aliasTableReady();
   const rows = await sql`select user_id, email from user_email_aliases`;
   return rows as unknown as UserEmailAliasRow[];
 }
 
 async function getDuplicateReviewRows() {
   if (!(USE_POSTGRES && sql)) return [] as DuplicateReviewRow[];
-
-  await sql`
-    create table if not exists applicant_duplicate_reviews (
-      id uuid primary key default gen_random_uuid(),
-      primary_applicant_id uuid not null,
-      duplicate_applicant_id uuid not null,
-      status text not null default 'pending',
-      confidence_score bigint not null default 0,
-      reasons jsonb not null default '[]'::jsonb,
-      reviewed_by_id uuid,
-      reviewed_at timestamptz,
-      notes text,
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now(),
-      constraint applicant_duplicate_reviews_pair_unique unique (primary_applicant_id, duplicate_applicant_id)
-    );
-  `;
-  // These FK constraints were originally added against the Chronos `applicants` table,
-  // but flolabs_users IDs can also come from the `users` table (different UUID space).
-  // Drop them so merge operations aren't blocked by FK violations.
-  await sql`
-    alter table applicant_duplicate_reviews
-      drop constraint if exists applicant_duplicate_reviews_primary_applicant_id_applicants_id_,
-      drop constraint if exists applicant_duplicate_reviews_duplicate_applicant_id_applicants_i;
-  `;
-
+  await duplicateTableReady();
   const rows = await sql`select id, primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes from applicant_duplicate_reviews`;
   return rows as unknown as DuplicateReviewRow[];
 }
@@ -681,16 +704,7 @@ export async function findUserByEmail(email: string) {
     const rows = await sql`select * from flolabs_users where lower(email) = lower(${email}) limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
-    await sql`
-      create table if not exists user_email_aliases (
-        id uuid primary key default gen_random_uuid(),
-        user_id uuid not null,
-        email text not null unique,
-        is_primary boolean not null default false,
-        created_at timestamptz not null default now(),
-        updated_at timestamptz not null default now()
-      );
-    `;
+    await aliasTableReady();
 
     const aliasRows = await sql`
       select u.id, u.email, u.name, u.password, u.role, u.is_active, u.created_at, u.updated_at

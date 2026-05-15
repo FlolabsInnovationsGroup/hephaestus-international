@@ -462,7 +462,11 @@ export async function getSessionUser(): Promise<ApplicantProfile | null> {
   const jar = await cookies();
   const userId = jar.get(SESSION_COOKIE)?.value;
   if (!userId) return null;
-  return await getUserById(userId);
+  try {
+    return await getUserById(userId);
+  } catch {
+    return null;
+  }
 }
 
 export async function markSessionUserVisited(user: ApplicantProfile) {
