@@ -793,7 +793,6 @@ function NotionPageSearchField({
   }, []);
 
   async function doSearch(q: string) {
-    if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     setSearchError('');
     const res = await fetch(`/api/admin/notion/team-members/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' });
