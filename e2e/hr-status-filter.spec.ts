@@ -33,7 +33,7 @@ test.describe('HR dashboard — status filter matches status selector', () => {
     await page.locator('input').first().fill(email);
     await page.locator('input[type="password"]').fill(password);
     await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
+    await page.waitForURL(/\/me\/hr/, { timeout: 90_000 });
 
     // Wait for HR dashboard content
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });

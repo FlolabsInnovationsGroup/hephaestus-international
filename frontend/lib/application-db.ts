@@ -47,6 +47,18 @@ function schemaReady(): Promise<void> {
   return _schemaReadyPromise;
 }
 
+// Stage feature DDL — cached like schemaReady() so ALTER TABLE only runs once per process.
+let _stageSchemaReadyPromise: Promise<boolean> | null = null;
+function getStageSchemaReady(): Promise<boolean> {
+  if (!_stageSchemaReadyPromise) {
+    _stageSchemaReadyPromise = ensureStageFeatureSchema().catch(() => {
+      _stageSchemaReadyPromise = null;
+      return false;
+    });
+  }
+  return _stageSchemaReadyPromise;
+}
+
 interface ApplicationDbShape {
   applicants: ApplicantProfile[];
   conversations: ConversationMessage[];
@@ -196,6 +208,10 @@ export async function clearLowEffortPendingHold(applicantId: string) {
 
 async function ensurePostgresSchema() {
   if (!sql) throw new Error('DATABASE_URL is required for postgres applicant storage');
+  // Fast-path: if the newest column exists the schema is already fully up to date.
+  // Avoids running any DDL (and acquiring locks) on every cold start.
+  if (await columnExistsInTable('flolabs_users', 'low_effort_rollback_after')) return;
+
   await sql`
     DO $$ BEGIN
       IF EXISTS (
@@ -312,8 +328,12 @@ async function ensureStageFeatureSchema() {
         updated_at timestamptz not null default now()
       );
     `;
-    await sql`alter table website_stage_definitions add column if not exists passing_condition text not null default 'ai'`;
-    await sql`alter table website_stage_definitions add column if not exists passing_condition_ai_prompt text not null default ''`;
+    if (!(await columnExistsInTable('website_stage_definitions', 'passing_condition'))) {
+      await sql.unsafe(`ALTER TABLE website_stage_definitions ADD COLUMN passing_condition text NOT NULL DEFAULT 'ai'`);
+    }
+    if (!(await columnExistsInTable('website_stage_definitions', 'passing_condition_ai_prompt'))) {
+      await sql.unsafe(`ALTER TABLE website_stage_definitions ADD COLUMN passing_condition_ai_prompt text NOT NULL DEFAULT ''`);
+    }
     await sql`
       create table if not exists website_stage_ai_reviews (
         id uuid primary key default gen_random_uuid(),
@@ -713,7 +733,7 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
       insert into website_applicant_conversations (id, applicant_id, author, text)
       values (${randomUUID()}, ${applicant.id}, 'paula', ${`Hi ${applicant.firstName}, welcome to FloLabs. Your application has been created for ${applicant.roleAppliedFor}. I will answer based on your current stage and what comes next in the process.`})
     `;
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (stageSchemaReady) {
       await sql`
         insert into website_applicant_stage_transitions (id, applicant_id, stage, reached_at)
@@ -845,7 +865,7 @@ export async function addApplicantMessage(applicantId: string, author: Conversat
 export async function updateApplicantStage(applicantId: string, stage: ApplicantProfile['stage'], status?: ApplicantProfile['status']) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     const previousRows = await sql`select stage from flolabs_users where id = ${applicantId} limit 1`;
     const previousWebsiteStage = String(previousRows[0]?.stage ?? '');
     const rows = status
@@ -1055,7 +1075,7 @@ export async function touchApplicantWebsiteVisit(applicantId: string, email?: st
 export async function getStageTransitions() {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) return [] as StageTransitionRecord[];
     const rows = await sql`
       select id, applicant_id, stage, reached_at
@@ -1076,7 +1096,7 @@ export async function getStageTransitions() {
 export async function getStageResources(stage?: string) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) return [] as StageResourceRecord[];
     const rows = stage
       ? await sql`
@@ -1110,7 +1130,7 @@ export async function getStageResources(stage?: string) {
 export async function createStageResource(input: { stage: string; title: string; url: string; applicantPrompt: string }) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
     const orderRows = await sql`select coalesce(max(sort_order), -1) as max_order from website_stage_resources where stage = ${input.stage}`;
     const nextOrder = Number(orderRows[0]?.max_order ?? -1) + 1;
@@ -1155,7 +1175,7 @@ export async function createStageResource(input: { stage: string; title: string;
 export async function deleteStageResource(resourceId: string) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) return;
     await sql`delete from website_stage_resources where id = ${resourceId}`;
     return;
@@ -1174,7 +1194,7 @@ export async function updateStageResource(input: {
 }) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
     const rows = await sql`
       update website_stage_resources
@@ -1211,7 +1231,7 @@ export async function updateStageResource(input: {
 export async function saveStageResourceResponse(input: { resourceId: string; applicantId: string; responseText: string }) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) throw new Error('Stage responses are unavailable in this environment');
     const rows = await sql`
       insert into website_stage_resource_responses (id, resource_id, applicant_id, response_text, submitted_at)
@@ -1235,7 +1255,7 @@ export async function saveStageResourceResponse(input: { resourceId: string; app
 export async function saveStageAiReview(input: { applicantId: string; stage: string; outcome: string; reason: string }) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const ready = await ensureStageFeatureSchema();
+    const ready = await getStageSchemaReady();
     if (!ready) return;
     await sql`
       insert into website_stage_ai_reviews (id, applicant_id, stage, outcome, reason, reviewed_at)
@@ -1247,7 +1267,7 @@ export async function saveStageAiReview(input: { applicantId: string; stage: str
 export async function getStageResponsesForApplicant(applicantId: string) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) return [] as StageResourceResponseRecord[];
     const rows = await sql`
       select id, resource_id, applicant_id, response_text, submitted_at
@@ -1270,7 +1290,7 @@ export async function getStageResponsesForApplicant(applicantId: string) {
 export async function getStageResponsesForHr() {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) return [] as HrStageResponseRecord[];
     const rows = await sql`
       select
@@ -1351,7 +1371,7 @@ function defaultPassingCondition(stageId: string): PassingCondition {
 export async function getStageDefinitions(baseSteps: StageStep[]) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) {
       return baseSteps.map((step) => ({
         stageId: step.id,
@@ -1450,7 +1470,7 @@ export async function saveStageDefinition(input: {
 }) {
   if (USE_POSTGRES && sql) {
     await schemaReady();
-    const stageSchemaReady = await ensureStageFeatureSchema();
+    const stageSchemaReady = await getStageSchemaReady();
     if (!stageSchemaReady) throw new Error('Stage definitions are unavailable in this environment');
     await sql`
       insert into website_stage_definitions (stage_id, short_label, title, description, applicant_action, admin_action, active, passing_condition, passing_condition_ai_prompt, updated_at)

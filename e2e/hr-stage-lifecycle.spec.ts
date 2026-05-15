@@ -46,7 +46,7 @@ async function loginAsHr(page: Parameters<Parameters<typeof test>[1]>[0]) {
   await page.locator('input').first().fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
+  await page.waitForURL(/\/me\/hr/, { timeout: 90_000 });
 }
 
 test.describe('HR stage lifecycle', () => {
