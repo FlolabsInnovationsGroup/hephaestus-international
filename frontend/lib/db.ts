@@ -18,5 +18,7 @@ export const sql = databaseUrl
       idle_timeout: 20,
       connect_timeout: 10,
       prepare: false,
+      // Kill any query stuck waiting for a DDL lock after 8s so the pool stays healthy
+      connection: { statement_timeout: 8000 },
     })
   : null;

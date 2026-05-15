@@ -33,6 +33,20 @@ const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
 const USE_POSTGRES = process.env.APPLICANT_STORAGE_DRIVER === 'postgres' || process.env.NODE_ENV === 'production';
 const AUTO_MERGE_SCORE_THRESHOLD = 9;
 
+// Run DDL once per process. All callers await this promise — after the first
+// resolution every subsequent await is a no-op (Promise already settled).
+let _schemaReadyPromise: Promise<void> | null = null;
+function schemaReady(): Promise<void> {
+  if (!_schemaReadyPromise) {
+    _schemaReadyPromise = ensurePostgresSchema().catch((err) => {
+      // Reset so next request can retry after a transient failure
+      _schemaReadyPromise = null;
+      throw err;
+    });
+  }
+  return _schemaReadyPromise;
+}
+
 interface ApplicationDbShape {
   applicants: ApplicantProfile[];
   conversations: ConversationMessage[];
@@ -124,7 +138,7 @@ export async function setLowEffortPendingHold(
   rollbackAfter: Date,
 ) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     await sql`
       update flolabs_users
       set low_effort_return_stage = ${returnStage},
@@ -144,7 +158,7 @@ export async function setLowEffortPendingHold(
 
 export async function clearLowEffortPendingHold(applicantId: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     await sql`
       update flolabs_users
       set low_effort_return_stage = null,
@@ -359,7 +373,7 @@ function rowToConversation(row: any): ConversationMessage {
 
 export async function readDb(): Promise<ApplicationDbShape> {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const applicants = await sql`select * from flolabs_users order by created_at asc`;
     const conversations = await sql`select * from website_applicant_conversations order by created_at asc`;
     return {
@@ -620,7 +634,7 @@ function chronosUserToApplicant(row: any): ApplicantProfile {
 
 export async function findUserByEmail(email: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`select * from flolabs_users where lower(email) = lower(${email}) limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
@@ -652,7 +666,7 @@ export async function findUserByEmail(email: string) {
 
 export async function getUserById(id: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`select * from flolabs_users where id = ${id} limit 1`;
     if (rows[0]) return rowToApplicant(rows[0]);
 
@@ -664,7 +678,7 @@ export async function getUserById(id: string) {
 
 export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'joinedAt' | 'lastVisitedAt'>) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`
       insert into flolabs_users (
         email, password, name, role, hr_binary_role, first_name, last_name, phone_number, country, state_region, city,
@@ -722,7 +736,7 @@ export async function getApplicants() {
   const byEmail = new Map(db.applicants.map((applicant) => [applicant.email.toLowerCase(), applicant]));
 
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`select * from flolabs_users order by created_at desc`;
     for (const row of rows) {
       const email = String(row.email ?? '').toLowerCase();
@@ -779,7 +793,7 @@ export async function getApplicants() {
 
 export async function getApplicantConversations(applicantId: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`select * from website_applicant_conversations where applicant_id = ${applicantId} order by created_at asc`;
     return rows.map(rowToConversation);
   }
@@ -789,7 +803,7 @@ export async function getApplicantConversations(applicantId: string) {
 
 export async function addApplicantMessage(applicantId: string, author: ConversationMessage['author'], text: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`
       insert into website_applicant_conversations (id, applicant_id, author, text)
       values (${randomUUID()}, ${applicantId}, ${author}, ${text})
@@ -812,7 +826,7 @@ export async function addApplicantMessage(applicantId: string, author: Conversat
 
 export async function updateApplicantStage(applicantId: string, stage: ApplicantProfile['stage'], status?: ApplicantProfile['status']) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     const previousRows = await sql`select stage from flolabs_users where id = ${applicantId} limit 1`;
     const previousWebsiteStage = String(previousRows[0]?.stage ?? '');
@@ -855,7 +869,7 @@ export async function createPasswordResetTokenForUser(userId: string, token: str
   if (!(USE_POSTGRES && sql)) {
     throw new Error('Password reset tokens require postgres storage');
   }
-  await ensurePostgresSchema();
+  await schemaReady();
   await sql`delete from website_password_reset_tokens where user_id = ${userId} and used_at is null and expires_at > now()`;
   const rows = await sql`
     insert into website_password_reset_tokens (user_id, token, expires_at)
@@ -869,7 +883,7 @@ export async function getActivePasswordResetTokenForUser(userId: string) {
   if (!(USE_POSTGRES && sql)) {
     throw new Error('Password reset tokens require postgres storage');
   }
-  await ensurePostgresSchema();
+  await schemaReady();
   const rows = await sql`
     select id, user_id, token, expires_at, used_at
     from website_password_reset_tokens
@@ -884,7 +898,7 @@ export async function getValidPasswordResetToken(token: string) {
   if (!(USE_POSTGRES && sql)) {
     throw new Error('Password reset tokens require postgres storage');
   }
-  await ensurePostgresSchema();
+  await schemaReady();
   const rows = await sql`
     select id, user_id, token, expires_at, used_at
     from website_password_reset_tokens
@@ -898,7 +912,7 @@ export async function resetApplicantPassword(userId: string, password: string, t
   if (!(USE_POSTGRES && sql)) {
     throw new Error('Password reset requires postgres storage');
   }
-  await ensurePostgresSchema();
+  await schemaReady();
   const hashedPassword = await hash(password, 12);
   const emailRows = await sql`
     select email from flolabs_users where id = ${userId}
@@ -954,7 +968,7 @@ async function persistEmailAliases(db: typeof sql, userId: string, primaryEmail:
 
 export async function updateApplicantProfile(applicantId: string, updates: Partial<ApplicantProfile>): Promise<ApplicantProfile | null> {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const current = await getUserById(applicantId);
     if (!current) return null;
     const next = { ...current, ...updates };
@@ -1005,7 +1019,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
 
 export async function touchApplicantWebsiteVisit(applicantId: string, email?: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     await sql`update flolabs_users set last_visited_at = now(), updated_at = now() where id = ${applicantId}`;
     if (email) {
       await sql`update flolabs_users set last_visited_at = now(), updated_at = now() where lower(email) = lower(${email})`;
@@ -1022,7 +1036,7 @@ export async function touchApplicantWebsiteVisit(applicantId: string, email?: st
 
 export async function getStageTransitions() {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) return [] as StageTransitionRecord[];
     const rows = await sql`
@@ -1043,7 +1057,7 @@ export async function getStageTransitions() {
 
 export async function getStageResources(stage?: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) return [] as StageResourceRecord[];
     const rows = stage
@@ -1077,7 +1091,7 @@ export async function getStageResources(stage?: string) {
 
 export async function createStageResource(input: { stage: string; title: string; url: string; applicantPrompt: string }) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
     const orderRows = await sql`select coalesce(max(sort_order), -1) as max_order from website_stage_resources where stage = ${input.stage}`;
@@ -1122,7 +1136,7 @@ export async function createStageResource(input: { stage: string; title: string;
 
 export async function deleteStageResource(resourceId: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) return;
     await sql`delete from website_stage_resources where id = ${resourceId}`;
@@ -1141,7 +1155,7 @@ export async function updateStageResource(input: {
   applicantPrompt: string;
 }) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) throw new Error('Stage resources are unavailable in this environment');
     const rows = await sql`
@@ -1178,7 +1192,7 @@ export async function updateStageResource(input: {
 
 export async function saveStageResourceResponse(input: { resourceId: string; applicantId: string; responseText: string }) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) throw new Error('Stage responses are unavailable in this environment');
     const rows = await sql`
@@ -1202,7 +1216,7 @@ export async function saveStageResourceResponse(input: { resourceId: string; app
 
 export async function saveStageAiReview(input: { applicantId: string; stage: string; outcome: string; reason: string }) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const ready = await ensureStageFeatureSchema();
     if (!ready) return;
     await sql`
@@ -1214,7 +1228,7 @@ export async function saveStageAiReview(input: { applicantId: string; stage: str
 
 export async function getStageResponsesForApplicant(applicantId: string) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) return [] as StageResourceResponseRecord[];
     const rows = await sql`
@@ -1237,7 +1251,7 @@ export async function getStageResponsesForApplicant(applicantId: string) {
 
 export async function getStageResponsesForHr() {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) return [] as HrStageResponseRecord[];
     const rows = await sql`
@@ -1318,7 +1332,7 @@ function defaultPassingCondition(stageId: string): PassingCondition {
 
 export async function getStageDefinitions(baseSteps: StageStep[]) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) {
       return baseSteps.map((step) => ({
@@ -1385,7 +1399,7 @@ export async function getStageDefinitions(baseSteps: StageStep[]) {
 
 export async function updateUserRole(applicantId: string, role: string, hrBinaryRole: boolean) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const rows = await sql`
       update flolabs_users
       set role = ${role},
@@ -1417,7 +1431,7 @@ export async function saveStageDefinition(input: {
   passingConditionAiPrompt: string;
 }) {
   if (USE_POSTGRES && sql) {
-    await ensurePostgresSchema();
+    await schemaReady();
     const stageSchemaReady = await ensureStageFeatureSchema();
     if (!stageSchemaReady) throw new Error('Stage definitions are unavailable in this environment');
     await sql`
