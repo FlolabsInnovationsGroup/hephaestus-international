@@ -119,16 +119,34 @@ async function ensureDb() {
   }
 }
 
+async function columnExistsInTable(table: string, col: string): Promise<boolean> {
+  if (!sql) return false;
+  const rows = await sql`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = ${table} AND column_name = ${col}
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 async function ensureApplicantLowEffortHoldColumns() {
   if (!sql) return;
-  try {
-    await sql`alter table flolabs_users add column if not exists notion_team_member_id text`;
-    await sql`alter table flolabs_users add column if not exists last_login_at timestamptz`;
-    await sql`alter table flolabs_users add column if not exists low_effort_rollback_after timestamptz`;
-    await sql`alter table flolabs_users add column if not exists low_effort_return_stage text`;
-    await sql`alter table flolabs_users add column if not exists notion_team_member_page_url text`;
-  } catch (e) {
-    console.warn('[ensureApplicantLowEffortHoldColumns]', e);
+  const toAdd: Array<[string, string]> = [
+    ['notion_team_member_id', 'text'],
+    ['last_login_at', 'timestamptz'],
+    ['low_effort_rollback_after', 'timestamptz'],
+    ['low_effort_return_stage', 'text'],
+    ['notion_team_member_page_url', 'text'],
+  ];
+  for (const [col, type] of toAdd) {
+    try {
+      if (!(await columnExistsInTable('flolabs_users', col))) {
+        // Only run ALTER TABLE when column is truly absent — avoids ACCESS EXCLUSIVE lock in the common case
+        await sql.unsafe(`ALTER TABLE flolabs_users ADD COLUMN ${col} ${type}`);
+      }
+    } catch (e) {
+      console.warn(`[ensureApplicantLowEffortHoldColumns] col=${col}`, e);
+    }
   }
 }
 
