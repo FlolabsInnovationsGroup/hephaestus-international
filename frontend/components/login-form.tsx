@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/button';
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState('ava.ross@example.com');
   const [password, setPassword] = useState('preview123');
   const [error, setError] = useState('');
@@ -27,9 +25,8 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    await res.json();
-    router.push('/me');
-    router.refresh();
+    const data = await res.json() as { hrBinaryRole?: boolean };
+    window.location.href = data.hrBinaryRole ? '/me/hr' : '/me/application';
   }
 
   return (

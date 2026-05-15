@@ -121,9 +121,10 @@ test.describe('Applicant view as tesororeptilipotermius', () => {
 
   test('applicant is redirected away from HR dashboard', async ({ page }) => {
     await loginAsApplicant(page);
-    await page.goto('/me/hr', { waitUntil: 'load' });
-    await page.waitForTimeout(2_000);
-    expect(page.url()).not.toMatch(/\/me\/hr$/);
+    await page.goto('/me/hr');
+    // Server-side redirect may come as RSC payload after page load — wait for URL change
+    await page.waitForURL((url) => !url.pathname.startsWith('/me/hr'), { timeout: 15_000 });
+    expect(page.url()).not.toMatch(/\/me\/hr/);
     await page.screenshot({ path: 'test-results/applicant-02-no-hr-access.png' });
   });
 });
