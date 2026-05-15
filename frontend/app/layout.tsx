@@ -42,7 +42,7 @@ export default async function RootLayout({
   const brand = await getServerBrand()
   const viewer = await getSessionUser()
   if (viewer) {
-    await markSessionUserVisited(viewer);
+    await markSessionUserVisited(viewer).catch(() => {});
   }
   
   return (

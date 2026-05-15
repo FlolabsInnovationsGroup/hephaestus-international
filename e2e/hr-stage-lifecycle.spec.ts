@@ -122,15 +122,19 @@ test.describe('HR stage lifecycle', () => {
     const res = await apiResponse;
     expect(res.ok()).toBe(true);
 
-    const body = await res.json() as { ok?: boolean; chronosRevoke?: { ok: boolean } };
+    const body = await res.json() as { ok?: boolean; chronosRevoke?: { ok: boolean }; applicant?: { id: string; stage: string } };
     expect(body.ok).toBe(true);
     // When status is terminated, the API returns chronosRevoke (not chronosSync)
     expect(body.chronosRevoke).toBeDefined();
     expect(typeof body.chronosRevoke?.ok).toBe('boolean');
 
-    // Restore status after test to avoid polluting production data
-    // The page should have refreshed; pick the first lead and reset
-    await page.waitForTimeout(2_000);
+    // Reset the lead back to avoid polluting subsequent tests
+    if (body.applicant?.id) {
+      await page.request.post('/api/admin/leads/stage', {
+        data: { applicantId: body.applicant.id, stage: body.applicant.stage ?? 'application_submitted', status: 'applying' },
+      });
+    }
+    await page.waitForTimeout(1_000);
   });
 
   test('Filter by "applying" status shows only applying leads', async ({ page }) => {

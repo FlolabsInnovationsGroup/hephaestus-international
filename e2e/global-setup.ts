@@ -28,6 +28,20 @@ function getBootstrapEmail(): string {
   return 'zoom@flomadlabs.com';
 }
 
+function getApplicantTestUser(): { userId?: string; email?: string } {
+  const path = join(process.cwd(), 'test_assets', 'test_users.json');
+  if (existsSync(path)) {
+    try {
+      const data = JSON.parse(readFileSync(path, 'utf8')) as {
+        users?: Array<{ emails?: string[]; password?: string; role?: string; userId?: string }>;
+      };
+      const u = data.users?.find((user) => user.role === 'member');
+      if (u) return { userId: u.userId, email: (u.emails?.[0] ?? '').trim() };
+    } catch { /* fall through */ }
+  }
+  return {};
+}
+
 function getHrCredentials(): { email: string; password: string } {
   const path = join(process.cwd(), 'test_assets', 'test_users.json');
   if (existsSync(path)) {
@@ -185,6 +199,24 @@ export default async function globalSetup() {
       const meBody = (await meRes.json().catch(() => ({}))) as { ok?: boolean; hrBinaryRole?: boolean };
       if (meBody.ok && meBody.hrBinaryRole) {
         console.log(`[globalSetup] HR access confirmed (${Math.round((Date.now() - hrVerifyStartMs) / 1000)}s) ✓`);
+
+        // Reset test applicant's hrBinaryRole to false to prevent test pollution across runs
+        const { userId: applicantUserId } = getApplicantTestUser();
+        if (applicantUserId) {
+          try {
+            const resetRes = await fetch(`${baseUrl}/api/admin/leads/role`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
+              body: JSON.stringify({ applicantId: applicantUserId, role: 'member', hrBinaryRole: false }),
+              signal: AbortSignal.timeout(15_000),
+            });
+            const resetBody = (await resetRes.json().catch(() => ({}))) as { ok?: boolean };
+            console.log(`[globalSetup] Reset hrBinaryRole=false for applicant ${applicantUserId}: ok=${resetBody.ok}`);
+          } catch (e) {
+            console.warn(`[globalSetup] Failed to reset applicant hrBinaryRole (non-fatal): ${(e as Error).message}`);
+          }
+        }
+
         loginWarmedUp = true;
         break;
       }
