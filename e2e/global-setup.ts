@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -27,38 +28,75 @@ function getBootstrapEmail(): string {
   return 'zoom@flomadlabs.com';
 }
 
+function getLocalCommitSha(): string | null {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+}
+
 export default async function globalSetup() {
   const baseUrl = getBaseUrl();
-  const maxWaitMs = 5 * 60 * 1000;
-  const pollMs = 12_000;
-  const requestTimeoutMs = 35_000;
+  const maxWaitMs = 10 * 60 * 1000; // 10 minutes — covers cold starts + rolling deploys
+  const pollMs = 15_000;
+  const requestTimeoutMs = 90_000; // span most of a cold start in one attempt
   const start = Date.now();
 
-  console.log(`[globalSetup] Waiting for service at ${baseUrl} …`);
+  // Determine which commit we expect the service to be running.
+  // If PLAYWRIGHT_BASE_URL is set (CI mode), the deploy job already confirmed
+  // the correct commit — skip the commit check.
+  const expectedSha = process.env.PLAYWRIGHT_BASE_URL ? null : getLocalCommitSha();
 
-  // Poll /api/health until warm (handles App Runner cold starts > 120 s)
+  console.log(
+    `[globalSetup] Waiting for ${baseUrl}${expectedSha ? ` (commit ${expectedSha.slice(0, 8)})` : ''} …`,
+  );
+
+  // Poll /api/health until:
+  //   1. The service is responsive (no 502 upstream-timeout)
+  //   2. The commitSha in the response matches our local HEAD (if not in CI mode)
+  //   3. db === 'ok'
   while (true) {
     try {
       const res = await fetch(`${baseUrl}/api/health`, {
         signal: AbortSignal.timeout(requestTimeoutMs),
       });
       if (res.ok) {
-        const body = (await res.json()) as { ok?: boolean; db?: string };
+        const body = (await res.json()) as { ok?: boolean; db?: string; commitSha?: string };
         if (body.ok && body.db === 'ok') {
-          console.log(`[globalSetup] Service warm (${Math.round((Date.now() - start) / 1000)}s)`);
-          break;
+          if (expectedSha && body.commitSha !== expectedSha) {
+            console.log(
+              `[globalSetup] Service running ${body.commitSha?.slice(0, 8)}, want ${expectedSha.slice(0, 8)} — waiting for deploy…`,
+            );
+          } else {
+            console.log(`[globalSetup] Service warm (${Math.round((Date.now() - start) / 1000)}s, sha=${body.commitSha?.slice(0, 8)})`);
+            break;
+          }
+        } else {
+          console.log(`[globalSetup] Health ok=${body.ok} db=${body.db}, retrying…`);
         }
+      } else {
+        console.log(`[globalSetup] Health status ${res.status}, retrying…`);
       }
-      console.log(`[globalSetup] Health check status ${res.status}, retrying…`);
     } catch (e) {
       console.log(`[globalSetup] Not ready: ${(e as Error).message}`);
     }
 
     if (Date.now() - start > maxWaitMs) {
-      throw new Error('[globalSetup] Service did not warm up within 5 minutes');
+      throw new Error('[globalSetup] Service did not become ready within 10 minutes');
     }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
+
+  // Warm the login page so the first test does not hit a cold Next.js init path.
+  // /login is a server component but returns quickly for unauthenticated requests.
+  try {
+    await fetch(`${baseUrl}/login`, {
+      headers: { Accept: 'text/html' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch { /* best-effort */ }
 
   // Ensure the HR test user has hr_binary_role set (required after every fresh deploy)
   const email = getBootstrapEmail();
