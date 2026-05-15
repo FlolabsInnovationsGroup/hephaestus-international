@@ -19,8 +19,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className="mx-auto grid max-w-5xl gap-12 md:grid-cols-2 md:items-center">
           <div>
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#00349B]">FloLabs innovations profile</p>
-            <h1 className="mb-5 text-4xl font-bold text-gray-900 md:text-5xl">Centralize the whole applicant journey in one place.</h1>
-            <p className="text-lg text-gray-600">This preview replaces the HubSpot form entrypoint with a login-aware application platform, an applicant dashboard, and an HR workspace.</p>
+            <h1 className="mb-5 text-4xl font-bold text-gray-900 md:text-5xl">Centralize your whole journey in one place.</h1>
+            <p className="text-lg text-gray-600">This is your dashboard and the main place to manage your profile information.</p>
           </div>
           {resetToken ? <ResetPasswordForm token={resetToken} /> : forgotMode ? <ForgotPasswordForm /> : <LoginForm />}
         </div>

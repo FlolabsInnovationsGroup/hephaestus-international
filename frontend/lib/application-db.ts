@@ -133,9 +133,14 @@ async function ensureDb() {
 
 async function columnExistsInTable(table: string, col: string): Promise<boolean> {
   if (!sql) return false;
+  // pg_attribute is a base catalog table — orders of magnitude faster than
+  // information_schema.columns. to_regclass returns null (no error) when
+  // the table doesn't exist, so this is safe on fresh deployments too.
   const rows = await sql`
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = ${table} AND column_name = ${col}
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = to_regclass(${`public.${table}`})
+      AND attname = ${col}
+      AND NOT attisdropped
     LIMIT 1
   `;
   return rows.length > 0;
