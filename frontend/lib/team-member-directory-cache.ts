@@ -6,6 +6,7 @@ import {
   retrieveTeamMemberPageIfInDatabase,
   teamMemberPageSearchBlob,
   tryParseNotionPageId,
+  type NotionProp,
   type TeamMemberSearchHit,
 } from '@/lib/notion-team-member-search';
 import { teamMemberMatchesSearchText } from '@/lib/team-member-search-match';
@@ -66,7 +67,7 @@ async function buildDirectory(token: string, databaseIdFormatted: string, dbIdNo
       const page = item as {
         id: string;
         parent?: { type?: string; database_id?: string };
-        properties?: Record<string, unknown>;
+        properties?: Record<string, NotionProp>;
         url?: string;
       };
       if (!parentDatabaseIdMatches(page, dbIdNorm)) continue;

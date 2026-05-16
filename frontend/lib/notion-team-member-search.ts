@@ -10,7 +10,7 @@ export const NOTION_VERSION = '2022-06-28';
 export type TeamMemberSearchHit = { id: string; title: string; url: string };
 
 type NotionFrag = { plain_text?: string; text?: { content?: string } };
-type NotionProp = {
+export type NotionProp = {
   type?: string;
   title?: NotionFrag[];
   rich_text?: NotionFrag[];
