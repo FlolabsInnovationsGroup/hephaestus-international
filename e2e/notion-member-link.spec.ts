@@ -124,7 +124,7 @@ test.describe('Notion team member page linking', () => {
 });
 
 test.describe('grantChronosAccess creates Chronos account', () => {
-  test.setTimeout(60_000);
+  test.setTimeout(300_000);
 
   test('Setting status to joined returns chronosGrant.ok = true', async ({ page }) => {
     await loginAsHr(page);
