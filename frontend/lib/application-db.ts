@@ -32,6 +32,16 @@ interface UserEmailAliasRow {
 const DB_PATH = path.join(process.cwd(), 'data', 'applicants.json');
 const USE_POSTGRES = process.env.APPLICANT_STORAGE_DRIVER === 'postgres' || process.env.NODE_ENV === 'production';
 const AUTO_MERGE_SCORE_THRESHOLD = 9;
+/** O(n²) duplicate pairing is disabled above this count (shared DB has 30k+ rows). */
+const DUPLICATE_PAIR_SCAN_LIMIT = Number(process.env.DUPLICATE_PAIR_SCAN_LIMIT ?? '500');
+const FLOLABS_USER_LIST_COLUMNS = [
+  'id', 'email', 'password', 'name', 'role', 'hr_binary_role', 'first_name', 'last_name', 'phone_number',
+  'country', 'state_region', 'city', 'latitude', 'longitude', 'linkedin_url', 'education', 'source',
+  'referral_name', 'cv_file_name', 'cv_url', 'profile_picture_url', 'role_applied_for', 'stage', 'status',
+  'joined_at', 'last_visited_at', 'notes', 'safe_senders_confirmed', 'communication_consent',
+  'low_effort_rollback_after', 'low_effort_return_stage', 'notion_team_member_page_url',
+  'last_login_at', 'created_at', 'updated_at',
+].join(', ');
 
 // Run DDL once per process. All callers await this promise — after the first
 // resolution every subsequent await is a no-op (Promise already settled).
@@ -415,7 +425,27 @@ async function ensureStageFeatureSchema() {
   }
 }
 
+function splitRowName(row: any) {
+  const first = String(row.first_name ?? '').trim();
+  const last = String(row.last_name ?? '').trim();
+  if (first || last) return { firstName: first || String(row.email ?? ''), lastName: last };
+  const name = String(row.name ?? '').trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || String(row.email ?? ''),
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+function rowTimestamp(value: unknown, fallback?: unknown) {
+  const raw = value ?? fallback;
+  if (!raw) return new Date().toISOString();
+  const parsed = new Date(String(raw));
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
 function rowToApplicant(row: any): ApplicantProfile {
+  const { firstName, lastName } = splitRowName(row);
   return {
     id: row.id,
     email: row.email,
@@ -427,8 +457,8 @@ function rowToApplicant(row: any): ApplicantProfile {
     password: row.password,
     role: row.role,
     hrBinaryRole: row.hr_binary_role ?? false,
-    firstName: row.first_name,
-    lastName: row.last_name,
+    firstName,
+    lastName,
     phoneNumber: row.phone_number ?? '',
     country: row.country ?? '',
     stateRegion: row.state_region ?? '',
@@ -445,8 +475,8 @@ function rowToApplicant(row: any): ApplicantProfile {
     roleAppliedFor: row.role_applied_for ?? '',
     stage: row.stage,
     status: row.status,
-    joinedAt: new Date(row.joined_at).toISOString(),
-    lastVisitedAt: new Date(row.last_visited_at).toISOString(),
+    joinedAt: rowTimestamp(row.joined_at, row.created_at),
+    lastVisitedAt: rowTimestamp(row.last_visited_at, row.updated_at),
     notes: row.notes ?? '',
     safeSendersConfirmed: Boolean(row.safe_senders_confirmed),
     communicationConsent: Boolean(row.communication_consent),
@@ -473,14 +503,26 @@ function rowToConversation(row: any): ConversationMessage {
   };
 }
 
+async function listFloLabsUsers(order: 'asc' | 'desc' = 'desc') {
+  if (!sql) return [];
+  await schemaReady();
+  const direction = order === 'asc' ? 'asc' : 'desc';
+  const rows = await sql.unsafe(
+    `select ${FLOLABS_USER_LIST_COLUMNS} from flolabs_users order by created_at ${direction}`,
+  );
+  return rows.map(rowToApplicant);
+}
+
 export async function readDb(): Promise<ApplicationDbShape> {
   if (USE_POSTGRES && sql) {
-    await schemaReady();
-    const applicants = await sql`select * from flolabs_users order by created_at asc`;
-    const conversations = await sql`select * from website_applicant_conversations order by created_at asc`;
+    const applicants = await listFloLabsUsers('asc');
     return {
-      applicants: applicants.map(rowToApplicant),
-      conversations: conversations.map(rowToConversation),
+      applicants,
+      conversations: [],
+      stageTransitions: [],
+      stageResources: [],
+      stageResponses: [],
+      stageDefinitions: [],
     };
   }
 
@@ -534,7 +576,63 @@ async function getDuplicateReviewRows() {
   return rows as unknown as DuplicateReviewRow[];
 }
 
+function parseReviewReasons(review: DuplicateReviewRow) {
+  return Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'));
+}
+
+function buildDuplicateCandidatesFromReviewsOnly(
+  applicants: ApplicantProfile[],
+  reviews: DuplicateReviewRow[],
+) {
+  const byId = new Map<string, DuplicateCandidate[]>();
+  const applicantById = new Map(applicants.map((applicant) => [applicant.id, applicant]));
+  for (const applicant of applicants) byId.set(applicant.id, []);
+
+  for (const review of reviews) {
+    const primary = applicantById.get(review.primary_applicant_id);
+    const duplicate = applicantById.get(review.duplicate_applicant_id);
+    if (!primary || !duplicate) continue;
+
+    const scoreValue = Number(review.confidence_score ?? 0);
+    const reasonsValue = parseReviewReasons(review);
+    const reviewStatus = review.status;
+    const effectiveReviewStatus = (!reviewStatus || reviewStatus === 'pending') && scoreValue >= AUTO_MERGE_SCORE_THRESHOLD
+      ? 'merged'
+      : reviewStatus;
+
+    const pushCandidate = (ownerId: string, other: ApplicantProfile) => {
+      const list = byId.get(ownerId) ?? [];
+      list.push({
+        id: other.id,
+        email: other.email,
+        fullName: `${other.firstName} ${other.lastName}`.trim(),
+        score: scoreValue,
+        reasons: reasonsValue,
+        reviewId: review.id,
+        reviewStatus: effectiveReviewStatus,
+        reviewNotes: review.notes ?? undefined,
+      });
+      byId.set(ownerId, list);
+    };
+
+    pushCandidate(primary.id, duplicate);
+    pushCandidate(duplicate.id, primary);
+  }
+
+  for (const applicant of applicants) {
+    const candidates = byId.get(applicant.id) ?? [];
+    candidates.sort((a, b) => b.score - a.score || a.fullName.localeCompare(b.fullName));
+    byId.set(applicant.id, candidates.slice(0, 5));
+  }
+
+  return byId;
+}
+
 function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: DuplicateReviewRow[] = []) {
+  if (applicants.length > DUPLICATE_PAIR_SCAN_LIMIT) {
+    return buildDuplicateCandidatesFromReviewsOnly(applicants, reviews);
+  }
+
   const byId = new Map<string, DuplicateCandidate[]>();
   const normalizedById = new Map<string, NormalizedApplicantSignals>(
     applicants.map((applicant) => [applicant.id, {
@@ -608,7 +706,7 @@ function buildDuplicateCandidates(applicants: ApplicantProfile[], reviews: Dupli
       const reviewStatus = review?.status;
       if (reviewStatus === 'different_people') continue;
       const scoreValue = review ? Number(review.confidence_score ?? score) : score;
-      const reasonsValue = review ? (Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'))) : reasons;
+      const reasonsValue = review ? parseReviewReasons(review) : reasons;
       const effectiveReviewStatus = (!reviewStatus || reviewStatus === 'pending') && scoreValue >= AUTO_MERGE_SCORE_THRESHOLD
         ? 'merged'
         : reviewStatus;
@@ -789,21 +887,16 @@ export async function createApplicant(input: Omit<ApplicantProfile, 'id' | 'join
 }
 
 export async function getApplicants() {
-  const db = await readDb();
-  const byEmail = new Map(db.applicants.map((applicant) => [applicant.email.toLowerCase(), applicant]));
+  let allApplicants: ApplicantProfile[];
 
   if (USE_POSTGRES && sql) {
-    await schemaReady();
-    const rows = await sql`select * from flolabs_users order by created_at desc`;
-    for (const row of rows) {
-      const email = String(row.email ?? '').toLowerCase();
-      if (!email) continue;
-      byEmail.set(email, rowToApplicant(row));
-    }
+    allApplicants = await listFloLabsUsers('desc');
+  } else {
+    const db = await readDb();
+    allApplicants = db.applicants;
   }
 
   const duplicateReviewRows = await getDuplicateReviewRows();
-  const allApplicants = Array.from(byEmail.values());
   const allApplicantIds = new Set(allApplicants.map((applicant) => applicant.id));
   const mergedSecondaryIds = new Set<string>();
   for (const review of duplicateReviewRows) {

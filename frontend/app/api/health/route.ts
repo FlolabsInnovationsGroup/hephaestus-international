@@ -4,10 +4,17 @@ import { sql } from '@/lib/db';
 export async function GET() {
   let dbOk = false;
   let dbError: string | null = null;
+  let flolabsUsersTable: string | null = null;
   if (sql) {
     try {
       await sql`SELECT 1`;
-      dbOk = true;
+      const [{ regclass }] = await sql`SELECT to_regclass('public.flolabs_users')::text AS regclass`;
+      flolabsUsersTable = regclass;
+      if (!regclass) {
+        dbError = 'flolabs_users table missing';
+      } else {
+        dbOk = true;
+      }
     } catch (e) {
       dbError = e instanceof Error ? e.message : String(e);
     }
@@ -26,6 +33,7 @@ export async function GET() {
       buildTimestamp: process.env.BUILD_TIMESTAMP ?? null,
       now: new Date().toISOString(),
       db: dbOk ? 'ok' : dbError,
+      flolabsUsersTable,
     },
     { status: dbOk ? 200 : 503 },
   );
