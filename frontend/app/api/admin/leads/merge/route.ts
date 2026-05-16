@@ -49,7 +49,9 @@ export async function POST(request: Request) {
       source,
       notes,
       notion_team_member_id,
-      notion_team_member_page_url
+      notion_team_member_page_url,
+      status,
+      is_active
     from flolabs_users
     where id = any(${leadIds}::uuid[])
   `;
@@ -107,6 +109,12 @@ export async function POST(request: Request) {
     ...hydratedLeads.map((lead) => String(lead.notion_team_member_page_url ?? '')),
   );
 
+  // If any merged lead (including canonical) was actively joined, promote canonical too.
+  const anyJoined = hydratedLeads.some(
+    (lead) => String(lead.status ?? '') === 'joined' && lead.is_active !== false,
+  );
+  const canonicalIsJoined = String(canonical.status ?? '') === 'joined';
+
   await sql`
     update flolabs_users
     set
@@ -127,6 +135,24 @@ export async function POST(request: Request) {
       updated_at = now()
     where id = ${canonicalLeadId}
   `;
+
+  // Promote canonical to "joined" / active if a joined lead was merged into them.
+  if (anyJoined && !canonicalIsJoined) {
+    await sql`
+      update flolabs_users
+      set status = 'joined', is_active = true, updated_at = now()
+      where id = ${canonicalLeadId}
+        and lower(role) not in ('admin', 'hr')
+    `;
+  } else if (anyJoined) {
+    await sql`
+      update flolabs_users
+      set is_active = true, updated_at = now()
+      where id = ${canonicalLeadId}
+        and is_active = false
+        and lower(role) not in ('admin', 'hr')
+    `;
+  }
 
   const secondaryLeadIds = leadIds.filter((id) => id !== canonicalLeadId);
 
