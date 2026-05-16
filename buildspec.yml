@@ -11,9 +11,9 @@ env:
 phases:
   pre_build:
     commands:
-      - set -euo pipefail
+      - set -eu
       - COMMIT_SHA="${GIT_SHA:-${CODEBUILD_RESOLVED_SOURCE_VERSION}}"
-      - SHORT_SHA="${COMMIT_SHA:0:12}"
+      - SHORT_SHA="$(printf '%.12s' "$COMMIT_SHA")"
       - IMAGE_TAG="git-${SHORT_SHA}"
       - ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
       - REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -42,7 +42,7 @@ phases:
 
   build:
     commands:
-      - set -euo pipefail
+      - set -eu
       - . /tmp/build.env
       - |
         docker build \
@@ -59,7 +59,7 @@ phases:
 
   post_build:
     commands:
-      - set -euo pipefail
+      - set -eu
       - . /tmp/build.env
       - DIGEST="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$IMAGE_TAG" --query 'imageDetails[0].imageDigest' --output text --region "$AWS_REGION")"
       - export DIGEST IMAGE_URI IMAGE_TAG BUILD_TIMESTAMP COMMIT_SHA
