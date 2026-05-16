@@ -21,6 +21,7 @@ phases:
       - BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       - echo "IMAGE_TAG=${IMAGE_TAG}" >> /tmp/build.env
       - echo "IMAGE_URI=${IMAGE_URI}" >> /tmp/build.env
+      - echo "LATEST_URI=${REGISTRY}/${ECR_REPOSITORY}:latest" >> /tmp/build.env
       - echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> /tmp/build.env
       - echo "SHORT_SHA=${SHORT_SHA}" >> /tmp/build.env
       - echo "COMMIT_SHA=${COMMIT_SHA}" >> /tmp/build.env
@@ -52,10 +53,10 @@ phases:
           --build-arg BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
           --build-arg NEXT_PUBLIC_STRAPI_URL="$CONTENT_STRAPI_URL" \
           -t "$IMAGE_URI" \
-          -t "${IMAGE_URI%:*}:latest" \
+          -t "$LATEST_URI" \
           ./frontend
       - docker push "$IMAGE_URI"
-      - docker push "${IMAGE_URI%:*}:latest"
+      - docker push "$LATEST_URI"
 
   post_build:
     commands:
