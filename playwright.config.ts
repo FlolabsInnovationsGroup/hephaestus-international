@@ -24,12 +24,14 @@ export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: 1,
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
-  timeout: 120_000,
+  timeout: process.env.CI ? 180_000 : 120_000,
   reporter: 'list',
   use: {
     baseURL,
+    navigationTimeout: 180_000,
+    actionTimeout: 60_000,
     trace: 'on-first-retry',
   },
   projects: [

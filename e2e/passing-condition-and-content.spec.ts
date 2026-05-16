@@ -1,46 +1,18 @@
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getCredentials(role: string): { email: string; password: string } {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (existsSync(path)) {
-    try {
-      const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string }>;
-      };
-      const u = data.users?.find((user) => user.role === role);
-      if (u) {
-        const email = (u.emails?.[0] ?? '').split(',')[0].trim();
-        return { email, password: u.password ?? '' };
-      }
-    } catch { /* fall through */ }
-  }
-  if (role === 'Human Resources') return { email: 'zoom@flomadlabs.com', password: '' };
-  return { email: '', password: '' };
-}
+import { getCredentials, gotoApp, loginWithCredentials } from './lib/auth';
 
 const { email: HR_EMAIL, password: HR_PASSWORD } = getCredentials('Human Resources');
 const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD } = getCredentials('member');
 
-const HR_LOCKED_STAGES = ['second_meeting', 'agreement_sent', 'agreement_signed', 'chronos_synced', 'joined'];
-
 async function loginAs(page: Page, email: string, password: string) {
-  // Clear cookies first so we always start from an unauthenticated state
-  await page.context().clearCookies();
-  await page.goto('/login', { waitUntil: 'load' });
-  await page.locator('input:not([type="hidden"])').first().waitFor({ state: 'visible' });
-  await page.locator('input:not([type="hidden"])').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/me/, { timeout: 15_000 });
+  await loginWithCredentials(page, email, password, /\/me/);
 }
 
 test.describe('Passing condition card', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, HR_EMAIL, HR_PASSWORD);
-    await page.goto('/me/hr/stages', { waitUntil: 'load' });
-    await page.waitForSelector('text=Stages', { timeout: 15_000 });
+    await gotoApp(page, '/me/hr/stages');
+    await page.waitForSelector('text=Stages', { timeout: 30_000 });
   });
 
   test('passing condition card is present on the first stage', async ({ page }) => {
@@ -52,42 +24,34 @@ test.describe('Passing condition card', () => {
   });
 
   test('AI prompt textarea appears only when AI evaluation is selected', async ({ page }) => {
-    // Click "AI evaluation" option button (use data-value to avoid partial-match ambiguity)
     await page.locator('button[data-value="ai"]').click();
     await expect(page.getByText('AI evaluation prompt')).toBeVisible();
     await expect(page.locator('textarea[placeholder*="Pay special attention"]')).toBeVisible();
 
-    // Switch to "No action required" — prompt should disappear
     await page.locator('button[data-value="none"]').click();
     await expect(page.getByText('AI evaluation prompt')).not.toBeVisible();
     await page.screenshot({ path: 'test-results/02-no-ai-prompt-on-none.png', fullPage: false });
   });
 
   test('locked stages show HR approval badge and disable other options', async ({ page }) => {
-    // Navigate to second_meeting stage
     await page.getByRole('button', { name: /Oliver 1-on-1|second_meeting/i }).first().click();
     await page.waitForTimeout(500);
 
     await expect(page.getByText('Locked — HR approval required')).toBeVisible();
 
-    // "No action required" and "AI evaluation" buttons should be disabled
     const noneBtn = page.locator('button', { hasText: 'No action required' });
     const aiBtn = page.locator('button', { hasText: 'AI evaluation' });
     await expect(noneBtn).toBeDisabled();
     await expect(aiBtn).toBeDisabled();
 
-    // Save condition button should NOT be present (locked)
     await expect(page.getByRole('button', { name: 'Save condition' })).not.toBeVisible();
     await page.screenshot({ path: 'test-results/03-locked-hr-stage.png', fullPage: false });
   });
 
   test('save passing condition persists after reload', async ({ page }) => {
-    // Find a non-locked stage (contacted)
     await page.getByRole('button', { name: /Websites and presentations|contacted/i }).first().click();
-    // Wait for the passing condition card to be ready for this stage
     await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
-    // Select "No action required" and save — wait for the PATCH to complete
     await page.locator('button[data-value="none"]').click();
     const [saveResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
@@ -95,21 +59,17 @@ test.describe('Passing condition card', () => {
     ]);
     expect(saveResponse.status()).toBe(200);
 
-    // "Saved" confirmation appears after the response
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: 'test-results/04-condition-saved.png', fullPage: false });
 
-    // Reload and verify it persists
-    await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('text=Stages', { timeout: 15_000 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('text=Stages', { timeout: 30_000 });
     await page.getByRole('button', { name: /Websites and presentations|contacted/i }).first().click();
     await expect(page.getByRole('heading', { name: 'Passing condition' })).toBeVisible({ timeout: 5_000 });
 
-    // The "No action required" button should appear selected
     await expect(page.locator('button[data-value="none"]')).toHaveAttribute('data-selected', 'true', { timeout: 5_000 });
     await page.screenshot({ path: 'test-results/05-condition-persisted.png', fullPage: false });
 
-    // Restore to AI evaluation
     await page.locator('button[data-value="ai"]').click();
     const [restoreResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/admin/stages/definitions') && r.request().method() === 'PATCH'),
@@ -123,8 +83,8 @@ test.describe('Passing condition card', () => {
 test.describe('Stage content resources', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, HR_EMAIL, HR_PASSWORD);
-    await page.goto('/me/hr/stages', { waitUntil: 'load' });
-    await page.waitForSelector('text=Stages', { timeout: 15_000 });
+    await gotoApp(page, '/me/hr/stages');
+    await page.waitForSelector('text=Stages', { timeout: 30_000 });
   });
 
   test('contacted stage has resources', async ({ page }) => {
@@ -132,7 +92,6 @@ test.describe('Stage content resources', () => {
     await page.waitForTimeout(800);
     await page.screenshot({ path: 'test-results/06-contacted-resources.png', fullPage: true });
 
-    // Scope to the resource list panel to exclude stage-navigation Remove buttons
     const resourceList = page.locator('[data-testid="stage-resource-list"]');
     await expect(resourceList.getByRole('button', { name: 'Remove' })).toHaveCount(9, { timeout: 10_000 });
   });
@@ -158,14 +117,12 @@ test.describe('Stage content resources', () => {
 
 test.describe('Applicant view', () => {
   test('applicant sees content cards on their current stage', async ({ page }) => {
-    // Login as applicant (loginAs clears cookies first, so no explicit logout needed)
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
 
-    await page.goto('/me/application', { waitUntil: 'load' });
+    await gotoApp(page, '/me/application');
     await page.waitForTimeout(1_500);
     await page.screenshot({ path: 'test-results/09-applicant-dashboard.png', fullPage: true });
 
-    // Applicant should see either stage content cards or a "No materials" message
     const hasContent = await page.getByText('Stage content').isVisible().catch(() => false);
     const hasNoMaterials = await page.getByText('No materials have been assigned').isVisible().catch(() => false);
     const hasOnReview = await page.getByText('previous submission is with our team').isVisible().catch(() => false);

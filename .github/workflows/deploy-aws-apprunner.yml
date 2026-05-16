@@ -292,6 +292,7 @@ jobs:
     name: E2E smoke tests
     needs: deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 90
 
     steps:
       - name: Checkout

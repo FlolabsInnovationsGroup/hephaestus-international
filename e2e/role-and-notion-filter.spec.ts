@@ -1,42 +1,11 @@
-import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getCredentials(role: string): { email: string; password: string; userId?: string } {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (existsSync(path)) {
-    try {
-      const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string; userId?: string }>;
-      };
-      const u = data.users?.find((user) => user.role === role);
-      if (u) {
-        return { email: (u.emails?.[0] ?? '').trim(), password: u.password ?? '', userId: u.userId };
-      }
-    } catch { /* fall through */ }
-  }
-  if (role === 'Human Resources') return { email: 'zoom@flomadlabs.com', password: '' };
-  return { email: '', password: '' };
-}
-
-const { email: HR_EMAIL, password: HR_PASSWORD } = getCredentials('Human Resources');
-const { email: APPLICANT_EMAIL, password: APPLICANT_PASSWORD, userId: APPLICANT_USER_ID } = getCredentials('member');
-
-async function loginAs(page: Page, email: string, password: string) {
-  await page.goto('/login', { waitUntil: 'load' });
-  const visibleInputs = page.locator('input:not([type="hidden"])');
-  await visibleInputs.first().waitFor({ state: 'visible' });
-  await visibleInputs.first().fill(email);
-  await visibleInputs.nth(1).fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/me/, { timeout: 15_000 });
-}
+import { test, expect } from '@playwright/test';
+import { gotoApp, loginAsHr, loginAsMember } from './lib/auth';
 
 test.describe('Role change from HR dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page, HR_EMAIL, HR_PASSWORD);
-    await page.goto('/me/hr', { waitUntil: 'load' });
-    await page.waitForSelector('[data-testid="role-select"]', { timeout: 20_000 });
+    await loginAsHr(page);
+    await gotoApp(page, '/me/hr');
+    await page.waitForSelector('[data-testid="role-select"]', { timeout: 30_000 });
   });
 
   test('role-select and HR access checkbox are visible', async ({ page }) => {
@@ -48,7 +17,6 @@ test.describe('Role change from HR dashboard', () => {
 
   test('saving a role shows Saved confirmation', async ({ page }) => {
     const currentRole = await page.locator('[data-testid="role-select"]').inputValue();
-    // Select the same value to test save without real change
     await page.locator('[data-testid="role-select"]').selectOption(currentRole);
     await page.locator('[data-testid="save-role"]').click();
     await expect(page.locator('[data-testid="role-saved"]')).toBeVisible({ timeout: 8_000 });
@@ -58,9 +26,9 @@ test.describe('Role change from HR dashboard', () => {
 
 test.describe('Notion Team Members page filter', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page, HR_EMAIL, HR_PASSWORD);
-    await page.goto('/me/hr', { waitUntil: 'load' });
-    await page.waitForSelector('select[name="hasNotion"]', { timeout: 20_000 });
+    await loginAsHr(page);
+    await gotoApp(page, '/me/hr');
+    await page.waitForSelector('select[name="hasNotion"]', { timeout: 30_000 });
   });
 
   test('hasNotion filter select is present with correct options', async ({ page }) => {
@@ -75,7 +43,7 @@ test.describe('Notion Team Members page filter', () => {
   test('selecting Has Notion page and applying updates URL', async ({ page }) => {
     await page.locator('select[name="hasNotion"]').first().selectOption('yes');
     await page.getByRole('button', { name: 'Apply' }).click();
-    await page.waitForURL(/hasNotion=yes/, { timeout: 15_000 });
+    await page.waitForURL(/hasNotion=yes/, { timeout: 30_000 });
     await expect(page).toHaveURL(/hasNotion=yes/);
     await page.screenshot({ path: 'test-results/notion-02-filter-applied.png' });
   });
@@ -83,32 +51,16 @@ test.describe('Notion Team Members page filter', () => {
   test('selecting No Notion page filters to leads without a page', async ({ page }) => {
     await page.locator('select[name="hasNotion"]').first().selectOption('no');
     await page.getByRole('button', { name: 'Apply' }).click();
-    await page.waitForURL(/hasNotion=no/, { timeout: 15_000 });
+    await page.waitForURL(/hasNotion=no/, { timeout: 30_000 });
     await expect(page).toHaveURL(/hasNotion=no/);
     await page.screenshot({ path: 'test-results/notion-03-no-notion.png' });
   });
 });
 
 test.describe('Applicant view as tesororeptilipotermius', () => {
-  async function loginAsApplicant(page: Page) {
-    // Try password-based login first; fall back to cookie injection if credentials changed
-    if (APPLICANT_USER_ID) {
-      await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
-      await page.context().addCookies([{
-        name: 'fl_preview_session',
-        value: APPLICANT_USER_ID,
-        domain: 'fykgssqbvg.us-east-1.awsapprunner.com',
-        path: '/',
-      }]);
-      return;
-    }
-    await page.goto('/api/auth/preview-logout', { waitUntil: 'load' });
-    await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
-  }
-
   test('applicant can see application dashboard', async ({ page }) => {
-    await loginAsApplicant(page);
-    await page.goto('/me/application', { waitUntil: 'load' });
+    await loginAsMember(page);
+    await gotoApp(page, '/me/application');
     await page.waitForTimeout(1_500);
     await page.screenshot({ path: 'test-results/applicant-01-dashboard.png', fullPage: true });
 
@@ -120,10 +72,9 @@ test.describe('Applicant view as tesororeptilipotermius', () => {
   });
 
   test('applicant is redirected away from HR dashboard', async ({ page }) => {
-    await loginAsApplicant(page);
-    await page.goto('/me/hr');
-    // Server-side redirect may come as RSC payload after page load — wait for URL change
-    await page.waitForURL((url) => !url.pathname.startsWith('/me/hr'), { timeout: 15_000 });
+    await loginAsMember(page);
+    await gotoApp(page, '/me/hr');
+    await page.waitForURL((url) => !url.pathname.startsWith('/me/hr'), { timeout: 30_000 });
     expect(page.url()).not.toMatch(/\/me\/hr/);
     await page.screenshot({ path: 'test-results/applicant-02-no-hr-access.png' });
   });

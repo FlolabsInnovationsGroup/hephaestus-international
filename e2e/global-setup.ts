@@ -121,11 +121,14 @@ export default async function globalSetup() {
 
   // Warm the login page so the first test does not hit a cold Next.js init path.
   try {
-    await fetch(`${baseUrl}/login`, {
+    const loginPage = await fetch(`${baseUrl}/login`, {
       headers: { Accept: 'text/html' },
       redirect: 'manual',
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(90_000),
     });
+    if (!loginPage.ok && loginPage.status !== 302 && loginPage.status !== 307) {
+      console.log(`[globalSetup] Login page status ${loginPage.status}, retrying…`);
+    }
   } catch { /* best-effort */ }
 
   // Ensure the HR test user has hr_binary_role set (required after every fresh deploy)
@@ -215,6 +218,34 @@ export default async function globalSetup() {
           } catch (e) {
             console.warn(`[globalSetup] Failed to reset applicant hrBinaryRole (non-fatal): ${(e as Error).message}`);
           }
+        }
+
+        // Warm heavy HR dashboard SSR so Playwright tests avoid cold 502 / empty main.
+        let hrPageWarm = false;
+        for (let attempt = 0; attempt < 12; attempt++) {
+          try {
+            const hrRes = await fetch(`${baseUrl}/me/hr`, {
+              headers: { Cookie: sessionCookie, Accept: 'text/html' },
+              signal: AbortSignal.timeout(180_000),
+            });
+            const html = await hrRes.text();
+            if (hrRes.ok && html.includes('name="status"')) {
+              console.log(
+                `[globalSetup] /me/hr warm ok (${html.length} bytes, attempt ${attempt + 1})`,
+              );
+              hrPageWarm = true;
+              break;
+            }
+            console.warn(
+              `[globalSetup] /me/hr warm status=${hrRes.status} bytes=${html.length}, retrying…`,
+            );
+          } catch (e) {
+            console.warn(`[globalSetup] /me/hr warm error: ${(e as Error).message}`);
+          }
+          await new Promise((r) => setTimeout(r, 15_000));
+        }
+        if (!hrPageWarm) {
+          console.warn('[globalSetup] /me/hr did not warm in time — HR UI tests may be flaky');
         }
 
         loginWarmedUp = true;

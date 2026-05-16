@@ -1,24 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getCredentials(role: string): { email: string; password: string } {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (existsSync(path)) {
-    try {
-      const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string }>;
-      };
-      const u = data.users?.find((user) => user.role === role);
-      if (u) {
-        const email = (u.emails?.[0] ?? '').split(',')[0].trim();
-        return { email, password: u.password ?? '' };
-      }
-    } catch { /* fall through */ }
-  }
-  if (role === 'Human Resources') return { email: 'oliver.abreu@flolabsrd.com', password: 'gq2A1xZ^CdMM#uUpJnfc' };
-  return { email: '', password: '' };
-}
+import { gotoApp, loginAsHr } from './lib/auth';
 
 // Stage → expected canonical status mapping
 const STAGE_STATUS_MAP: Record<string, string> = {
@@ -37,18 +18,6 @@ const STAGE_STATUS_MAP: Record<string, string> = {
   chronos_synced: 'joined',
   joined: 'joined',
 };
-
-async function loginAsHr(page: Parameters<Parameters<typeof test>[1]>[0]) {
-  const { email, password } = getCredentials('Human Resources');
-  await page.goto('/login', { waitUntil: 'load' });
-  // Wait for React-hydrated inputs before filling
-  await page.locator('input').first().waitFor({ state: 'visible' });
-  await page.locator('input').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('button[type="submit"]').click();
-  // Login form hard-navigates to /me/hr for HR users; wait for that URL
-  await page.waitForURL(/\/me\/hr/, { timeout: 30_000 });
-}
 
 test.describe('HR stage lifecycle', () => {
   test.setTimeout(180_000);
@@ -143,7 +112,7 @@ test.describe('HR stage lifecycle', () => {
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
     // Apply the "applying" filter via URL
-    await page.goto('/me/hr?status=applying', { waitUntil: 'domcontentloaded' });
+    await gotoApp(page, '/me/hr?status=applying');
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 20_000 });
 
     // The filter select should reflect the URL param
@@ -162,7 +131,7 @@ test.describe('HR stage lifecycle', () => {
     await loginAsHr(page);
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
-    await page.goto('/me/hr?status=terminated', { waitUntil: 'domcontentloaded' });
+    await gotoApp(page, '/me/hr?status=terminated');
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 20_000 });
 
     const filterSelect = page.locator('select[name="status"]');

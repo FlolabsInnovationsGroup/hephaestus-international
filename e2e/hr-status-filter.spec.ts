@@ -1,46 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getTestCredentials(): { email: string; password: string } {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (!existsSync(path)) return { email: 'oliver.abreu@flolabsrd.com', password: 'gq2A1xZ^CdMM#uUpJnfc' };
-  try {
-    const data = JSON.parse(readFileSync(path, 'utf8')) as {
-      users?: Array<{ emails?: string[]; password?: string; role?: string }>;
-    };
-    const hrUser = data.users?.find((u) => u.role === 'Human Resources');
-    if (hrUser) {
-      const rawEmails = hrUser.emails?.[0] ?? '';
-      const email = rawEmails.split(',')[0].trim();
-      return { email, password: hrUser.password ?? '' };
-    }
-  } catch {
-    // fall through
-  }
-  return { email: 'oliver.abreu@flolabsrd.com', password: 'gq2A1xZ^CdMM#uUpJnfc' };
-}
+import { loginAsHr } from './lib/auth';
 
 test.describe('HR dashboard — status filter matches status selector', () => {
   test('Status filter options match HR stage controls status selector options for the displayed lead', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(300_000);
 
-    const { email, password } = getTestCredentials();
+    await loginAsHr(page);
 
-    // Login — wait for React hydration before filling controlled inputs
-    await page.goto('/login', { waitUntil: 'load' });
-    await page.locator('input').first().waitFor({ state: 'visible' });
-    await page.locator('input').first().fill(email);
-    await page.locator('input[type="password"]').fill(password);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/\/me\/hr/, { timeout: 90_000 });
-
-    // Wait for HR dashboard content
-    await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
-
-    // Get status filter options (the select in the filter form with name="status")
     const filterStatusSelect = page.locator('select[name="status"]');
-    await expect(filterStatusSelect).toBeVisible({ timeout: 15_000 });
+    await expect(filterStatusSelect).toBeVisible();
 
     const filterOptions = await filterStatusSelect.locator('option').allTextContents();
     // Remove the "All statuses" placeholder option

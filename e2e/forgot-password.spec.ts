@@ -1,24 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getTestEmail(role: string): string {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (existsSync(path)) {
-    const data = JSON.parse(readFileSync(path, 'utf8')) as {
-      users?: Array<{ emails?: string[]; role?: string }>;
-    };
-    const u = data.users?.find((user) => user.role === role);
-    if (u) return (u.emails?.[0] ?? '').split(',')[0].trim();
-  }
-  return '';
-}
+import { getCredentials, gotoApp } from './lib/auth';
 
 test.describe('Forgot password', () => {
   test.setTimeout(60_000);
 
   test('UI: submitting shows success message for any email address', async ({ page }) => {
-    await page.goto('/login?forgot=1', { waitUntil: 'load' });
+    await gotoApp(page, '/login?forgot=1');
     await expect(page.getByText(/forgot your password/i)).toBeVisible({ timeout: 10_000 });
 
     const emailInput = page.locator('input').first();
@@ -34,7 +21,7 @@ test.describe('Forgot password', () => {
   test('API: known user gets a reset token (cooldown on second request proves token was created)', async ({
     request,
   }) => {
-    const email = getTestEmail('member');
+    const email = getCredentials('member').email;
     if (!email) test.skip(true, 'No member user in test_assets/test_users.json');
 
     const first = await request.post('/api/auth/forgot-password', { data: { email } });

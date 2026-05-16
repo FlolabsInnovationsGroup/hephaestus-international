@@ -1,25 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-
-function getTestCredentials(): { email: string; password: string } {
-  const path = join(process.cwd(), "test_assets", "test_users.json");
-  if (!existsSync(path)) return { email: "oliver.abreu@flolabsrd.com", password: "gq2A1xZ^CdMM#uUpJnfc" };
-  try {
-    const data = JSON.parse(readFileSync(path, "utf8")) as {
-      users?: Array<{ emails?: string[]; password?: string; role?: string }>;
-    };
-    const hrUser = data.users?.find((u) => u.role === "Human Resources");
-    if (hrUser) {
-      const rawEmails = hrUser.emails?.[0] ?? "";
-      const email = rawEmails.split(",")[0].trim();
-      return { email, password: hrUser.password ?? "" };
-    }
-  } catch {
-    // fall through
-  }
-  return { email: "oliver.abreu@flolabsrd.com", password: "gq2A1xZ^CdMM#uUpJnfc" };
-}
+import { loginAsHr } from "./lib/auth";
 
 test.describe("Admin HubSpot CSV → flolabs_users sync", () => {
   test("returns 403 without HR session (skips if route not on server)", async ({ request }) => {
@@ -56,15 +36,8 @@ test.describe("Admin HubSpot CSV → flolabs_users sync", () => {
       test.skip(true, "POST /api/admin/contacts/hubspot-csv-sync not deployed on this PLAYWRIGHT_BASE_URL yet");
     }
 
-    const { email, password } = getTestCredentials();
-
-    await page.goto("/login", { waitUntil: "load" });
-    await page.locator("input").first().waitFor({ state: "visible" });
-    await page.locator("input").first().fill(email);
-    await page.locator('input[type="password"]').fill(password);
-    await page.locator('button[type="submit"]').click();
     try {
-      await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
+      await loginAsHr(page);
     } catch {
       test.skip(true, "HR login did not reach /me/hr — check credentials and PLAYWRIGHT_BASE_URL");
     }

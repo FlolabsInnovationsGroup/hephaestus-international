@@ -1,33 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-
-function getCredentials(role: string): { email: string; password: string } {
-  const path = join(process.cwd(), 'test_assets', 'test_users.json');
-  if (existsSync(path)) {
-    try {
-      const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string }>;
-      };
-      const u = data.users?.find((user) => user.role === role);
-      if (u) {
-        const email = (u.emails?.[0] ?? '').split(',')[0].trim();
-        return { email, password: u.password ?? '' };
-      }
-    } catch { /* fall through */ }
-  }
-  return { email: 'oliver.abreu@flolabsrd.com', password: 'gq2A1xZ^CdMM#uUpJnfc' };
-}
-
-async function loginAsHr(page: Parameters<Parameters<typeof test>[1]>[0]) {
-  const { email, password } = getCredentials('Human Resources');
-  await page.goto('/login', { waitUntil: 'load' });
-  await page.locator('input').first().waitFor({ state: 'visible' });
-  await page.locator('input').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/me\/hr/, { timeout: 60_000 });
-}
+import { gotoApp, loginAsHr } from './lib/auth';
 
 test.describe('Notion team member page linking', () => {
   test.setTimeout(120_000);
@@ -159,7 +131,7 @@ test.describe('grantChronosAccess creates Chronos account', () => {
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 30_000 });
 
     // Use already-joined leads: re-applying "joined" is idempotent and safe.
-    await page.goto('/me/hr?status=joined', { waitUntil: 'domcontentloaded' });
+    await gotoApp(page, '/me/hr?status=joined');
     await expect(page.getByRole('heading', { name: /applicants and conversations/i })).toBeVisible({ timeout: 20_000 });
 
     const hrActionsSection = page.locator('div.rounded-2xl').filter({
