@@ -509,6 +509,13 @@ export async function getApplicantsForAdmin() {
   return await getApplicants();
 }
 
+export {
+  countHrApplicants,
+  getHrFilterOptionsFromDb,
+  searchHrApplicants,
+  type HrApplicantFilters,
+} from '@/lib/hr-applicant-query';
+
 export async function getConversationForApplicant(applicantId: string) {
   const messages = await getApplicantConversations(applicantId);
   if (messages.length > 0) return messages;

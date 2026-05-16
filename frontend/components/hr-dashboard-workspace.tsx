@@ -6,6 +6,7 @@ import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { DuplicateReviewActions } from '@/components/duplicate-review-actions';
 import { formatStageLabel } from '@/lib/stage-definitions';
+import { Spinner } from '@/components/ui/spinner';
 
 type DuplicateCandidate = {
   id: string;
@@ -406,7 +407,11 @@ export function HrDashboardWorkspace({
               </div>
             );
           })}
-          {loadingMore && <p className="px-2 py-2 text-xs text-gray-500">Loading more leads...</p>}
+          {loadingMore && (
+            <p className="flex justify-center px-2 py-3">
+              <Spinner size="sm" className="text-[#00349B]" label="Loading more leads…" />
+            </p>
+          )}
           {!hasMore && loadedApplicants.length > 0 && <p className="px-2 py-2 text-xs text-gray-400">All leads loaded</p>}
           </div>
         </div>
@@ -420,7 +425,13 @@ export function HrDashboardWorkspace({
           </div>
           <div className="px-0 py-0">
             {activeLead ? (
-              loadingConversation ? <p className="px-6 py-5 text-sm text-gray-500">Loading conversation...</p> : <ApplicantChat initialMessages={conversation} applicantId={activeLead.id} canReplyAsHr />
+              loadingConversation ? (
+                <p className="flex justify-center px-6 py-8">
+                  <Spinner size="md" className="text-[#00349B]" label="Loading conversation…" />
+                </p>
+              ) : (
+                <ApplicantChat initialMessages={conversation} applicantId={activeLead.id} canReplyAsHr />
+              )
             ) : <p className="px-6 py-5 text-sm text-gray-500">No lead selected.</p>}
           </div>
         </div>

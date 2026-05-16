@@ -46,7 +46,7 @@ const FLOLABS_USER_LIST_COLUMNS = [
 // Run DDL once per process. All callers await this promise — after the first
 // resolution every subsequent await is a no-op (Promise already settled).
 let _schemaReadyPromise: Promise<void> | null = null;
-function schemaReady(): Promise<void> {
+export function schemaReady(): Promise<void> {
   if (!_schemaReadyPromise) {
     _schemaReadyPromise = ensurePostgresSchema().catch((err) => {
       // Reset so next request can retry after a transient failure
@@ -444,7 +444,7 @@ function rowTimestamp(value: unknown, fallback?: unknown) {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
-function rowToApplicant(row: any): ApplicantProfile {
+export function rowToApplicant(row: any): ApplicantProfile {
   const { firstName, lastName } = splitRowName(row);
   return {
     id: row.id,
@@ -503,7 +503,7 @@ function rowToConversation(row: any): ConversationMessage {
   };
 }
 
-async function listFloLabsUsers(order: 'asc' | 'desc' = 'desc') {
+export async function listFloLabsUsers(order: 'asc' | 'desc' = 'desc') {
   if (!sql) return [];
   await schemaReady();
   const direction = order === 'asc' ? 'asc' : 'desc';
@@ -569,7 +569,7 @@ async function getUserEmailAliasRows() {
   return rows as unknown as UserEmailAliasRow[];
 }
 
-async function getDuplicateReviewRows() {
+export async function getDuplicateReviewRows() {
   if (!(USE_POSTGRES && sql)) return [] as DuplicateReviewRow[];
   await duplicateTableReady();
   const rows = await sql`select id, primary_applicant_id, duplicate_applicant_id, status, confidence_score, reasons, notes from applicant_duplicate_reviews`;
@@ -580,7 +580,7 @@ function parseReviewReasons(review: DuplicateReviewRow) {
   return Array.isArray(review.reasons) ? review.reasons : JSON.parse(String(review.reasons || '[]'));
 }
 
-function buildDuplicateCandidatesFromReviewsOnly(
+export function buildDuplicateCandidatesFromReviewsOnly(
   applicants: ApplicantProfile[],
   reviews: DuplicateReviewRow[],
 ) {

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { Spinner } from '@/components/ui/spinner';
 import { useNavigationLoading } from '@/components/navigation-loading';
 
 export function NavLoadingIndicator() {
@@ -15,10 +16,6 @@ export function NavLoadingIndicator() {
   if (!isNavigating) return null;
 
   return (
-    <span
-      aria-live="polite"
-      aria-label="Loading next page"
-      className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-[#4d79cc]"
-    />
+    <Spinner size="md" className="text-blue-300" aria-label="Loading next page" />
   );
 }
