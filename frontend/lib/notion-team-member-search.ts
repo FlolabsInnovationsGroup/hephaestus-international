@@ -87,6 +87,23 @@ function collectPropertySearchPieces(prop: NotionProp | undefined): string[] {
       else if (f.type === 'boolean' && f.boolean != null) out.push(String(f.boolean));
       break;
     }
+    case 'rollup': {
+      const roll = (prop as { rollup?: { type?: string; array?: unknown[]; string?: string | null; number?: number | null } })
+        .rollup;
+      if (!roll) break;
+      if (roll.type === 'array' && Array.isArray(roll.array)) {
+        for (const item of roll.array) {
+          if (item && typeof item === 'object') {
+            const o = item as { plain_text?: string };
+            if (o.plain_text) out.push(o.plain_text);
+          }
+        }
+      } else if (roll.type === 'string') out.push(roll.string ?? '');
+      else if (roll.type === 'number' && roll.number != null && Number.isFinite(roll.number)) {
+        out.push(String(roll.number));
+      }
+      break;
+    }
     default:
       break;
   }
@@ -248,46 +265,12 @@ export async function queryTeamMembersDatabaseForSubstring(
   return hits;
 }
 
+/** Fast path: cached in-memory directory + Unicode-safe matching (see team-member-directory-cache). */
 export async function searchTeamMemberHits(
   token: string,
   rawTeamMembersDbId: string,
   qRaw: string,
 ): Promise<TeamMemberSearchHit[]> {
-  const digits = rawTeamMembersDbId.replace(/-/g, '');
-  if (digits.length !== 32) {
-    throw new Error('NOTION_TEAM_MEMBERS_DB_ID must be a 32-character Notion database UUID.');
-  }
-  const teamMembersDbIdNorm = digits;
-  const databaseIdFormatted = formatNotionUuid32(digits);
-  const qTrim = qRaw.trim();
-  const qLower = qTrim.toLowerCase().replace(/\s+/g, ' ');
-
-  const merged = new Map<string, TeamMemberSearchHit>();
-
-  if (!qTrim) {
-    const browse = await queryTeamMembersDatabaseForSubstring(token, databaseIdFormatted, teamMembersDbIdNorm, '', 2);
-    return browse.sort((a, b) => a.title.localeCompare(b.title)).slice(0, 50);
-  }
-
-  const directId = tryParseNotionPageId(qTrim);
-  if (directId) {
-    const one = await retrieveTeamMemberPageIfInDatabase(token, directId, teamMembersDbIdNorm);
-    if (one) merged.set(one.id, one);
-  }
-
-  const ws = await searchNotionWorkspaceForTeamDb(token, qTrim, teamMembersDbIdNorm, 100);
-  for (const h of ws) merged.set(h.id, h);
-
-  const scanned = await queryTeamMembersDatabaseForSubstring(
-    token,
-    databaseIdFormatted,
-    teamMembersDbIdNorm,
-    qLower,
-    8,
-  );
-  for (const h of scanned) {
-    merged.set(h.id, h);
-  }
-
-  return [...merged.values()].sort((a, b) => a.title.localeCompare(b.title)).slice(0, 100);
+  const { searchTeamMemberDirectory } = await import('@/lib/team-member-directory-cache');
+  return searchTeamMemberDirectory(token, rawTeamMembersDbId, qRaw, 100);
 }

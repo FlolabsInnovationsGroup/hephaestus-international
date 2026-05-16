@@ -6,6 +6,14 @@ function unique(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)));
 }
 
+function firstNonEmpty(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    const trimmed = String(value ?? '').trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   const viewer = await getSessionUser();
   if (!viewer || !viewer.hrBinaryRole) {
@@ -26,20 +34,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Please select at least two leads and one canonical lead.' }, { status: 400 });
   }
 
-  const leads = await sql`
-    select id, email, first_name, last_name, phone_number, linkedin_url, city, country, role_applied_for, education, source, notes
-    from flolabs_users
-    where id = any(${leadIds}::uuid[])
-  `;
-  if (leads.length !== leadIds.length) {
-    return NextResponse.json(
-      { error: 'Some selected leads were not found in flolabs_users (shared identity store).' },
-      { status: 404 },
-    );
-  }
-
   const hydratedLeads = await sql`
-    select id, email, first_name, last_name, phone_number, linkedin_url, city, country, role_applied_for, education, source, notes
+    select
+      id,
+      email,
+      first_name,
+      last_name,
+      phone_number,
+      linkedin_url,
+      city,
+      country,
+      role_applied_for,
+      education,
+      source,
+      notes,
+      notion_team_member_id,
+      notion_team_member_page_url
     from flolabs_users
     where id = any(${leadIds}::uuid[])
   `;
@@ -88,6 +98,15 @@ export async function POST(request: Request) {
 
   const mergedNotes = [String(canonical.notes ?? '').trim(), `MERGE_RECORD ${JSON.stringify(mergedSummary)}`].filter(Boolean).join('\n\n');
 
+  const mergedNotionTeamMemberId = firstNonEmpty(
+    String(canonical.notion_team_member_id ?? ''),
+    ...hydratedLeads.map((lead) => String(lead.notion_team_member_id ?? '')),
+  );
+  const mergedNotionTeamMemberPageUrl = firstNonEmpty(
+    String(canonical.notion_team_member_page_url ?? ''),
+    ...hydratedLeads.map((lead) => String(lead.notion_team_member_page_url ?? '')),
+  );
+
   await sql`
     update flolabs_users
     set
@@ -103,6 +122,8 @@ export async function POST(request: Request) {
       education = ${selectedEducation.join(' | ') || String(canonical.education ?? '')},
       source = ${selectedSources.join(' | ') || String(canonical.source ?? '')},
       notes = ${mergedNotes},
+      notion_team_member_id = coalesce(${mergedNotionTeamMemberId}, notion_team_member_id),
+      notion_team_member_page_url = coalesce(${mergedNotionTeamMemberPageUrl}, notion_team_member_page_url),
       updated_at = now()
     where id = ${canonicalLeadId}
   `;
@@ -200,10 +221,18 @@ export async function POST(request: Request) {
     select id, email from flolabs_users where id = ${canonicalLeadId} or lower(email) = lower(${primaryEmail}) limit 1
   `;
   if (canonicalUser[0]?.id) {
+    const canonicalUserId = String(canonicalUser[0].id);
+    if (secondaryUserIds.length > 0) {
+      await sql`
+        update user_email_aliases
+        set user_id = ${canonicalUserId}::uuid, updated_at = now()
+        where user_id = any(${secondaryUserIds}::uuid[])
+      `.catch(() => null);
+    }
     for (const email of selectedEmails) {
       await sql`
         insert into user_email_aliases (user_id, email, is_primary)
-        values (${canonicalUser[0].id}, ${email.toLowerCase()}, ${email.toLowerCase() === primaryEmail.toLowerCase()})
+        values (${canonicalUserId}, ${email.toLowerCase()}, ${email.toLowerCase() === primaryEmail.toLowerCase()})
         on conflict (email) do update set user_id = excluded.user_id, is_primary = excluded.is_primary, updated_at = now()
       `;
     }
