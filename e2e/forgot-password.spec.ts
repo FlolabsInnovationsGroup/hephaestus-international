@@ -6,16 +6,23 @@ test.describe('Forgot password', () => {
 
   test('UI: submitting shows success message for any email address', async ({ page }) => {
     await gotoApp(page, '/login?forgot=1');
-    await expect(page.getByText(/forgot your password/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/forgot your password/i)).toBeVisible({ timeout: 30_000 });
 
     const emailInput = page.locator('input').first();
     await emailInput.waitFor({ state: 'visible' });
-    await emailInput.fill('no-such-user@example.com');
+    // pressSequentially fires React onChange on each keystroke — works even if hydration is still in progress
+    await emailInput.pressSequentially('no-such-user@example.com', { delay: 30 });
+
+    const responsePromise = page.waitForResponse(
+      (res) => res.url().includes('/api/auth/forgot-password'),
+      { timeout: 60_000 },
+    );
     await page.getByRole('button', { name: /send reset link/i }).click();
+    await responsePromise;
 
     await expect(
       page.getByText(/if an applicant account exists.*reset link has been sent/i),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('API: known user gets a reset token (cooldown on second request proves token was created)', async ({

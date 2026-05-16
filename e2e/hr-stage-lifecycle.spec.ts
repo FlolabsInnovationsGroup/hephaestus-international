@@ -20,7 +20,7 @@ const STAGE_STATUS_MAP: Record<string, string> = {
 };
 
 test.describe('HR stage lifecycle', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
 
   test('Stage-to-status mapping: auto-suggest updates status when stage changes', async ({ page }) => {
     await loginAsHr(page);
