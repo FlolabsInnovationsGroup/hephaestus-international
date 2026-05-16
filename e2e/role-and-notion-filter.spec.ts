@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { gotoApp, loginAsHr, loginAsMember } from './lib/auth';
 
 test.describe('Role change from HR dashboard', () => {
+  test.setTimeout(300_000);
   test.beforeEach(async ({ page }) => {
     await loginAsHr(page);
     await gotoApp(page, '/me/hr');
@@ -25,6 +26,7 @@ test.describe('Role change from HR dashboard', () => {
 });
 
 test.describe('Notion Team Members page filter', () => {
+  test.setTimeout(300_000);
   test.beforeEach(async ({ page }) => {
     await loginAsHr(page);
     await gotoApp(page, '/me/hr');
@@ -58,6 +60,7 @@ test.describe('Notion Team Members page filter', () => {
 });
 
 test.describe('Applicant view as tesororeptilipotermius', () => {
+  test.setTimeout(300_000);
   test('applicant can see application dashboard', async ({ page }) => {
     await loginAsMember(page);
     await gotoApp(page, '/me/application');

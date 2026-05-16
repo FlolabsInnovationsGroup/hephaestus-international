@@ -74,7 +74,7 @@ Using `domcontentloaded` or native DOM setters before hydration causes the form 
 This branching is in `POST /api/admin/leads/stage`. The Chronos `users.is_active` flag is what actually gates Chronos login — sync alone does not revoke access.
 
 ### Database schema changes
-`ensurePostgresSchema()` in `frontend/lib/application-db.ts` creates/alters `website_applicants`. Write it idempotently — it must not fail if columns already exist. The shared Chronos tables (`users`, `applicants`) are not managed by Hephaestus.
+`ensurePostgresSchema()` in `frontend/lib/application-db.ts` creates/alters **`flolabs_users`**. Write it idempotently — it must not fail if columns already exist. Chronos shares the same RDS instance and owns other tables (`time_entries`, `teams`, …) but **not** a separate `users` / `applicants` pair for identity anymore.
 
 ## Common Tasks
 

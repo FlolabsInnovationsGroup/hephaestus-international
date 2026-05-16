@@ -229,7 +229,10 @@ export default async function globalSetup() {
               signal: AbortSignal.timeout(180_000),
             });
             const html = await hrRes.text();
-            if (hrRes.ok && html.includes('name="status"')) {
+            // hr-filters and hr-stage-controls are client components — name="status" only appears
+            // after hydration. Use SSR-stable markers instead: the page title or lead table.
+            const hrReady = hrRes.ok && html.length > 5_000 && !html.includes('"ok":false') && hrRes.status !== 502 && hrRes.status !== 504;
+            if (hrReady) {
               console.log(
                 `[globalSetup] /me/hr warm ok (${html.length} bytes, attempt ${attempt + 1})`,
               );

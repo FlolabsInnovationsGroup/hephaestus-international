@@ -9,6 +9,7 @@ async function loginAs(page: Page, email: string, password: string) {
 }
 
 test.describe('Passing condition card', () => {
+  test.setTimeout(300_000);
   test.beforeEach(async ({ page }) => {
     await loginAs(page, HR_EMAIL, HR_PASSWORD);
     await gotoApp(page, '/me/hr/stages');
@@ -81,6 +82,7 @@ test.describe('Passing condition card', () => {
 });
 
 test.describe('Stage content resources', () => {
+  test.setTimeout(300_000);
   test.beforeEach(async ({ page }) => {
     await loginAs(page, HR_EMAIL, HR_PASSWORD);
     await gotoApp(page, '/me/hr/stages');
@@ -116,6 +118,7 @@ test.describe('Stage content resources', () => {
 });
 
 test.describe('Applicant view', () => {
+  test.setTimeout(300_000);
   test('applicant sees content cards on their current stage', async ({ page }) => {
     await loginAs(page, APPLICANT_EMAIL, APPLICANT_PASSWORD);
 

@@ -98,7 +98,6 @@ export async function loginAsMember(page: Page) {
   const { email, password, userId } = getCredentials('member');
   if (userId) {
     await page.context().clearCookies();
-    await gotoApp(page, '/api/auth/preview-logout');
     await page.context().addCookies([
       {
         name: 'fl_preview_session',

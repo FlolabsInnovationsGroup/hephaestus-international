@@ -15,8 +15,8 @@ if (!databaseUrl) {
 export const sql = databaseUrl
   ? postgres(databaseUrl, {
       max: 5,
-      idle_timeout: 20,
-      connect_timeout: 10,
+      idle_timeout: 300,
+      connect_timeout: 30,
       prepare: false,
       // Kill any query stuck waiting for a DDL lock after 8s so the pool stays healthy
       connection: { statement_timeout: 8000 },

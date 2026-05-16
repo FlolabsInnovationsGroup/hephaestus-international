@@ -7,7 +7,7 @@ import json
 import sys
 
 BASE_URL = "https://fykgssqbvg.us-east-1.awsapprunner.com"
-SESSION_COOKIE = "fl_preview_session=fd541d23-87a5-4724-89c5-8ee654395924"
+SESSION_COOKIE = "fl_preview_session=cf31d7a5-fe82-4f56-bcac-a066a09cdded"
 
 HEADERS = {
     "Content-Type": "application/json",

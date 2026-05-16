@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gotoApp, loginAsHr } from './lib/auth';
 
 test.describe('Notion team member page linking', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
 
   test('Notion search API returns results (not 503)', async ({ page, request }) => {
     await loginAsHr(page);

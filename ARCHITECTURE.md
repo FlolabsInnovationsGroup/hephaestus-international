@@ -18,7 +18,7 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 |---|---|
 | **App server** | **Next.js 16** (App Router) in `frontend/` directory. Docker image on **AWS App Runner** (`us-east-1`). Handles SSR, route handlers (`frontend/app/api/**`), and Server Components. |
 | **Images & deploy** | Immutable ECR tags `git-<12-char-sha>`. **GitHub Actions** (`.github/workflows/deploy-aws-apprunner.yml`) builds on push to `main` or manual `workflow_dispatch`, updates App Runner, verifies `/api/health` returns matching commit SHA. |
-| **Database** | Shared **AWS RDS PostgreSQL** with FloLabs Chronos. All three env aliases point to the same SSM param `/flolabs-chronos/DATABASE_URL`: `DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`, `FL_CHRONOS_DATABASE_URL`. Hephaestus owns `website_applicants`; Chronos owns `applicants` and `users` in the same DB. |
+| **Database** | Shared **AWS RDS PostgreSQL** with FloLabs Chronos. Env aliases point at the same SSM param `/flolabs-chronos/DATABASE_URL`. **Canonical identity** is the **`flolabs_users`** table (renamed from `website_applicants`); Chronos and Hephaestus read/write the same rows for profiles, pipeline fields, and (where applicable) credentials. |
 | **Auth** | Cookie-based session (`fl_preview_session`). `canAccessSharedFloLabsAccount()` in `frontend/lib/application-store.ts` gates login — blocks `rejected` only; all other statuses allowed. |
 | **AI chatbot** | Paula uses OpenAI when `OPENAI_API_KEY` is set; falls back to rule-based replies when absent. |
 | **Location picker** | OpenStreetMap / Leaflet (`frontend/components/location-picker.tsx`) |
@@ -135,28 +135,26 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 
 Hephaestus and Chronos share **one AWS RDS PostgreSQL instance** and connect with identical credentials.
 
-**Hephaestus-managed table:** `website_applicants` — created by `ensurePostgresSchema()` in `application-db.ts`. This is the primary source for the HR pipeline.
+**Hephaestus-managed table:** **`flolabs_users`** — created/altered by `ensurePostgresSchema()` in `frontend/lib/application-db.ts`. On first boot against a legacy database, `website_applicants` is renamed to `flolabs_users` when the latter does not yet exist.
 
-**Chronos tables read/written by Hephaestus:**
-- `users` — `is_active` written by `revokeChronosAccess()`; read by `chronosUserToApplicant()` to derive applicant status (`is_active = false` → `terminated`, `is_active = true` → `joined`)
-- `applicants` — written via `syncApplicantToChronos()` when stage/status changes
+**Data flow:** Hephaestus HR UI and applicant flows read/write **`flolabs_users`**. Chronos uses the same table via Drizzle (`users` → physical `flolabs_users`). Optional HTTP sync to Chronos (`CHRONOS_SYNC_API_URL`) remains for API-level integration tests; profile changes do not depend on a second table for correctness.
 
-**Data flow:** `website_applicants` (Hephaestus source) → Chronos `applicants` (via sync) → Chronos `users` (for active users with timer sessions)
+**Chronos tables read/written by Hephaestus (shared DB):**
+- **`flolabs_users`** — primary read/write for HR profile, pipeline stage/status, passwords (applicant flows), and `is_active` updates from `revokeChronosAccess()` / merge.
+- **`time_entries`**, **`tags`**, **`user_email_aliases`**, **`applicant_duplicate_reviews`** — merge and access flows update these where needed; FKs target **`flolabs_users.id`**.
 
-### Merge Sync Contract
+### Merge contract (unified)
 
-When HR merges duplicate leads via `POST /api/admin/leads/merge`, the operation propagates changes across all three tables to keep Chronos in sync:
+When HR merges duplicate leads via `POST /api/admin/leads/merge`:
 
-1. **`website_applicants` (canonical)** — merged profile (email, names, phone, linkedin, city, country, role, education, source) written to the canonical row.
-2. **`applicants` (canonical)** — same profile values written to the matching `applicants` row so Chronos reads fresh data.
-3. **`applicants` (secondaries)** — `status = 'closed'` set on all secondary rows so they are hidden from Chronos views.
-4. **`users` (canonical)** — `email` updated if the primary email changed.
-5. **`users` (secondaries)** — `is_active = false` set on secondary rows (skips rows with `role = 'admin'` or `role = 'hr'` to avoid locking out staff accounts).
-6. **`time_entries`** — re-pointed to canonical `user_id` / `flolabs_id` / `applicant_id` so history stays intact.
-7. **`user_email_aliases`** — all kept emails registered under the canonical user.
-8. **`applicant_duplicate_reviews`** — audit record written with `status = 'merged'`.
+1. **`flolabs_users` (canonical)** — merged profile fields written to the canonical row (`email`, names, phone, linkedin, city, country, role, education, source, notes).
+2. **`flolabs_users` (secondaries)** — `status = 'closed'` and `is_active = false` for merged-away rows (skips `admin` / `hr` roles).
+3. **`time_entries`** — `user_id`, `flolabs_id`, and `applicant_id` re-pointed to the canonical **`flolabs_users.id`** where applicable.
+4. **`tags`** — ownership consolidated to the canonical user where name conflicts allow; duplicate-name tags on secondaries removed.
+5. **`user_email_aliases`** — kept emails registered under the canonical user id.
+6. **`applicant_duplicate_reviews`** — audit rows written with `status = 'merged'`.
 
-After a merge, the secondary leads exist in the database but are invisible to Chronos (closed/inactive). The canonical lead shows the combined profile.
+After a merge, secondary person rows remain in **`flolabs_users`** but are closed/inactive; Chronos and Hephaestus both see the canonical row immediately.
 
 ---
 

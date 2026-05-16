@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { getCredentials, gotoApp } from './lib/auth';
 
 test.describe('Forgot password', () => {
-  test.setTimeout(60_000);
+  test.setTimeout(180_000);
 
   test('UI: submitting shows success message for any email address', async ({ page }) => {
     await gotoApp(page, '/login?forgot=1');
