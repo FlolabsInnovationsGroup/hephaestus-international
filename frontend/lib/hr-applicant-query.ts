@@ -38,20 +38,21 @@ function uniqueNonEmpty(values: Array<string | null | undefined>) {
 }
 
 function hrOrderBy(sort: string | undefined) {
+  const tieBreaker = 'u.id asc';
   switch (sort) {
     case 'name_asc':
-      return 'lower(coalesce(nullif(trim(first_name), \'\'), name)) asc, lower(coalesce(nullif(trim(last_name), \'\'), \'\')) asc';
+      return `lower(coalesce(nullif(trim(first_name), ''), name)) asc, lower(coalesce(nullif(trim(last_name), ''), '')) asc, ${tieBreaker}`;
     case 'name_desc':
-      return 'lower(coalesce(nullif(trim(first_name), \'\'), name)) desc, lower(coalesce(nullif(trim(last_name), \'\'), \'\')) desc';
+      return `lower(coalesce(nullif(trim(first_name), ''), name)) desc, lower(coalesce(nullif(trim(last_name), ''), '')) desc, ${tieBreaker}`;
     case 'visited_asc':
-      return 'coalesce(last_visited_at, updated_at, created_at) asc';
+      return `coalesce(last_visited_at, updated_at, created_at) asc, ${tieBreaker}`;
     case 'visited_desc':
-      return 'coalesce(last_visited_at, updated_at, created_at) desc';
+      return `coalesce(last_visited_at, updated_at, created_at) desc, ${tieBreaker}`;
     case 'joined_asc':
-      return 'coalesce(joined_at, created_at) asc';
+      return `coalesce(joined_at, created_at) asc, ${tieBreaker}`;
     case 'joined_desc':
     default:
-      return 'coalesce(joined_at, created_at) desc';
+      return `coalesce(joined_at, created_at) desc, ${tieBreaker}`;
   }
 }
 
@@ -60,6 +61,9 @@ function buildHrWhere(filters: HrApplicantFilters) {
     `u.id not in (
       select duplicate_applicant_id from applicant_duplicate_reviews where status = 'merged'
     )`,
+    `coalesce(u.status, '') <> 'closed'`,
+    `lower(trim(u.email)) not like '%@imported.local%'`,
+    `lower(trim(u.email)) not like '%@flolabs.invalid%'`,
   ];
 
   const q = (filters.q ?? '').trim().toLowerCase();
