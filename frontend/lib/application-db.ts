@@ -487,6 +487,7 @@ export function rowToApplicant(row: any): ApplicantProfile {
       ? (row.low_effort_return_stage as ApplicationStage)
       : null,
     notionTeamMemberPageUrl: row.notion_team_member_page_url ?? '',
+    notionTeamMemberId: row.notion_team_member_id ?? null,
     chronosLastActiveAt: (row.last_login_at ?? row.updated_at)
       ? new Date(row.last_login_at ?? row.updated_at).toISOString()
       : null,
@@ -1123,9 +1124,19 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
     if (!current) return null;
     const next = { ...current, ...updates };
     const fullName = `${next.firstName} ${next.lastName}`.trim();
-    const notionUrlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
-    const notionPageIdMatch = notionUrlClean.match(/([0-9a-f]{32})\s*$/i);
-    const notionPageId = notionPageIdMatch ? notionPageIdMatch[1] : null;
+    // Prefer the ID provided directly by the picker over URL-based extraction.
+    // When `updates.notionTeamMemberId` is present (even as empty string to clear),
+    // use it directly. Otherwise fall back to URL regex and preserve the existing ID.
+    const hasExplicitId = 'notionTeamMemberId' in updates;
+    const notionPageId: string | null = (() => {
+      if (hasExplicitId) {
+        const raw = (updates.notionTeamMemberId ?? '').replace(/-/g, '').toLowerCase();
+        return /^[0-9a-f]{32}$/.test(raw) ? raw : null;
+      }
+      const urlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
+      const match = urlClean.match(/([0-9a-f]{32})\s*$/i);
+      return match ? match[1] : (current.notionTeamMemberId ?? null);
+    })();
     const rows = await sql`
       update flolabs_users
       set email = ${next.email},
@@ -1145,7 +1156,7 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           cv_file_name = ${next.cvFileName ?? ''},
           cv_url = ${next.cvUrl ?? ''},
           notion_team_member_page_url = ${next.notionTeamMemberPageUrl ?? ''},
-          notion_team_member_id = coalesce(${notionPageId}, notion_team_member_id),
+          notion_team_member_id = ${notionPageId},
           last_visited_at = now(),
           updated_at = now()
       where id = ${applicantId}

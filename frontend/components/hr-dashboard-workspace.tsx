@@ -46,6 +46,7 @@ type Lead = {
   mergedCountries?: string[];
   mergedCities?: string[];
   notionTeamMemberPageUrl?: string;
+  notionTeamMemberId?: string | null;
   chronosLastActiveAt?: string | null;
   role?: string;
   hrBinaryRole?: boolean;
@@ -145,6 +146,7 @@ export function HrDashboardWorkspace({
     roleAppliedFor: '',
     notes: '',
     notionTeamMemberPageUrl: '',
+    notionTeamMemberId: '',
   });
 
   useEffect(() => {
@@ -205,6 +207,7 @@ export function HrDashboardWorkspace({
       roleAppliedFor: activeLead.roleAppliedFor ?? '',
       notes: '',
       notionTeamMemberPageUrl: activeLead.notionTeamMemberPageUrl ?? '',
+      notionTeamMemberId: activeLead.notionTeamMemberId ?? '',
     });
   }, [editOpen, activeLead]);
 
@@ -685,7 +688,7 @@ export function HrDashboardWorkspace({
             <div className="mt-3">
               <NotionPageSearchField
                 value={editForm.notionTeamMemberPageUrl}
-                onChange={(value) => setEditForm((c) => ({ ...c, notionTeamMemberPageUrl: value }))}
+                onChange={(value) => setEditForm((c) => ({ ...c, notionTeamMemberPageUrl: value.url, notionTeamMemberId: value.id }))}
                 leadName={`${editForm.firstName} ${editForm.lastName}`.trim()}
               />
             </div>
@@ -780,7 +783,7 @@ function NotionPageSearchField({
   leadName,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: { url: string; id: string }) => void;
   leadName: string;
 }) {
   const [query, setQuery] = useState('');
@@ -829,14 +832,14 @@ function NotionPageSearchField({
   }
 
   function choose(page: { id: string; title: string; url: string }) {
-    onChange(page.url);
+    onChange({ url: page.url, id: page.id });
     setOpen(false);
     setResults([]);
     setQuery('');
   }
 
   function clear() {
-    onChange('');
+    onChange({ url: '', id: '' });
     setQuery('');
     setResults([]);
     setOpen(false);

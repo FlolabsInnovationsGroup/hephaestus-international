@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     notes: String(body.notes ?? ''),
     alternateEmails,
     notionTeamMemberPageUrl: String(body.notionTeamMemberPageUrl ?? ''),
+    notionTeamMemberId: String(body.notionTeamMemberId ?? ''),
   });
 
   if (!updated) {

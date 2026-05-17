@@ -68,6 +68,8 @@ export interface ApplicantProfile {
   lowEffortRollbackAfter?: string | null;
   lowEffortReturnStage?: ApplicationStage | null;
   notionTeamMemberPageUrl?: string;
+  /** Raw Notion page UUID (no hyphens). Set by the picker; used by Chronos to filter the team directory. */
+  notionTeamMemberId?: string | null;
   /** Last time this user was active in the Chronos time-tracking platform (users.updated_at proxy). Null if no Chronos account. */
   chronosLastActiveAt?: string | null;
 }
