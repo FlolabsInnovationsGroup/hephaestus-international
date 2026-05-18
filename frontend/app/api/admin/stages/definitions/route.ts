@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
-import { activateManagedStep, deleteManagedStep, getSessionUser, updateManagedStep } from '@/lib/application-store';
+import { activateManagedStep, deleteManagedStep, getManagedSteps, getSessionUser, updateManagedStep } from '@/lib/application-store';
 import type { PassingCondition } from '@/lib/application-db';
+
+export async function GET(_request: Request) {
+  const viewer = await getSessionUser();
+  if (!viewer?.hrBinaryRole) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const stages = await getManagedSteps({ includeInactive: true });
+  return NextResponse.json({ ok: true, stages });
+}
 
 export async function POST(request: Request) {
   const viewer = await getSessionUser();

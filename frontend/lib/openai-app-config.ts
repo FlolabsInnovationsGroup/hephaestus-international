@@ -12,8 +12,8 @@ export function getOpenAIApiKey(): string | undefined {
   return k || undefined;
 }
 
-/** Default matches Emails_automation `Config.effective_llm_model` when provider is OpenAI (`gpt-5.4-nano`). */
-export const OPENAI_DEFAULT_NANO_MODEL = 'gpt-5.4-nano';
+/** Default matches Emails_automation `Config.effective_llm_model` when provider is OpenAI (`gpt-4.1-nano`). */
+export const OPENAI_DEFAULT_NANO_MODEL = 'gpt-4.1-nano';
 
 export function getOpenAIStageReviewModel(): string {
   return (
@@ -25,9 +25,9 @@ export function getOpenAIStageReviewModel(): string {
 
 /**
  * Stage-specific override. Example:
- * - OPENAI_STAGE_REVIEW_MODEL_STAGE_4=gpt-5.4-nano
- * - OPENAI_STAGE_REVIEW_MODEL_STAGE_6=gpt-5.4-nano
- * - OPENAI_STAGE_REVIEW_MODEL_STAGE_9=gpt-5.4-nano
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_4=gpt-4.1-nano
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_6=gpt-4.1-nano
+ * - OPENAI_STAGE_REVIEW_MODEL_STAGE_9=gpt-4.1-nano
  */
 export function getOpenAIStageReviewModelForStageNumber(stageNumber: number): string {
   const perStage = process.env[`OPENAI_STAGE_REVIEW_MODEL_STAGE_${stageNumber}`]?.trim();

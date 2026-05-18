@@ -129,6 +129,74 @@
 
 ---
 
+## 11. Stage Passing Conditions + Paula Ferry
+
+### Stage passing conditions — API
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.1 | `GET /api/admin/stages/definitions` returns `ok: true` with a stages array for HR | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.2 | `GET /api/admin/stages/definitions` returns 403 without an HR session | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.3 | All 14 stages are present in the API response | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.4 | `application_submitted` has `passingCondition: "none"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.5 | `new` has `passingCondition: "none"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.6 | `contacted` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.7 | `interested_review` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.8 | `before_meeting` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.9 | `meeting_recordings_submitted` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.10 | `saturday_meeting` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.11 | `attended` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.12 | `masterclass_submitted` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.13 | All 5 locked stages (`second_meeting` → `joined`) have `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+
+### Stage passing conditions — UI (locked stages)
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.14 | `second_meeting` (Oliver 1-on-1) shows "Locked — HR approval required" badge | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.15 | Locked stage disables "No action required" and "AI evaluation" buttons | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.16 | Locked stage hides "Save condition" button | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.17 | `agreement_sent`, `agreement_signed`, `chronos_synced`, `joined` each show Locked badge | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+
+### Stage passing conditions — UI (AI stages)
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.18 | `contacted` stage shows "AI evaluation" as selected and AI prompt textarea is visible | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.19 | `before_meeting` stage shows "AI evaluation" as selected | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.20 | `attended` stage shows "AI evaluation" as selected | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.21 | AI prompt textarea is editable for `contacted` stage | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.22 | Edited AI prompt for `contacted` stage persists after page reload | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+
+### Paula Ferry — API
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.23 | `POST /api/applications/message` returns `ok: true` with a non-empty `reply.text` | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.24 | Paula reply is concise (under 1200 characters) | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.25 | `POST /api/applications/message` returns 401 without a session | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.26 | `POST /api/applications/message` returns 400 for empty text | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.27 | Low-effort message "ok" receives guidance about stage materials | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.28 | Greeting gets a helpful, non-error reply | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.29 | Reply `author` field is `"paula"` | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.30 | Reply is always non-empty for a variety of short messages | **[automated]** `e2e/paula-chat.spec.ts` |
+
+### Paula Ferry — UI
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.31 | Applicant sees chat section on `/me/application` | **[automated]** `e2e/paula-chat.spec.ts` |
+| 11.32 | Initial messages are rendered in the chat area | **[automated]** `e2e/paula-chat.spec.ts` |
+
+### Paula Ferry — manual checks
+
+| # | Check | Coverage |
+|---|---|---|
+| 11.33 | Paula auto-message delivered to applicant after AI rollback (`previous` outcome) | **[manual]** Manually trigger a `previous` result and confirm Paula's auto-message appears in the applicant's chat |
+| 11.34 | Paula auto-message delivered to applicant after `stay` outcome | **[manual]** Trigger a `stay` result and confirm applicant receives a redo explanation message |
+
+---
+
 ## Running the Full Suite
 
 ```bash
