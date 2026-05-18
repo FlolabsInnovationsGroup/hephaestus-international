@@ -28,6 +28,8 @@ declare global {
   var __hephaestusTeamMemberDirectory: DirectoryCache | undefined;
 }
 
+let __hephaestusFullBuild: Promise<void> | undefined;
+
 async function notionFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${NOTION_API}${path}`, {
     ...init,
@@ -46,9 +48,10 @@ async function notionFetch<T>(path: string, token: string, init?: RequestInit): 
   return res.json() as Promise<T>;
 }
 
-async function buildDirectory(token: string, databaseIdFormatted: string, dbIdNorm: string): Promise<DirectoryEntry[]> {
+async function buildDirectory(token: string, databaseIdFormatted: string, dbIdNorm: string, maxPages?: number): Promise<DirectoryEntry[]> {
   const entries: DirectoryEntry[] = [];
   let cursor: string | undefined;
+  let pagesFetched = 0;
 
   do {
     const body: Record<string, unknown> = { page_size: 100 };
@@ -80,11 +83,23 @@ async function buildDirectory(token: string, databaseIdFormatted: string, dbIdNo
       });
     }
 
+    pagesFetched += 1;
     if (!data.has_more || !data.next_cursor) break;
     cursor = data.next_cursor ?? undefined;
+    if (maxPages && pagesFetched >= maxPages) break;
   } while (cursor);
 
   return entries;
+}
+
+function scheduleFullBuild(token: string, databaseIdFormatted: string, dbIdNorm: string): void {
+  if (__hephaestusFullBuild) return;
+  __hephaestusFullBuild = buildDirectory(token, databaseIdFormatted, dbIdNorm)
+    .then(entries => {
+      globalThis.__hephaestusTeamMemberDirectory = { builtAt: Date.now(), dbIdNorm, entries };
+    })
+    .catch(() => { /* keep stale data on failure */ })
+    .finally(() => { __hephaestusFullBuild = undefined; });
 }
 
 async function getDirectory(token: string, rawTeamMembersDbId: string): Promise<DirectoryEntry[]> {
@@ -94,13 +109,22 @@ async function getDirectory(token: string, rawTeamMembersDbId: string): Promise<
   const now = Date.now();
   const cached = globalThis.__hephaestusTeamMemberDirectory;
 
+  // Fast path: fresh cache
   if (cached && cached.dbIdNorm === dbIdNorm && now - cached.builtAt < CACHE_TTL_MS) {
     return cached.entries;
   }
 
-  const entries = await buildDirectory(token, databaseIdFormatted, dbIdNorm);
-  globalThis.__hephaestusTeamMemberDirectory = { builtAt: now, dbIdNorm, entries };
-  return entries;
+  // Stale data available: return immediately, rebuild in background
+  if (cached?.dbIdNorm === dbIdNorm && cached.entries.length > 0) {
+    scheduleFullBuild(token, databaseIdFormatted, dbIdNorm);
+    return cached.entries;
+  }
+
+  // Cold start: fetch first page immediately, full build in background
+  const firstPage = await buildDirectory(token, databaseIdFormatted, dbIdNorm, 1);
+  globalThis.__hephaestusTeamMemberDirectory = { builtAt: Date.now(), dbIdNorm, entries: firstPage };
+  scheduleFullBuild(token, databaseIdFormatted, dbIdNorm);
+  return firstPage;
 }
 
 export async function searchTeamMemberDirectory(
