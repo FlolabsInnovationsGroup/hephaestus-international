@@ -35,7 +35,7 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, live at `http
 
 ---
 
-## The 7 Applicant Statuses
+## The 8 Applicant Statuses
 
 `ApplicantStatus` is defined in `frontend/app/application-data.ts` and is the single source of truth.
 

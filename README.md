@@ -2,10 +2,6 @@
 
 FloLabs' **internship applicant tracking platform**, live at `https://efestos.international` (also `https://hephaestus.international`). This is an **internal operations tool** — not a public SaaS.
 
-**Last updated:** 2026-05-18
-
----
-
 ## What This Is
 
 Hephaestus manages the full lifecycle of FloLabs internship applicants:
@@ -78,23 +74,6 @@ scripts/           # Historical migration scripts
 buildspec.yml      # AWS CodeBuild primary deploy pipeline
 .github/workflows/ # GitHub Actions fallback deploy pipeline
 ```
-
----
-
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Full system architecture, status/stage tables, AWS resource inventory |
-| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | CI/CD pipeline (CodeBuild primary, GHA fallback), verification commands |
-| [`CLAUDE.md`](./CLAUDE.md) | Coding rules, status change checklist, common task recipes |
-| [`QA_CHECKLIST.md`](./QA_CHECKLIST.md) | HR pipeline test cases, Playwright commands |
-| [`QUICK_START.md`](./QUICK_START.md) | Short onboarding for new agents/developers |
-| [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) | Developer setup and patterns |
-| [`DATA.md`](./DATA.md) | Full field inventory across all database tables |
-| [`CMS_USER_GUIDE.md`](./CMS_USER_GUIDE.md) | Strapi content editing (marketing pages only) |
-| [`DOMAIN_SETUP_GUIDE.md`](./DOMAIN_SETUP_GUIDE.md) | DNS and custom domain setup |
-| [`TESTING.md`](./TESTING.md) | Testing overview and quick commands |
 
 ---
 

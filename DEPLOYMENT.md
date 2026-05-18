@@ -1,8 +1,6 @@
 # Hephaestus Deployment
 
-This file describes the **current proven deployment method** for Hephaestus.
-
-**Architecture context:** For the full system picture (App Runner, RDS, auth, Chronos integration), read `ARCHITECTURE.md`. This file focuses on **how** to release and verify.
+For full system context, read `ARCHITECTURE.md`. This file covers how to release and verify.
 
 ## Deploy flow (primary) — AWS CodeBuild
 

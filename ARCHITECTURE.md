@@ -136,9 +136,9 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 
 ## Database
 
-Hephaestus and Chronos share **one Neon serverless PostgreSQL database** (`neondb`) and connect with identical credentials (`neondb_owner`). The old AWS RDS instance was decommissioned in 2026-05.
+Hephaestus and Chronos share **one Neon serverless PostgreSQL database** (`neondb`) and connect with identical credentials (`neondb_owner`).
 
-**Hephaestus-managed table:** **`flolabs_users`** — created/altered by `ensurePostgresSchema()` in `frontend/lib/application-db.ts`. On first boot against a legacy database, `website_applicants` is renamed to `flolabs_users` when the latter does not yet exist.
+**Hephaestus-managed table:** **`flolabs_users`** — created/altered by `ensurePostgresSchema()` in `frontend/lib/application-db.ts`.
 
 **Data flow:** Hephaestus HR UI and applicant flows read/write **`flolabs_users`**. Chronos uses the same table via Drizzle (`users` → physical `flolabs_users`). Optional HTTP sync to Chronos (`CHRONOS_SYNC_API_URL`) remains for API-level integration tests; profile changes do not depend on a second table for correctness.
 

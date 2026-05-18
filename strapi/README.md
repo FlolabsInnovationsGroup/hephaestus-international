@@ -42,7 +42,7 @@ Visit http://localhost:1337/admin on first run.
 - **Benefit / Vertical / Methodology Item** — homepage sections
 - **Site Setting** — global config
 
-These are separate from `website_applicants` (the HR pipeline table in the shared RDS instance).
+These are separate from `flolabs_users` (the HR pipeline table in the shared Neon database).
 
 ---
 

@@ -148,7 +148,7 @@ When adding or changing a status, update all five locations listed in `CLAUDE.md
 
 ## Database
 
-Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb`). The old AWS RDS instance was decommissioned in 2026-05.
+Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb`).
 
 - **`flolabs_users`** — Hephaestus-owned DDL; primary identity table for all applicants. Managed by `ensurePostgresSchema()` in `application-db.ts`. Chronos reads this table via Drizzle ORM (maps `users` → physical `flolabs_users`).
 - **`applicants`** — Chronos-owned; written by `syncApplicantToChronos()` for HubSpot-imported contacts

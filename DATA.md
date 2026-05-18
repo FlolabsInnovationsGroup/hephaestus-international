@@ -6,7 +6,7 @@ Synthesizes every field stored about users across all tables, maps them to their
 
 ## Database Overview
 
-Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb` at `ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech`). The old AWS RDS instance was decommissioned in 2026-05. Hephaestus owns the DDL for most tables; Chronos owns 2 tables that Hephaestus also reads and writes.
+Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb` at `ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech`). Hephaestus owns the DDL for most tables; Chronos owns 2 tables that Hephaestus also reads and writes.
 
 | Table | Owner | Purpose |
 |---|---|---|
