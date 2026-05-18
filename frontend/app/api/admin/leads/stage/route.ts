@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const applicant = await saveApplicantStage(String(body.applicantId), body.stage, body.status);
   const incomingStatus = String(body.status ?? '').toLowerCase();
 
-  if (incomingStatus === 'terminated' && applicant) {
+  if ((incomingStatus === 'terminated' || incomingStatus === 'graduated') && applicant) {
     const revoke = await revokeChronosAccess(applicant);
     return NextResponse.json({ ok: true, applicant, chronosSync: null, chronosRevoke: revoke });
   }

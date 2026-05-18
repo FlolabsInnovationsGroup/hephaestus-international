@@ -4,94 +4,133 @@ This file describes the **current proven deployment method** for Hephaestus.
 
 **Architecture context:** For the full system picture (App Runner, RDS, auth, Chronos integration), read `ARCHITECTURE.md`. This file focuses on **how** to release and verify.
 
-## Deploy Flow
+## Deploy flow (primary) — AWS CodeBuild
 
-Push to `main` triggers `.github/workflows/deploy-aws-apprunner.yml`:
+| Item | Value |
+|---|---|
+| CodeBuild project | `hephaestus-international-deploy` |
+| Build spec | `buildspec.yml` (repo root) |
+| Source bucket | `s3://flolabs-hephaestus-codebuild/source.zip` |
+| IAM role | `arn:aws:iam::975049954782:role/hephaestus-international-codebuild` |
+| ECR repository | `hephaestus-international` |
+| Image tag | `git-<12-char-sha>` |
+| App Runner service | `hephaestus-international` |
+| Service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
+| AWS URL | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
+| Production domain | `https://efestos.international` |
+| Region / account | `us-east-1` / `975049954782` |
 
-1. GitHub Actions assumes AWS credentials via OIDC (`arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy`)
-2. Docker Buildx builds the image from `./frontend`; Strapi URL is injected as a build arg
-3. Image is tagged `git-<12-char-sha>` and pushed immutably to ECR (`hephaestus-international`)
-4. Runtime secrets are read from AWS SSM (see table below)
-5. App Runner service is updated with the new image and full runtime env vars
-6. Workflow waits for App Runner to become idle before triggering the update
-7. Workflow polls the operation until status is `SUCCEEDED`
-8. Workflow verifies `GET /api/health` returns `"ok":true` with the matching `commitSha`
+### Steps
 
-## Deployment Proof Standard
+1. Create a source archive from `hephaestus-international` (build context is `./frontend`; `buildspec.yml` is at repo root):
+
+```powershell
+cd hephaestus-international
+git archive -o source.zip HEAD
+```
+
+2. Upload:
+
+```bash
+aws s3 cp source.zip s3://flolabs-hephaestus-codebuild/source.zip --region us-east-1
+```
+
+3. Start CodeBuild:
+
+```bash
+aws codebuild start-build \
+  --project-name hephaestus-international-deploy \
+  --region us-east-1 \
+  --environment-variables-override name=GIT_SHA,value=$(git rev-parse HEAD),type=PLAINTEXT
+```
+
+4. Wait for `SUCCEEDED`. `post_build` updates App Runner and verifies `GET /api/health` with matching `commitSha`.
+
+5. If HR tests are needed, ensure the HR bootstrap user still has `hr_binary_role` (see `QA_CHECKLIST.md`), then run Playwright against the AWS URL.
+
+Project definition: `infra/codebuild-project.json`. IAM: `infra/codebuild-deploy-policy.json`, `infra/codebuild-logs-policy.json`.
+
+## Deploy flow (fallback) — GitHub Actions
+
+Push to `main` triggers `.github/workflows/deploy-aws-apprunner.yml` when Actions billing is available:
+
+1. OIDC → `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy`
+2. Docker build from `./frontend` with Strapi URL build arg
+3. Push `git-<12-char-sha>` to ECR `hephaestus-international`
+4. Read SSM runtime secrets, update App Runner, verify health
+
+Same App Runner service and proof standard as CodeBuild.
+
+## Deployment proof standard
 
 A deployment is proven when all of the following are true:
 
-1. GitHub Actions run completed successfully
+1. CodeBuild or GitHub Actions completed successfully
 2. App Runner is serving the expected `git-<sha>` image
 3. `GET https://fykgssqbvg.us-east-1.awsapprunner.com/api/health` returns `"ok":true` with matching `commitSha`
 4. The affected live user path works on the deployed surface
 
-## Deployment Rule
+## Deployment rule
 
-For Hephaestus, the normal deploy path must **not** depend on the local machine:
+For Hephaestus, the normal deploy path must **not** depend on the local machine for runtime proof:
 
 - No local Docker build for routine deploys
-- No local browser or local app validation as deployment proof
-- Source of truth for production is AWS (App Runner, ECR, SSM)
+- No local browser validation as deployment proof
+- Source of truth for production is AWS (CodeBuild or GHA, ECR, SSM, App Runner)
 
-## AWS Resources
+## AWS resources
 
 | Resource | Value |
 |---|---|
-| App Runner service | `hephaestus-international` |
-| Service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
-| AWS URL | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
-| Production domain | `https://efestos.international` (App Runner custom domain) |
-| ECR repository | `hephaestus-international` |
-| GitHub Actions role | `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy` |
-| App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
 | VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` |
-| Region / Account | `us-east-1` / `975049954782` |
+| App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
+| GitHub Actions role (fallback) | `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy` |
 
-## IAM Policy Note
+## IAM policy note (GitHub Actions fallback)
 
-The GitHub Actions role (`hephaestus-international-github-actions-deploy`) inline policy `github-actions-hephaestus-deploy` must grant `ssm:GetParameter` on every SSM parameter listed below. If a new parameter is added to the deploy workflow, update the IAM policy's `ReadSharedRuntimeSecrets` statement to include its ARN (`arn:aws:ssm:us-east-1:975049954782:parameter/<name>`) — otherwise the "Resolve runtime secrets" step will fail with `AccessDeniedException`.
+The role `hephaestus-international-github-actions-deploy` inline policy must grant `ssm:GetParameter` on every SSM parameter the workflow reads. When adding parameters, extend `ReadSharedRuntimeSecrets` ARNs.
 
-## Runtime Secret Source of Truth
+## Runtime secret source of truth
 
-All runtime values are sourced from **AWS SSM** during the GitHub Actions deploy:
+Values are sourced from **AWS SSM** during CodeBuild `pre_build` or the GHA deploy job:
 
 | SSM Parameter | Runtime env var |
 |---|---|
 | `/flolabs-chronos/DATABASE_URL` | `DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`, `FL_CHRONOS_DATABASE_URL` |
 | `/hephaestus-international/CHRONOS_SYNC_API_URL` | `CHRONOS_SYNC_API_URL` |
 | `/hephaestus-international/CHRONOS_SYNC_TOKEN` | `CHRONOS_SYNC_TOKEN` |
-| `/hephaestus-international/CONTENT_STRAPI_URL` | `CONTENT_STRAPI_URL`, `NEXT_PUBLIC_STRAPI_URL` (also a build arg) |
+| `/hephaestus-international/CONTENT_STRAPI_URL` | `CONTENT_STRAPI_URL`, `NEXT_PUBLIC_STRAPI_URL` (also build arg in GHA) |
 | `/hephaestus-international/STRAPI_API_TOKEN` | `STRAPI_API_TOKEN` |
 | `/hephaestus-international/CONTENT_STRAPI_API_TOKEN` | `CONTENT_STRAPI_API_TOKEN` |
 | `/flolabs-chronos/RESEND_API_KEY` | `RESEND_API_KEY` |
 | `/flolabs-chronos/EMAIL_FROM` | `EMAIL_FROM` |
+| `/flolabs-chronos/NOTION_API_KEY` | `NOTION_API_KEY` (CodeBuild) |
+| `/flolabs-chronos/CRON_SECRET` | `CRON_SECRET` (CodeBuild) |
+| `/flolabs-chronos/OPENAI_API_KEY` | `OPENAI_API_KEY` (CodeBuild) |
 
-From **GitHub Actions secrets**:
+`NEXTAUTH_SECRET` is preserved from the current App Runner service during CodeBuild, or supplied from GitHub `AUTH_SECRET` in the GHA path.
 
-| Secret | Runtime env var |
-|---|---|
-| `AUTH_SECRET` | `NEXTAUTH_SECRET` |
-| `OPENAI_API_KEY` | `OPENAI_API_KEY` |
+## Files that define the deploy path
 
-## Files That Define the Deploy Path
+- `buildspec.yml` — primary CodeBuild pipeline
+- `.github/workflows/deploy-aws-apprunner.yml` — fallback CI/CD
+- `infra/codebuild-project.json` — CodeBuild project config
 
-- `.github/workflows/deploy-aws-apprunner.yml` — the full CI/CD pipeline
+## Shared applicant status (`flolabs_users.status`)
 
-## How to Validate a Deploy
+- HR **Edit lead** writes `flolabs_users.status` (dropdown includes `graduated` / `terminated`). Chronos mirrors the same column read-only.
+- **Permanent delete:** Edit lead → **Delete user permanently** → confirmation modal → `POST /api/admin/leads/delete` (archives Notion Team Member page, removes DB rows). Prefer **Terminated** / **Graduated** when the person should remain in HR history.
+- Automated checks: `e2e/hr-applicant-status-delete.spec.ts`, `e2e/hr-status-filter.spec.ts` (9 statuses).
+
+## How to validate a deploy
 
 ```bash
-# 1. Check latest Actions runs
-gh run list --limit 5
+aws codebuild list-builds-for-project --project-name hephaestus-international-deploy --region us-east-1 --max-items 3
 
-# 2. Check App Runner service status and running image
 aws apprunner describe-service \
   --service-arn arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7 \
   --region us-east-1 \
   --query 'Service.{Status:Status,ImageId:SourceConfiguration.ImageRepository.ImageIdentifier}'
 
-# 3. Verify health metadata
 curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health | python3 -m json.tool
-
-# 4. Test the affected user path on the live surface
 ```

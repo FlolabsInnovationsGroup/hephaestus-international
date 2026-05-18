@@ -153,6 +153,12 @@ export async function syncApplicantToChronos(applicant: ApplicantProfile) {
           hubspotLastModifiedAt: new Date().toISOString(),
           hubspotRawData: buildHubspotRawDataFromApplicant(applicant),
           syncedToTeamMembers: shouldMarkSyncedToTeamMembers(applicant),
+          ...(applicant.notionTeamMemberId?.trim() || applicant.notionTeamMemberPageUrl?.trim()
+            ? {
+                notionTeamMemberId: applicant.notionTeamMemberId?.trim() || null,
+                notionTeamMemberPageUrl: applicant.notionTeamMemberPageUrl?.trim() || null,
+              }
+            : {}),
         }),
       });
       remote = response.ok ? { ok: true, status: response.status } : { ok: false, status: response.status, error: await response.text() };
@@ -170,10 +176,15 @@ export async function getChronosSyncRecords() {
 
 export async function revokeChronosAccess(applicant: ApplicantProfile): Promise<{ ok: boolean; error?: string }> {
   if (!sql) return { ok: false, error: 'No database connection' };
+  const status = String(applicant.status ?? '').trim().toLowerCase();
+  const exitStatus = status === 'graduated' || status === 'terminated' ? status : 'terminated';
   try {
     await sql`
       update flolabs_users
-      set is_active = false, updated_at = now()
+      set
+        status = ${exitStatus},
+        is_active = false,
+        updated_at = now()
       where lower(email) = lower(${applicant.email}) or id::text = ${applicant.id}
     `;
     return { ok: true };

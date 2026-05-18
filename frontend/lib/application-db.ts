@@ -12,6 +12,7 @@ import {
   type StageStep,
 } from '@/app/application-data';
 import { sql } from '@/lib/db';
+import { formatNotionUuid32, tryParseNotionPageId } from '@/lib/notion-team-member-search';
 import { isApplicantReviewWaitStage } from '@/lib/stage-definitions';
 
 interface DuplicateReviewRow {
@@ -46,9 +47,49 @@ const FLOLABS_USER_LIST_COLUMNS = [
 // Run DDL once per process. All callers await this promise — after the first
 // resolution every subsequent await is a no-op (Promise already settled).
 let _schemaReadyPromise: Promise<void> | null = null;
+let _notionLinkRepairDone = false;
+
+/** Backfill/normalize notion_team_member_id from page URL on shared flolabs_users rows. */
+async function repairNotionTeamMemberLinksFromPageUrls() {
+  if (!sql) return;
+  const rows = await sql`
+    select id, notion_team_member_page_url, notion_team_member_id
+    from flolabs_users
+    where coalesce(nullif(trim(notion_team_member_page_url), ''), '') <> ''
+       or coalesce(nullif(trim(notion_team_member_id), ''), '') <> ''
+  `;
+  for (const row of rows) {
+    const resolved =
+      tryParseNotionPageId(row.notion_team_member_id) ?? tryParseNotionPageId(row.notion_team_member_page_url);
+    if (!resolved) continue;
+    const dashed = formatNotionUuid32(resolved.replace(/-/g, ''));
+    const storedNorm = String(row.notion_team_member_id ?? '').replace(/-/g, '').toLowerCase();
+    const wantNorm = dashed.replace(/-/g, '').toLowerCase();
+    const pageUrl =
+      String(row.notion_team_member_page_url ?? '').trim() ||
+      `https://www.notion.so/${wantNorm}`;
+    if (storedNorm === wantNorm && String(row.notion_team_member_page_url ?? '').trim() === pageUrl) continue;
+    await sql`
+      update flolabs_users
+      set notion_team_member_id = ${dashed},
+          notion_team_member_page_url = ${pageUrl},
+          updated_at = now()
+      where id = ${row.id}
+    `;
+  }
+}
+
 export function schemaReady(): Promise<void> {
   if (!_schemaReadyPromise) {
-    _schemaReadyPromise = ensurePostgresSchema().catch((err) => {
+    _schemaReadyPromise = (async () => {
+      await ensurePostgresSchema();
+      if (!_notionLinkRepairDone) {
+        _notionLinkRepairDone = true;
+        await repairNotionTeamMemberLinksFromPageUrls().catch((err) => {
+          console.error('[schemaReady] repairNotionTeamMemberLinksFromPageUrls failed', err);
+        });
+      }
+    })().catch((err) => {
       // Reset so next request can retry after a transient failure
       _schemaReadyPromise = null;
       throw err;
@@ -982,7 +1023,7 @@ export async function updateApplicantStage(applicantId: string, stage: Applicant
     const previousRows = await sql`select stage from flolabs_users where id = ${applicantId} limit 1`;
     const previousWebsiteStage = String(previousRows[0]?.stage ?? '');
     const rows = status
-      ? await sql`update flolabs_users set stage = ${stage}, status = ${status}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
+      ? await sql`update flolabs_users set stage = ${stage}, status = ${status}, is_active = ${status === 'joined'}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`
       : await sql`update flolabs_users set stage = ${stage}, last_visited_at = now(), updated_at = now() where id = ${applicantId} returning *`;
     if (rows[0]) {
       const updatedWebsite = rows[0];
@@ -1130,13 +1171,18 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
     const hasExplicitId = 'notionTeamMemberId' in updates;
     const notionPageId: string | null = (() => {
       if (hasExplicitId) {
-        const raw = (updates.notionTeamMemberId ?? '').replace(/-/g, '').toLowerCase();
-        return /^[0-9a-f]{32}$/.test(raw) ? raw : null;
+        const cleared = !(updates.notionTeamMemberId ?? '').trim() && !(next.notionTeamMemberPageUrl ?? '').trim();
+        if (cleared) return null;
+        return tryParseNotionPageId(updates.notionTeamMemberId ?? '') ?? tryParseNotionPageId(next.notionTeamMemberPageUrl ?? '');
       }
-      const urlClean = (next.notionTeamMemberPageUrl ?? '').split('?')[0].split('#')[0];
-      const match = urlClean.match(/([0-9a-f]{32})\s*$/i);
-      return match ? match[1] : (current.notionTeamMemberId ?? null);
+      return tryParseNotionPageId(next.notionTeamMemberPageUrl ?? '') ?? tryParseNotionPageId(current.notionTeamMemberId ?? '');
     })();
+    const notionPageUrl =
+      notionPageId != null
+        ? (next.notionTeamMemberPageUrl?.trim() || `https://www.notion.so/${notionPageId.replace(/-/g, '')}`)
+        : '';
+    const pipelineStatus = String(next.status ?? current.status ?? 'applying').toLowerCase();
+    const chronosActive = pipelineStatus === 'joined';
     const rows = await sql`
       update flolabs_users
       set email = ${next.email},
@@ -1151,12 +1197,14 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
           education = ${next.education},
           source = ${next.source ?? ''},
           role_applied_for = ${next.roleAppliedFor ?? ''},
+          status = ${pipelineStatus},
+          is_active = ${chronosActive},
           notes = ${next.notes ?? ''},
           profile_picture_url = ${next.profilePictureUrl ?? ''},
           cv_file_name = ${next.cvFileName ?? ''},
           cv_url = ${next.cvUrl ?? ''},
-          notion_team_member_page_url = ${next.notionTeamMemberPageUrl ?? ''},
-          notion_team_member_id = ${notionPageId},
+          notion_team_member_page_url = ${notionPageUrl},
+          notion_team_member_id = ${notionPageId ? formatNotionUuid32(notionPageId.replace(/-/g, '')) : null},
           last_visited_at = now(),
           updated_at = now()
       where id = ${applicantId}
@@ -1176,6 +1224,51 @@ export async function updateApplicantProfile(applicantId: string, updates: Parti
   Object.assign(applicant, updates, { lastVisitedAt: new Date().toISOString() });
   await writeDb(db);
   return applicant;
+}
+
+/** Permanently removes a lead and related Chronos rows. Archives linked Notion Team Member page when present. */
+export async function deleteApplicantPermanently(applicantId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!USE_POSTGRES || !sql) return { ok: false, error: 'Database unavailable' };
+  await schemaReady();
+  const current = await getUserById(applicantId);
+  if (!current) return { ok: false, error: 'Lead not found' };
+  const elevated = ['admin', 'hr'].includes(String(current.role ?? '').toLowerCase());
+  if (elevated) return { ok: false, error: 'Cannot delete admin or HR accounts from this action.' };
+
+  const notionId = String(current.notionTeamMemberId ?? '').trim();
+  if (notionId) {
+    try {
+      const { archiveNotionTeamMemberPage } = await import('@/lib/notion-team-member-search');
+      await archiveNotionTeamMemberPage(notionId);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Could not archive the Notion Team Member page.',
+      };
+    }
+  }
+
+  try {
+    await sql`delete from website_applicant_conversations where applicant_id = ${applicantId}::uuid`;
+    await sql`delete from user_email_aliases where user_id = ${applicantId}::uuid`;
+    await sql`delete from tags where user_id = ${applicantId}::uuid`;
+    await sql`delete from team_memberships where user_id = ${applicantId}::uuid`;
+    await sql`
+      delete from time_entries
+      where user_id = ${applicantId}::uuid
+         or flolabs_id = ${applicantId}::uuid
+         or applicant_id = ${applicantId}::uuid
+    `;
+    await sql`
+      delete from applicant_duplicate_reviews
+      where primary_applicant_id = ${applicantId}::uuid
+         or duplicate_applicant_id = ${applicantId}::uuid
+    `;
+    await sql`delete from flolabs_users where id = ${applicantId}::uuid`;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Delete failed' };
+  }
 }
 
 export async function touchApplicantWebsiteVisit(applicantId: string, email?: string) {

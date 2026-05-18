@@ -6,7 +6,15 @@ import { ApplicantChat } from '@/components/applicant-chat';
 import { HrStageControls } from '@/components/hr-stage-controls';
 import { DuplicateReviewActions } from '@/components/duplicate-review-actions';
 import { formatStageLabel } from '@/lib/stage-definitions';
+import { APPLICANT_STATUS_VALUES, formatApplicantStatusLabel } from '@/lib/applicant-status';
+import type { ApplicantStatus } from '@/app/application-data';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  buildMergeOptionsFromLeads,
+  EMPTY_MERGE_FIELDS,
+  mergeFieldsWithConflicts,
+  type MergeFieldState,
+} from '@/lib/hr-merge-options';
 
 type DuplicateCandidate = {
   id: string;
@@ -93,7 +101,7 @@ export function HrDashboardWorkspace({
   const [loadedApplicants, setLoadedApplicants] = useState<Lead[]>(applicants);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [selectedLeadId, setSelectedLeadId] = useState(initialLeadId ?? applicants[0]?.id ?? null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(initialLeadId ?? applicants[0]?.id ?? null);
   const [conversation, setConversation] = useState<Message[]>(initialConversation);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
@@ -118,24 +126,20 @@ export function HrDashboardWorkspace({
     () => loadedApplicants.filter((lead) => selectedLeadIds.includes(lead.id)),
     [loadedApplicants, selectedLeadIds],
   );
+
+  const mergeOptions = useMemo(
+    () => (mergeOpen && selectedLeads.length >= 2 ? buildMergeOptionsFromLeads(selectedLeads) : EMPTY_MERGE_FIELDS),
+    [mergeOpen, selectedLeads],
+  );
+
   const [canonicalLeadId, setCanonicalLeadId] = useState<string>('');
 
-  const [keep, setKeep] = useState({
-    emails: [] as string[],
-    phoneNumbers: [] as string[],
-    linkedinUrls: [] as string[],
-    cities: [] as string[],
-    countries: [] as string[],
-    rolesAppliedFor: [] as string[],
-    education: [] as string[],
-    sources: [] as string[],
-    firstNames: [] as string[],
-    lastNames: [] as string[],
-  });
+  const [keep, setKeep] = useState<MergeFieldState>(EMPTY_MERGE_FIELDS);
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    status: 'applying' as ApplicantStatus,
     alternateEmails: [] as string[],
     phoneNumbers: [] as string[],
     linkedinUrls: [] as string[],
@@ -148,6 +152,8 @@ export function HrDashboardWorkspace({
     notionTeamMemberPageUrl: '',
     notionTeamMemberId: '',
   });
+  const [confirmDeleteLead, setConfirmDeleteLead] = useState(false);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   useEffect(() => {
     setLoadedApplicants(applicants);
@@ -157,18 +163,7 @@ export function HrDashboardWorkspace({
   useEffect(() => {
     if (!mergeOpen || selectedLeads.length < 2) return;
     setCanonicalLeadId((current) => current && selectedLeads.some((lead) => lead.id === current) ? current : selectedLeads[0].id);
-    setKeep({
-      emails: unique(selectedLeads.flatMap((lead) => [lead.email, ...(lead.alternateEmails ?? [])])),
-      phoneNumbers: unique(selectedLeads.flatMap((lead) => [lead.phoneNumber, ...(lead.mergedPhoneNumbers ?? [])])),
-      linkedinUrls: unique(selectedLeads.flatMap((lead) => [lead.linkedinUrl, ...(lead.mergedLinkedinUrls ?? [])])),
-      cities: unique(selectedLeads.flatMap((lead) => [lead.city, ...(lead.mergedCities ?? [])])),
-      countries: unique(selectedLeads.flatMap((lead) => [lead.country, ...(lead.mergedCountries ?? [])])),
-      rolesAppliedFor: unique(selectedLeads.map((lead) => lead.roleAppliedFor)),
-      education: unique(selectedLeads.map((lead) => lead.education)),
-      sources: unique(selectedLeads.map((lead) => lead.source)),
-      firstNames: unique(selectedLeads.map((lead) => lead.firstName)),
-      lastNames: unique(selectedLeads.map((lead) => lead.lastName)),
-    });
+    setKeep(buildMergeOptionsFromLeads(selectedLeads));
   }, [mergeOpen, selectedLeads]);
 
   async function loadMoreApplicants() {
@@ -197,6 +192,9 @@ export function HrDashboardWorkspace({
       firstName: activeLead.firstName ?? '',
       lastName: activeLead.lastName ?? '',
       email: primaryEmail,
+      status: (APPLICANT_STATUS_VALUES.includes(activeLead.status as ApplicantStatus)
+        ? activeLead.status
+        : 'applying') as ApplicantStatus,
       alternateEmails: (activeLead.alternateEmails ?? []).filter((e) => e.toLowerCase() !== primaryEmail),
       phoneNumbers: parseMultiValue(activeLead.phoneNumber),
       linkedinUrls: parseMultiValue(activeLead.linkedinUrl),
@@ -250,7 +248,7 @@ export function HrDashboardWorkspace({
     setSelectedLeadIds((current) => checked ? unique([...current, leadId]) : current.filter((id) => id !== leadId));
   }
 
-  function toggleKeepValue(field: keyof typeof keep, value: string, checked: boolean) {
+  function toggleKeepValue(field: keyof MergeFieldState, value: string, checked: boolean) {
     setKeep((current) => ({
       ...current,
       [field]: checked ? unique([...(current[field] as string[]), value]) : (current[field] as string[]).filter((item) => item !== value),
@@ -301,6 +299,31 @@ export function HrDashboardWorkspace({
     router.refresh();
   }
 
+  async function deleteLeadPermanently() {
+    if (!activeLead) return;
+    setDeleteSaving(true);
+    setEditError('');
+    const res = await fetch('/api/admin/leads/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicantId: activeLead.id }),
+    });
+    const data = await res.json().catch(() => ({ error: 'Delete failed' }));
+    setDeleteSaving(false);
+    if (!res.ok) {
+      setEditError(data.error ?? 'Delete failed');
+      return;
+    }
+    setConfirmDeleteLead(false);
+    setEditOpen(false);
+    setLoadedApplicants((prev) => {
+      const remaining = prev.filter((lead) => lead.id !== activeLead.id);
+      setSelectedLeadId((current) => (current === activeLead.id ? remaining[0]?.id ?? null : current));
+      return remaining;
+    });
+    router.refresh();
+  }
+
   async function saveRoleChange() {
     if (!activeLead) return;
     setRoleSaving(true);
@@ -321,18 +344,7 @@ export function HrDashboardWorkspace({
     router.refresh();
   }
 
-  const differing = {
-    emails: keep.emails.length > 1,
-    phoneNumbers: keep.phoneNumbers.length > 1,
-    linkedinUrls: keep.linkedinUrls.length > 1,
-    cities: keep.cities.length > 1,
-    countries: keep.countries.length > 1,
-    rolesAppliedFor: keep.rolesAppliedFor.length > 1,
-    education: keep.education.length > 1,
-    sources: keep.sources.length > 1,
-    firstNames: keep.firstNames.length > 1,
-    lastNames: keep.lastNames.length > 1,
-  };
+  const differing = mergeFieldsWithConflicts(mergeOptions);
 
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr]">
@@ -623,21 +635,21 @@ export function HrDashboardWorkspace({
               {differing.emails && (
                 <MergeOptionsField
                   label="Emails (final profile can log in with any kept email)"
-                  values={keep.emails}
+                  values={mergeOptions.emails}
                   selected={keep.emails}
                   field="emails"
                   onToggle={toggleKeepValue}
                 />
               )}
-              {differing.phoneNumbers && <MergeOptionsField label="Phone numbers" values={keep.phoneNumbers} selected={keep.phoneNumbers} field="phoneNumbers" onToggle={toggleKeepValue} />}
-              {differing.linkedinUrls && <MergeOptionsField label="LinkedIn URLs" values={keep.linkedinUrls} selected={keep.linkedinUrls} field="linkedinUrls" onToggle={toggleKeepValue} />}
-              {differing.cities && <MergeOptionsField label="Cities" values={keep.cities} selected={keep.cities} field="cities" onToggle={toggleKeepValue} />}
-              {differing.countries && <MergeOptionsField label="Countries" values={keep.countries} selected={keep.countries} field="countries" onToggle={toggleKeepValue} />}
-              {differing.rolesAppliedFor && <MergeOptionsField label="Roles applied for" values={keep.rolesAppliedFor} selected={keep.rolesAppliedFor} field="rolesAppliedFor" onToggle={toggleKeepValue} />}
-              {differing.education && <MergeOptionsField label="Education" values={keep.education} selected={keep.education} field="education" onToggle={toggleKeepValue} />}
-              {differing.sources && <MergeOptionsField label="Sources" values={keep.sources} selected={keep.sources} field="sources" onToggle={toggleKeepValue} />}
-              {differing.firstNames && <MergeOptionsField label="First names" values={keep.firstNames} selected={keep.firstNames} field="firstNames" onToggle={toggleKeepValue} />}
-              {differing.lastNames && <MergeOptionsField label="Last names" values={keep.lastNames} selected={keep.lastNames} field="lastNames" onToggle={toggleKeepValue} />}
+              {differing.phoneNumbers && <MergeOptionsField label="Phone numbers" values={mergeOptions.phoneNumbers} selected={keep.phoneNumbers} field="phoneNumbers" onToggle={toggleKeepValue} />}
+              {differing.linkedinUrls && <MergeOptionsField label="LinkedIn URLs" values={mergeOptions.linkedinUrls} selected={keep.linkedinUrls} field="linkedinUrls" onToggle={toggleKeepValue} />}
+              {differing.cities && <MergeOptionsField label="Cities" values={mergeOptions.cities} selected={keep.cities} field="cities" onToggle={toggleKeepValue} />}
+              {differing.countries && <MergeOptionsField label="Countries" values={mergeOptions.countries} selected={keep.countries} field="countries" onToggle={toggleKeepValue} />}
+              {differing.rolesAppliedFor && <MergeOptionsField label="Roles applied for" values={mergeOptions.rolesAppliedFor} selected={keep.rolesAppliedFor} field="rolesAppliedFor" onToggle={toggleKeepValue} />}
+              {differing.education && <MergeOptionsField label="Education" values={mergeOptions.education} selected={keep.education} field="education" onToggle={toggleKeepValue} />}
+              {differing.sources && <MergeOptionsField label="Sources" values={mergeOptions.sources} selected={keep.sources} field="sources" onToggle={toggleKeepValue} />}
+              {differing.firstNames && <MergeOptionsField label="First names" values={mergeOptions.firstNames} selected={keep.firstNames} field="firstNames" onToggle={toggleKeepValue} />}
+              {differing.lastNames && <MergeOptionsField label="Last names" values={mergeOptions.lastNames} selected={keep.lastNames} field="lastNames" onToggle={toggleKeepValue} />}
               {!Object.values(differing).some(Boolean) && (
                 <p className="text-sm text-gray-600">No conflicting fields found. You can still merge to consolidate logins and aliases.</p>
               )}
@@ -675,6 +687,28 @@ export function HrDashboardWorkspace({
               <EditField label="First name" value={editForm.firstName} onChange={(value) => setEditForm((c) => ({ ...c, firstName: value }))} />
               <EditField label="Last name" value={editForm.lastName} onChange={(value) => setEditForm((c) => ({ ...c, lastName: value }))} />
               <EditField label="Primary email" value={editForm.email} onChange={(value) => setEditForm((c) => ({ ...c, email: value }))} />
+              <div>
+                <label className="text-sm font-semibold text-gray-800">Applicant status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(event) =>
+                    setEditForm((c) => ({
+                      ...c,
+                      status: event.target.value as ApplicantStatus,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#00349B]"
+                >
+                  {APPLICANT_STATUS_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {formatApplicantStatusLabel(value)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Stored on shared <code className="text-[11px]">flolabs_users.status</code>. Graduated and Terminated disable Chronos access.
+                </p>
+              </div>
               <EditField label="Role applied for" value={editForm.roleAppliedFor} onChange={(value) => setEditForm((c) => ({ ...c, roleAppliedFor: value }))} />
               <EditField label="Source" value={editForm.source} onChange={(value) => setEditForm((c) => ({ ...c, source: value }))} />
               <EditField label="Education" value={editForm.education} onChange={(value) => setEditForm((c) => ({ ...c, education: value }))} />
@@ -703,15 +737,56 @@ export function HrDashboardWorkspace({
             </div>
 
             {editError && <p className="mt-3 text-sm text-red-600">{editError}</p>}
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button type="button" onClick={() => setEditOpen(false)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                disabled={editSaving}
-                onClick={saveLeadEdit}
-                className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setConfirmDeleteLead(true)}
+                className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
               >
-                {editSaving ? 'Saving...' : 'Save changes'}
+                Delete user permanently
+              </button>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setEditOpen(false)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
+                <button
+                  type="button"
+                  disabled={editSaving}
+                  onClick={saveLeadEdit}
+                  className="rounded-xl bg-[#00349B] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {editSaving ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteLead && activeLead && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900">Permanently delete user?</h3>
+            <p className="mt-3 text-sm text-gray-700">
+              Are you sure that the user did not Terminate or Graduate instead, and you want to permanently delete its data?
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              This archives the Notion Team Member page (if linked) and removes {activeLead.firstName} {activeLead.lastName} from the database.
+            </p>
+            {editError && <p className="mt-3 text-sm text-red-600">{editError}</p>}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteLead(false)}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteSaving}
+                onClick={deleteLeadPermanently}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleteSaving ? 'Deleting...' : 'Delete permanently'}
               </button>
             </div>
           </div>
@@ -731,8 +806,8 @@ function MergeOptionsField({
   label: string;
   values: string[];
   selected: string[];
-  field: 'emails' | 'phoneNumbers' | 'linkedinUrls' | 'cities' | 'countries' | 'rolesAppliedFor' | 'education' | 'sources' | 'firstNames' | 'lastNames';
-  onToggle: (field: 'emails' | 'phoneNumbers' | 'linkedinUrls' | 'cities' | 'countries' | 'rolesAppliedFor' | 'education' | 'sources' | 'firstNames' | 'lastNames', value: string, checked: boolean) => void;
+  field: keyof MergeFieldState;
+  onToggle: (field: keyof MergeFieldState, value: string, checked: boolean) => void;
 }) {
   return (
     <div>

@@ -24,7 +24,9 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 | **Location picker** | OpenStreetMap / Leaflet (`frontend/components/location-picker.tsx`) |
 | **Email** | Resend — shared SSM params `/flolabs-chronos/RESEND_API_KEY` and `/flolabs-chronos/EMAIL_FROM` |
 | **CMS (optional)** | Strapi (`CONTENT_STRAPI_URL`) for marketing pages. App works without it; missing env var logs a build warning. |
-| **Chronos sync** | `frontend/lib/chronos-sync.ts` — `syncApplicantToChronos()` pushes profile/stage/status to Chronos. `revokeChronosAccess()` sets `users.is_active = false` when status becomes `terminated`. |
+| **Chronos sync** | `frontend/lib/chronos-sync.ts` — `syncApplicantToChronos()` pushes profile/stage/status to Chronos. `revokeChronosAccess()` runs when status becomes **`graduated`** or **`terminated`**; `grantChronosAccess()` when status becomes **`joined`**. |
+| **Applicant status** | Shared column **`flolabs_users.status`** (`frontend/lib/applicant-status.ts`, mirrored in Chronos `src/lib/applicant-status.ts`). HR edit modal includes all pipeline values including **`graduated`** and **`terminated`**. |
+| **Permanent delete** | `POST /api/admin/leads/delete` → `deleteApplicantPermanently()` archives the Notion Team Member page and removes related DB rows. UI confirmation warns to use Terminate/Graduate instead when appropriate. |
 | **NEXTAUTH_URL** | Set to AWS URL at runtime. Custom domain `efestos.international` is a DNS / App Runner alias pointing to the same service. |
 
 ### AWS Resources
@@ -68,7 +70,8 @@ From **GitHub Actions secrets**: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_
 | `joined` | Onboarded to Chronos (includes actively using timers) | ✅ | ✅ (`is_active = true`) |
 | `approved` | Manual HR override | ✅ | ❌ |
 | `rejected` | Rejected; all platform access revoked | ❌ | ❌ |
-| `terminated` | Chronos access revoked; Hephaestus account preserved | ✅ | ❌ (`is_active = false`) |
+| `graduated` | Completed program; Chronos access revoked | ✅ | ❌ (`is_active = false`) |
+| `terminated` | Left program; Chronos access revoked | ✅ | ❌ (`is_active = false`) |
 
 ### Stage-to-Status Canonical Mapping
 

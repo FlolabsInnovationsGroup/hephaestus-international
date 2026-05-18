@@ -117,6 +117,9 @@ phases:
         for attempt in $(seq 1 60); do
           SERVICE_STATUS="$(aws apprunner describe-service --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --query 'Service.Status' --output text)"
           LATEST_OPERATION_STATUS="$(aws apprunner list-operations --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --max-results 1 --query 'OperationSummaryList[0].Status' --output text)"
+          if [ "$LATEST_OPERATION_STATUS" = "None" ] || [ -z "$LATEST_OPERATION_STATUS" ]; then
+            LATEST_OPERATION_STATUS="SUCCEEDED"
+          fi
           echo "idle check service=${SERVICE_STATUS} op=${LATEST_OPERATION_STATUS} attempt=${attempt}"
           if [ "$SERVICE_STATUS" = "RUNNING" ] && [ "$LATEST_OPERATION_STATUS" != "IN_PROGRESS" ] && [ "$LATEST_OPERATION_STATUS" != "PENDING" ]; then
             break
@@ -137,6 +140,10 @@ phases:
           STATUS="$(aws apprunner list-operations --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --query "OperationSummaryList[?Id=='$OPERATION_ID'].Status | [0]" --output text)"
           echo "operation status=$STATUS"
           if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
+          if [ "$STATUS" = "None" ] || [ -z "$STATUS" ]; then
+            sleep 10
+            continue
+          fi
           if [ "$STATUS" != "IN_PROGRESS" ] && [ "$STATUS" != "PENDING" ]; then exit 1; fi
           sleep 10
         done

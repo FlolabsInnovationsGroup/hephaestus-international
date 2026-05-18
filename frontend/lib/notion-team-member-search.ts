@@ -274,3 +274,25 @@ export async function searchTeamMemberHits(
   const { searchTeamMemberDirectory } = await import('@/lib/team-member-directory-cache');
   return searchTeamMemberDirectory(token, rawTeamMembersDbId, qRaw, 100);
 }
+
+function notionTokenFromEnv(): string {
+  return (
+    process.env.NOTION_API_KEY ||
+    process.env.NOTION_TOKEN ||
+    process.env.NOTION_SECRET ||
+    process.env.NOTION_INTEGRATION_TOKEN ||
+    ''
+  ).trim();
+}
+
+/** Archives a Team Members database row (Notion "delete"). */
+export async function archiveNotionTeamMemberPage(pageId: string): Promise<void> {
+  const token = notionTokenFromEnv();
+  if (!token) throw new Error('Notion API key is not configured.');
+  const id = tryParseNotionPageId(pageId);
+  if (!id) throw new Error('Invalid Notion Team Member page id.');
+  await notionFetch(`/pages/${id}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ archived: true }),
+  });
+}
