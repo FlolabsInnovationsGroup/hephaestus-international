@@ -28,15 +28,15 @@ function getBootstrapEmail(): string {
   return 'zoom@flomadlabs.com';
 }
 
-function getApplicantTestUser(): { userId?: string; email?: string } {
+function getApplicantTestUser(): { userId?: string; email?: string; hephaestusRole?: string } {
   const path = join(process.cwd(), 'test_assets', 'test_users.json');
   if (existsSync(path)) {
     try {
       const data = JSON.parse(readFileSync(path, 'utf8')) as {
-        users?: Array<{ emails?: string[]; password?: string; role?: string; userId?: string }>;
+        users?: Array<{ emails?: string[]; password?: string; role?: string; hephaestusRole?: string; userId?: string }>;
       };
       const u = data.users?.find((user) => user.role === 'member');
-      if (u) return { userId: u.userId, email: (u.emails?.[0] ?? '').trim() };
+      if (u) return { userId: u.userId, email: (u.emails?.[0] ?? '').trim(), hephaestusRole: u.hephaestusRole };
     } catch { /* fall through */ }
   }
   return {};
@@ -203,14 +203,15 @@ export default async function globalSetup() {
       if (meBody.ok && meBody.hrBinaryRole) {
         console.log(`[globalSetup] HR access confirmed (${Math.round((Date.now() - hrVerifyStartMs) / 1000)}s) ✓`);
 
-        // Reset test applicant's hrBinaryRole to false to prevent test pollution across runs
-        const { userId: applicantUserId } = getApplicantTestUser();
+        // Reset test applicant's hrBinaryRole to false to prevent test pollution across runs.
+        // Preserve the hephaestusRole from test_users.json (e.g. 'applicant') so applicant-view tests work.
+        const { userId: applicantUserId, hephaestusRole: applicantRole } = getApplicantTestUser();
         if (applicantUserId) {
           try {
             const resetRes = await fetch(`${baseUrl}/api/admin/leads/role`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
-              body: JSON.stringify({ applicantId: applicantUserId, role: 'member', hrBinaryRole: false }),
+              body: JSON.stringify({ applicantId: applicantUserId, role: applicantRole ?? 'member', hrBinaryRole: false }),
               signal: AbortSignal.timeout(15_000),
             });
             const resetBody = (await resetRes.json().catch(() => ({}))) as { ok?: boolean };
