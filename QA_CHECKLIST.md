@@ -1,110 +1,150 @@
-# QA Protocol — Hephaestus
+# QA Checklist — Hephaestus
 
-## Every-Deploy Protocol
+## How to use this checklist
 
-Every push to `main` runs through this sequence automatically:
+- **[automated]** items run in CI after every deploy via `npx playwright test`.
+- **[manual]** items require a human to spot-check after deploys that touch the related area.
+- Spec paths are relative to the repo root.
 
-1. **CI/CD builds and deploys** (`deploy` job) — image is pushed to ECR, App Runner is updated, health endpoint is verified against the new `commitSha`
-2. **E2E smoke tests run** (`e2e` job, depends on `deploy`) — Playwright hits the live AWS URL with real credentials
+---
 
-A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the deploy still went out but the surface is broken — investigate immediately.
+## 1. Authentication
 
-## Automated Test Coverage
-
-| Test file | Area covered | Tests |
+| # | Check | Coverage |
 |---|---|---|
-| `e2e/hr-status-filter.spec.ts` | Status filter dropdown | 9-option parity (incl. graduated/terminated), HR controls match |
-| `e2e/hr-applicant-status-delete.spec.ts` | Edit modal status + delete confirmation | Status select; delete API guarded by confirmation copy |
-| `e2e/hr-stage-lifecycle.spec.ts` | Stage → status mapping, filter views, terminated access | 5 tests |
-| `e2e/passing-condition-and-content.spec.ts` | Passing condition card, stage content resources, applicant view | 8 tests |
-| `e2e/forgot-password.spec.ts` | Forgot-password UI + API; token creation; anti-enumeration | 3 tests |
-| `e2e/hubspot-csv-sync-admin.spec.ts` | HubSpot CSV admin sync API | 403 without HR; HR upload minimal CSV |
+| 1.1 | HR login lands on `/me/hr` with status filter visible | **[automated]** `e2e/lib/auth.ts` (`loginAsHr`) — used as `beforeEach` in every HR spec |
+| 1.2 | Applicant login lands on `/me/application` | **[automated]** `e2e/role-and-notion-filter.spec.ts` — `loginAsMember` + redirect assertion |
+| 1.3 | Applicant is blocked from `/me/hr` and redirected | **[automated]** `e2e/role-and-notion-filter.spec.ts`, `e2e/applicant-dashboard-content.spec.ts` |
+| 1.4 | Rejected applicant cannot log in | **[manual]** Set a test account to `rejected`; attempt login; confirm redirect to `/login` |
+| 1.5 | Forgot-password UI shows success for any email (anti-enumeration) | **[automated]** `e2e/forgot-password.spec.ts` |
+| 1.6 | Forgot-password token is created for a known user | **[automated]** `e2e/forgot-password.spec.ts` |
+| 1.7 | Forgot-password API returns 200 for unknown email (no leak) | **[automated]** `e2e/forgot-password.spec.ts` |
+| 1.8 | Reset-link email is actually delivered to inbox | **[manual]** After any email code change: request reset for a real address and confirm receipt |
 
-### What the automated suite covers
+---
 
-- **Auth** — HR login lands on correct dashboard; applicant login lands on `/me/application`
-- **Status filter** — 7 canonical statuses present, no stale `active` value
-- **Stage → status mapping** — all 14 stages auto-suggest the correct canonical status on select
-- **Passing condition card** — present on all stages with 3 options (No action required / AI evaluation / HR approval)
-- **AI prompt textarea** — appears only when AI evaluation is selected, hidden otherwise
-- **Locked stages** — `second_meeting`, `agreement_sent`, `agreement_signed`, `chronos_synced`, `joined` show badge and disable other options
-- **Passing condition save** — save triggers confirmation flash; persists across page reload
-- **Stage content** — `contacted` = 9 resources, `before_meeting` = 4, `attended` = 6
-- **Applicant dashboard** — shows stage content cards, no-materials message, or on-review message
+## 2. HR Dashboard — Page Load and Content
 
-## Shared identity (`flolabs_users`)
-
-- After deploy, confirm **`SELECT to_regclass('public.flolabs_users');`** is not null on the shared Neon database used by both apps (connection string from SSM `/flolabs-chronos/DATABASE_URL`).
-- **Merge legacy Hephaestus + HubSpot export:** run `pnpm run db:merge:contacts` in **FloLabs_Chronos** (see script `scripts/merge-legacy-and-hubspot-csv-contacts.ts`) to pull in `website_applicants_legacy` rows and upsert every contact from `FloLabs_Hermes/old_workflow_assets/all-contacts_2026-04-12.csv` (override path with `--csv-path=`). Use `--dry-run` first.
-- **Ongoing sync from the app:** HR-only **`POST /api/admin/contacts/hubspot-csv-sync`** (multipart field `file`) — see `frontend/lib/hubspot-contacts-csv-sync.ts` and [`TESTING.md`](./TESTING.md).
-- Edit a lead in **HR** (name, **applicant status**, or stage); open **Chronos** (same email) and confirm the **Users** directory shows the same **`flolabs_users.status`** (read-only on Chronos) without a batch sync.
-- **Permanent delete:** HR edit modal → **Delete user permanently** → confirm dialog text; verify Notion Team Member page archived and row removed from `flolabs_users` (do not use on production accounts without approval).
-- Run Playwright from repo root (`npx playwright test`) against `PLAYWRIGHT_BASE_URL`; credentials in `test_assets/test_users.json`.
-- **Lead merge** (`POST /api/admin/leads/merge`): canonical row keeps merged emails; secondaries are `status = closed` and `is_active = false`; spot-check `time_entries.user_id` for affected accounts.
-
-### What is NOT automated (manual checks)
-
-| Check | Why manual | How to test |
+| # | Check | Coverage |
 |---|---|---|
-| Resend email delivery | No inbox automation; token creation is verified automatically | Spot-check inbox after a deploy that touches email code |
-| AI stage review output | Subjective / non-deterministic | Submit applicant content, check HR review panel |
-| New application form → DB row | End-to-end form submission | Fill out efestos.international/apply, verify row in HR dashboard |
+| 2.1 | `/me/hr` loads with "Applicants and conversations" heading | **[automated]** `e2e/hr-dashboard-content.spec.ts`, `e2e/hr-stage-lifecycle.spec.ts` |
+| 2.2 | `/me/hr/stages` loads with "Stages" heading | **[automated]** `e2e/nav-pages-smoke.spec.ts`, `e2e/passing-condition-and-content.spec.ts` |
+| 2.3 | `/me/hr/settings` loads without error | **[automated]** `e2e/nav-pages-smoke.spec.ts` |
+| 2.4 | No "Something went wrong" or "Application error" on any HR page | **[automated]** `e2e/nav-pages-smoke.spec.ts` |
+| 2.5 | No uncaught JavaScript exceptions on HR dashboard load | **[automated]** `e2e/hr-dashboard-content.spec.ts` |
+| 2.6 | At least one lead card or "No applicants" message is visible | **[automated]** `e2e/hr-dashboard-content.spec.ts` |
 
-## Running Tests Locally
+---
+
+## 3. Status Filter
+
+| # | Check | Coverage |
+|---|---|---|
+| 3.1 | Status filter contains all 8 canonical statuses | **[automated]** `e2e/hr-dashboard-content.spec.ts`, `e2e/hr-stage-lifecycle.spec.ts` |
+| 3.2 | Filter and HR stage-controls status select have identical option lists | **[automated]** `e2e/hr-status-filter.spec.ts`, `e2e/hr-stage-lifecycle.spec.ts` |
+| 3.3 | `?status=applying` URL param is reflected in the select | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` |
+| 3.4 | `?status=terminated` URL param shows terminated leads | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` |
+| 3.5 | Notion filter (`hasNotion`) select has correct options and updates URL | **[automated]** `e2e/role-and-notion-filter.spec.ts` |
+
+---
+
+## 4. Stage Lifecycle
+
+| # | Check | Coverage |
+|---|---|---|
+| 4.1 | Selecting each of the 14 stages auto-sets the correct canonical status | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` |
+| 4.2 | Setting status to `terminated` calls the Chronos revoke API | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` |
+| 4.3 | Setting status to `joined` returns `chronosGrant.ok = true` | **[automated]** `e2e/notion-member-link.spec.ts` |
+| 4.4 | Save stage + status button visible on unlocked stages | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` |
+
+---
+
+## 5. Passing Conditions
+
+| # | Check | Coverage |
+|---|---|---|
+| 5.1 | Passing condition card shows 3 options on first stage | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+| 5.2 | AI prompt textarea appears only when "AI evaluation" is selected | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+| 5.3 | Locked stages show badge and disable "No action required" + "AI evaluation" | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+| 5.4 | Save condition persists after page reload | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+
+---
+
+## 6. Stage Content (Resources)
+
+| # | Check | Coverage |
+|---|---|---|
+| 6.1 | `contacted` stage has 9 resources | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+| 6.2 | `before_meeting` stage has 4 resources | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+| 6.3 | `attended` stage has 6 resources | **[automated]** `e2e/passing-condition-and-content.spec.ts` |
+
+---
+
+## 7. Lead Edit Modal
+
+| # | Check | Coverage |
+|---|---|---|
+| 7.1 | "Edit lead details" modal opens from the HR dashboard | **[automated]** `e2e/hr-lead-edit-modal.spec.ts`, `e2e/hr-applicant-status-delete.spec.ts` |
+| 7.2 | Name field is visible and non-empty | **[automated]** `e2e/hr-lead-edit-modal.spec.ts` |
+| 7.3 | Applicant status select has a valid canonical value selected | **[automated]** `e2e/hr-lead-edit-modal.spec.ts`, `e2e/hr-applicant-status-delete.spec.ts` |
+| 7.4 | "Save changes" button is present | **[automated]** `e2e/hr-lead-edit-modal.spec.ts` |
+| 7.5 | "Delete user permanently" opens confirmation dialog with safety text | **[automated]** `e2e/hr-lead-edit-modal.spec.ts`, `e2e/hr-applicant-status-delete.spec.ts` |
+| 7.6 | Cancelling delete dismisses the dialog without deleting | **[automated]** `e2e/hr-lead-edit-modal.spec.ts` |
+| 7.7 | Notion team member search field is interactive and not 503 | **[automated]** `e2e/notion-member-link.spec.ts` |
+
+---
+
+## 8. Applicant View
+
+| # | Check | Coverage |
+|---|---|---|
+| 8.1 | `/me/application` loads without crash | **[automated]** `e2e/nav-pages-smoke.spec.ts`, `e2e/applicant-dashboard-content.spec.ts` |
+| 8.2 | Shows one of: stage content, "No materials", or "on review" message | **[automated]** `e2e/passing-condition-and-content.spec.ts`, `e2e/applicant-dashboard-content.spec.ts` |
+| 8.3 | Page has at least one heading (not blank) | **[automated]** `e2e/applicant-dashboard-content.spec.ts` |
+| 8.4 | No 500 / "Something went wrong" text | **[automated]** `e2e/applicant-dashboard-content.spec.ts` |
+| 8.5 | New application form (`efestos.international/apply`) creates DB row visible in HR dashboard | **[manual]** Submit a real application; confirm the lead appears in `/me/hr` |
+
+---
+
+## 9. Shared Identity with Chronos
+
+| # | Check | Coverage |
+|---|---|---|
+| 9.1 | Setting status to `graduated` or `terminated` in HR revokes `users.is_active` in Chronos | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` (terminated path); graduated is manual |
+| 9.2 | Setting status to `joined` grants Chronos access (`is_active = true`) | **[automated]** `e2e/notion-member-link.spec.ts` |
+| 9.3 | Chronos Users directory shows same `flolabs_users.status` without batch sync | **[manual]** Edit a lead's status in HR; open Chronos for the same email and verify |
+| 9.4 | `flolabs_users` table exists in shared Neon DB | **[manual]** `SELECT to_regclass('public.flolabs_users');` after schema-altering deploys |
+| 9.5 | Lead merge: canonical row keeps merged emails; secondaries become `closed`/`is_active=false` | **[manual]** Run merge via `POST /api/admin/leads/merge`; spot-check `time_entries.user_id` |
+
+---
+
+## 10. Admin / HR-only APIs
+
+| # | Check | Coverage |
+|---|---|---|
+| 10.1 | HubSpot CSV sync returns 403 without HR session | **[automated]** `e2e/hubspot-csv-sync-admin.spec.ts` |
+| 10.2 | HubSpot CSV sync with HR session upserts contacts and returns `ok: true` | **[automated]** `e2e/hubspot-csv-sync-admin.spec.ts` |
+| 10.3 | Notion team member search responds < 90 s after warm-up | **[automated]** `e2e/team-member-search-speed.spec.ts` |
+| 10.4 | Saving a role for a lead shows "Saved" confirmation | **[automated]** `e2e/role-and-notion-filter.spec.ts` |
+
+---
+
+## Running the Full Suite
 
 ```bash
 cd hephaestus-international
 
-# Full suite
+# All specs
 npx playwright test --config playwright.config.ts
 
-# Single file
+# Individual spec
 npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
-npx playwright test e2e/passing-condition-and-content.spec.ts --config playwright.config.ts
 
-# With HTML report (opens browser after run)
+# With HTML report
 npx playwright test --config playwright.config.ts --reporter=html && npx playwright show-report
 ```
 
-Credentials and `baseUrl` are read from `test_assets/test_users.json`. That file is committed; do not hardcode credentials directly in spec files.
-
-## CI Automation
-
-The `e2e` job in `.github/workflows/deploy-aws-apprunner.yml` runs automatically after every successful deploy:
-
-- **Trigger:** `needs: deploy` — only runs if the deploy job succeeds
-- **Environment:** `ubuntu-latest`, Chromium via `npx playwright install chromium --with-deps`
-- **Base URL:** `PLAYWRIGHT_BASE_URL=https://fykgssqbvg.us-east-1.awsapprunner.com`
-- **Credentials:** read from `test_assets/test_users.json` (committed)
-- **Artifacts:** HTML report + screenshots uploaded as `playwright-report-<sha>`, retained 14 days
-
-To view results of a past run: GitHub → Actions → the run → `playwright-report-<sha>` artifact.
-
-## Manual Post-Deploy Smoke Test
-
-When you need to verify a deploy by hand (not relying on CI):
-
-```bash
-# 1. Confirm health endpoint matches the commit
-curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health | python3 -m json.tool
-
-# 2. Check App Runner is RUNNING
-aws apprunner describe-service \
-  --service-arn arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7 \
-  --region us-east-1 \
-  --query 'Service.{Status:Status,Image:SourceConfiguration.ImageRepository.ImageIdentifier}'
-
-# 3. Run the E2E suite manually
-cd hephaestus-international && npx playwright test --config playwright.config.ts
-```
-
-Then spot-check these in the browser (HR credentials: `zoom@flomadlabs.com`):
-
-- [ ] `/me/hr` loads, status filter shows 7 options
-- [ ] `/me/hr/stages` loads, passing condition card visible on first stage
-- [ ] Contacted stage shows 13 resources
-- [ ] Locked stage (`second_meeting`) shows HR-approval badge, other options disabled
-- [ ] Save a condition change, reload, confirm it persists
+Credentials and `baseUrl` are read from `test_assets/test_users.json`.
 
 ---
 
@@ -112,14 +152,14 @@ Then spot-check these in the browser (HR credentials: `zoom@flomadlabs.com`):
 
 | Status | Meaning | Hephaestus access | Chronos access |
 |---|---|---|---|
-| `applying` | Applied; has not yet reached second meeting | ✅ Yes | ❌ No |
-| `waiting` | Passed second meeting; waiting for agreement | ✅ Yes | ❌ No |
-| `signed` | Agreement signed; pending Chronos onboarding | ✅ Yes | ❌ No |
-| `joined` | Onboarded to Chronos | ✅ Yes | ✅ Yes (`is_active = true`) |
-| `approved` | Manual HR override | ✅ Yes | ❌ No |
-| `rejected` | Access fully revoked | ❌ No | ❌ No |
-| `graduated` | Completed program; Chronos access revoked | ✅ Yes | ❌ No (`is_active = false`) |
-| `terminated` | Left program; Chronos access revoked; Hephaestus preserved | ✅ Yes | ❌ No (`is_active = false`) |
+| `applying` | Applied; not yet reached second meeting | Yes | No |
+| `waiting` | Passed second meeting; awaiting agreement | Yes | No |
+| `signed` | Agreement signed; pending Chronos onboarding | Yes | No |
+| `joined` | Onboarded to Chronos (`is_active = true`) | Yes | Yes |
+| `approved` | Manual HR override | Yes | No |
+| `rejected` | Access fully revoked | No | No |
+| `graduated` | Completed program; Chronos revoked (`is_active = false`) | Yes | No |
+| `terminated` | Left program; Chronos revoked (`is_active = false`) | Yes | No |
 
 ## Reference: Stage → Status Mapping
 
@@ -140,4 +180,4 @@ Then spot-check these in the browser (HR credentials: `zoom@flomadlabs.com`):
 | 13 | `chronos_synced` | Chronos synced | `joined` | `hr` (locked) |
 | 14 | `joined` | Joined | `joined` | `hr` (locked) |
 
-**Locked stages** (`second_meeting` → `joined`): HR approval is mandatory. The passing condition UI disables other options for these stages and the Save button is hidden.
+**Locked stages** (`second_meeting` → `joined`): HR approval mandatory. Passing condition UI disables other options; Save button is hidden.
