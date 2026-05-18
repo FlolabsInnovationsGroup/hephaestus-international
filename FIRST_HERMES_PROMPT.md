@@ -1,3 +1,7 @@
+> **ARCHIVED / HISTORICAL** — this document is the original product inception prompt (the "first Hermes prompt") that specified the requirements for what became the Hephaestus HR applicant tracking platform. It describes the initial desired feature set and was used to scaffold the first implementation. The platform has since been fully built and deployed. References to Vercel, preview deployments, and partial implementation status in this file describe that historical state, not the current system. **For current architecture and state, read `ARCHITECTURE.md`, `DEPLOYMENT.md`, and `CLAUDE.md`.**
+
+---
+
 The application process of our educational program is right now quite long and requires numerous different tools, making the entire process very heavy on manual work for the HR team and the applicants themselves.
 We want to centralize all operations in a single platform.
 For now, applicants go to this website to apply:

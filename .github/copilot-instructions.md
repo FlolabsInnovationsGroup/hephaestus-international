@@ -16,7 +16,7 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, live at `http
 |---|---|
 | Framework | Next.js 16 App Router (`frontend/` is the Docker build context) |
 | Language | TypeScript |
-| Database | Shared AWS RDS PostgreSQL — same instance as FloLabs Chronos |
+| Database | Shared **Neon serverless PostgreSQL** — same database as FloLabs Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. |
 | Auth | Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` |
 | Deploy | AWS App Runner via GitHub Actions on push to `main` |
 | CMS | Strapi (optional, for marketing pages only — app works without it) |
@@ -47,6 +47,7 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, live at `http
 | `joined` | ✅ | set to `true` |
 | `approved` | ✅ | unchanged |
 | `rejected` | ❌ blocked | unchanged |
+| `graduated` | ✅ | set to `false` |
 | `terminated` | ✅ | set to `false` |
 
 **`active` is not a valid status.** Chronos users with `is_active = true` are displayed as `joined`.
@@ -74,9 +75,11 @@ Update **all five** locations (see `CLAUDE.md` for the checklist).
 - The Chronos `users` table is read by `chronosUserToApplicant()` to derive status: `is_active = false` → `terminated`, `is_active = true` → `joined`
 
 ### Database tables
-- `website_applicants` — Hephaestus-owned; created by `ensurePostgresSchema()` in `application-db.ts`
-- `applicants` — Chronos-owned; written by `syncApplicantToChronos()`
-- `users` — Chronos-owned; `is_active` written by `revokeChronosAccess()` / `grantChronosAccess()`
+- **`flolabs_users`** — Hephaestus-owned DDL; primary identity table for all applicants. Created/altered by `ensurePostgresSchema()` in `application-db.ts`. Chronos maps its `users` Drizzle model to this physical table.
+- `applicants` — Chronos-owned; written by `syncApplicantToChronos()` for HubSpot-imported contacts
+- Chronos `is_active` on `flolabs_users` is written by `revokeChronosAccess()` / `grantChronosAccess()`
+
+**Cross-system ownership rule:** Hephaestus owns `graduated`, `terminated`, and permanent delete. Chronos reads `flolabs_users.status` read-only. `graduated`/`terminated` users cannot sign in to Chronos.
 
 ### React form hydration
 `LoginForm` uses `useState` — it's a controlled component. In Playwright tests, always use:

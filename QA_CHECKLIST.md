@@ -34,7 +34,7 @@ A deploy is only clean when **both jobs pass**. If the `e2e` job fails, the depl
 
 ## Shared identity (`flolabs_users`)
 
-- After deploy, confirm **`SELECT to_regclass('public.flolabs_users');`** is not null on the shared RDS URL used by both apps.
+- After deploy, confirm **`SELECT to_regclass('public.flolabs_users');`** is not null on the shared Neon database used by both apps (connection string from SSM `/flolabs-chronos/DATABASE_URL`).
 - **Merge legacy Hephaestus + HubSpot export:** run `pnpm run db:merge:contacts` in **FloLabs_Chronos** (see script `scripts/merge-legacy-and-hubspot-csv-contacts.ts`) to pull in `website_applicants_legacy` rows and upsert every contact from `FloLabs_Hermes/old_workflow_assets/all-contacts_2026-04-12.csv` (override path with `--csv-path=`). Use `--dry-run` first.
 - **Ongoing sync from the app:** HR-only **`POST /api/admin/contacts/hubspot-csv-sync`** (multipart field `file`) — see `frontend/lib/hubspot-contacts-csv-sync.ts` and [`TESTING.md`](./TESTING.md).
 - Edit a lead in **HR** (name, **applicant status**, or stage); open **Chronos** (same email) and confirm the **Users** directory shows the same **`flolabs_users.status`** (read-only on Chronos) without a batch sync.
@@ -118,7 +118,8 @@ Then spot-check these in the browser (HR credentials: `zoom@flomadlabs.com`):
 | `joined` | Onboarded to Chronos | ✅ Yes | ✅ Yes (`is_active = true`) |
 | `approved` | Manual HR override | ✅ Yes | ❌ No |
 | `rejected` | Access fully revoked | ❌ No | ❌ No |
-| `terminated` | Chronos access revoked; Hephaestus preserved | ✅ Yes | ❌ No (`is_active = false`) |
+| `graduated` | Completed program; Chronos access revoked | ✅ Yes | ❌ No (`is_active = false`) |
+| `terminated` | Left program; Chronos access revoked; Hephaestus preserved | ✅ Yes | ❌ No (`is_active = false`) |
 
 ## Reference: Stage → Status Mapping
 

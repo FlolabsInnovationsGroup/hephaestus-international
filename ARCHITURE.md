@@ -1,5 +1,9 @@
 # Hephaestus International — Architecture Quick Reference
 
+> **ARCHIVED / HISTORICAL** — this document describes a past state of the system. It contains stale references to AWS RDS (replaced by Neon serverless PostgreSQL), an incorrect custom domain (`hephaestus.international` instead of `efestos.international`), and a Railway-hosted Strapi backend that is no longer the CMS setup. **For current architecture, read `ARCHITECTURE.md`.**
+
+---
+
 > This file is a brief summary. The authoritative architecture document is **`ARCHITECTURE.md`**.
 
 ## Production runtime

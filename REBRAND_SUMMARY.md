@@ -32,8 +32,8 @@ WordPress internship data (39 entries) was migrated to Strapi using the scripts 
 
 The Vercel/Railway deployment is no longer active. The platform is now:
 - Deployed on **AWS App Runner** (`https://fykgssqbvg.us-east-1.awsapprunner.com`)
-- Custom domain: `https://efestos.international`
-- Database: shared AWS RDS PostgreSQL with FloLabs Chronos
+- Custom domains: `https://efestos.international` and `https://hephaestus.international`
+- Database: shared **Neon serverless PostgreSQL** (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`) with FloLabs Chronos. The old AWS RDS instance was decommissioned in 2026-05.
 - Strapi is still running as an optional marketing CMS but is not required by the HR platform
 
 See `ARCHITECTURE.md` and `DEPLOYMENT.md` for the current system.

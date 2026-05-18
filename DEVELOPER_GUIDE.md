@@ -20,7 +20,7 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, deployed at `
 |---|---|
 | Framework | Next.js 16 App Router (`frontend/` is the Docker build context) |
 | Language | TypeScript |
-| Database | Shared AWS RDS PostgreSQL — same instance as FloLabs Chronos |
+| Database | Shared **Neon serverless PostgreSQL** — same database as FloLabs Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. |
 | Auth | Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` |
 | Deploy | AWS App Runner via GitHub Actions on push to `main` |
 | CMS | Strapi (optional — for marketing pages only; app works without it) |
@@ -139,6 +139,7 @@ See `DEPLOYMENT.md` for the full pipeline and verification commands.
 | `joined` | ✅ | set to `true` |
 | `approved` | ✅ | unchanged |
 | `rejected` | ❌ blocked | unchanged |
+| `graduated` | ✅ | set to `false` |
 | `terminated` | ✅ | set to `false` |
 
 When adding or changing a status, update all five locations listed in `CLAUDE.md`.
@@ -147,11 +148,16 @@ When adding or changing a status, update all five locations listed in `CLAUDE.md
 
 ## Database
 
-Hephaestus shares an AWS RDS PostgreSQL instance with FloLabs Chronos:
+Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb`). The old AWS RDS instance was decommissioned in 2026-05.
 
-- `website_applicants` — Hephaestus-owned; managed by `ensurePostgresSchema()` in `application-db.ts`
-- `applicants` — Chronos-owned; written by `syncApplicantToChronos()`
-- `users` — Chronos-owned; `is_active` written by `revokeChronosAccess()` / `grantChronosAccess()`
+- **`flolabs_users`** — Hephaestus-owned DDL; primary identity table for all applicants. Managed by `ensurePostgresSchema()` in `application-db.ts`. Chronos reads this table via Drizzle ORM (maps `users` → physical `flolabs_users`).
+- **`applicants`** — Chronos-owned; written by `syncApplicantToChronos()` for HubSpot-imported contacts
+- Chronos `is_active` on `flolabs_users` is written by `revokeChronosAccess()` / `grantChronosAccess()`
+
+**Cross-system ownership:**
+- Hephaestus **owns** `graduated`, `terminated`, and permanent delete of users
+- Chronos displays `flolabs_users.status` read-only
+- `graduated`/`terminated` users cannot sign in to Chronos
 
 Connection string sourced from `/flolabs-chronos/DATABASE_URL` SSM at deploy time.
 

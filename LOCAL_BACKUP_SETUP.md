@@ -1,5 +1,9 @@
 # Local backup setup
 
+> **ARCHIVED / HISTORICAL** — this document records a past migration effort (Neon → AWS RDS) that is no longer relevant. The current database is **Neon serverless PostgreSQL** (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`), shared by both Hephaestus and Chronos. The old RDS instance (`flolabs-chronos-db`) was decommissioned in 2026-05. The Strapi build blocker described here is also historical. This file is kept for audit purposes only.
+
+---
+
 ## Chronos
 
 ### Current AWS state

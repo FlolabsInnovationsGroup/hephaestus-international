@@ -1,8 +1,32 @@
 # Hephaestus.International
 
-Modern marketing site and applicant portal for **Hephaestus.International** (with optional **Efestos** branding on a second domain). The stack is **Next.js** (App Router) on the frontend and **Strapi v5** for content, with media on **Cloudinary** and production deployment on **AWS App Runner** (frontend) plus Strapi hosting.
+FloLabs' **internship applicant tracking platform**, live at `https://efestos.international` (also `https://hephaestus.international`). This is an **internal operations tool** — not a public SaaS.
 
-**بالعربية:** المشروع عبارة عن موقع وواجهة أمامية بـ Next.js تتصل بنظامي Strapi (رئيسي للمحتوى العام للموقع، وآخر للمشاريع والمدونة وإعلانات التدريب)، مع دعم اسم تجاري يعتمد على النطاق (Hephaestus أو Efestos)، وإعادة تحقق للمحتوى (ISR) على معظم الصفحات.
+**Last updated:** 2026-05-18
+
+---
+
+## What This Is
+
+Hephaestus manages the full lifecycle of FloLabs internship applicants:
+- Captures applications and routes them through a **14-stage HR pipeline**
+- Provides HR with a dashboard to manage leads, filter by status, set stage/status, and trigger Chronos access
+- **Owns the `flolabs_users` identity table** — shared with FloLabs Chronos (the time-tracking system) via the same Neon PostgreSQL database
+- Allows applicants to log in and view their application progress
+- HR sets `graduated` and `terminated` status here; Chronos reads `flolabs_users.status` read-only
+
+---
+
+## Production
+
+| | |
+|---|---|
+| **Production domain** | `https://efestos.international` |
+| **AWS App Runner URL** | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
+| **Health check** | `GET /api/health` returns `{ ok, commitSha, imageTag, ... }` |
+| **Database** | Neon serverless PostgreSQL — `ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb` (shared with Chronos) |
+
+**Testing rule:** Test only against the live AWS URL. Do not use the local dev server as deployment proof.
 
 ---
 
@@ -10,105 +34,50 @@ Modern marketing site and applicant portal for **Hephaestus.International** (wit
 
 | Layer | Role |
 |--------|------|
-| **Frontend** (`frontend/`) | Next.js 16, React 19, Tailwind CSS 4, Framer Motion on AWS App Runner |
-| **Main Strapi** | Site settings, homepage sections, benefits, methodology, team, verticals, etc. |
-| **Content Strapi** | Projects, blog posts, internship listings (job posts) |
-| **Media** | Cloudinary (via Strapi upload provider); Next.js allows remote images from Strapi and Cloudinary |
-
-The homepage uses **server-side rendering with host-based branding** (`dynamic = 'force-dynamic'`). Most other routes use **ISR with a 60-second revalidation** window so CMS updates appear quickly without redeploying.
-
----
-
-## Main routes
-
-| Path | Description |
-|------|-------------|
-| `/` | Homepage (sections from main Strapi, projects from content Strapi) |
-| `/about` | About |
-| `/projects` | Projects listing |
-| `/internships` | Internships list + search |
-| `/internships/[slug]` | Internship detail + HubSpot form (form ID from CMS) |
-| `/blogs` | Blog listing |
-| `/blogs/[slug]` | Blog post |
-| `/contact` | Contact (uses site settings from Strapi) |
+| **Frontend** (`frontend/`) | Next.js 16 App Router, TypeScript, Tailwind CSS — Docker build context |
+| **Database** | Shared **Neon serverless PostgreSQL** with FloLabs Chronos. URL in SSM `/flolabs-chronos/DATABASE_URL`. Identity table: `flolabs_users`. |
+| **Auth** | Cookie-based session (`fl_preview_session`), NextAuth secret = `AUTH_SECRET` |
+| **Deploy** | AWS CodeBuild → ECR → App Runner (primary); GitHub Actions → ECR → App Runner (fallback) |
+| **CMS (optional)** | Strapi — for public marketing pages only. HR pipeline works entirely without it. |
+| **AI chatbot** | Paula uses OpenAI (`OPENAI_API_KEY`) or rule-based fallback |
+| **Email** | Resend (shared SSM params with Chronos) |
 
 ---
 
-## Branding (multi-domain)
+## Shared Identity with Chronos
 
-Branding is resolved from the request host (`frontend/lib/branding.ts`):
-
-- **Hephaestus** — default for `localhost` and `hephaestus.*` domains  
-- **Efestos** — when the host contains `efestos`
-
-Copy and metadata can use `getServerBrand()` so the same deployment can serve different institute names on different domains.
+`flolabs_users` is the **single identity table** used by both Hephaestus and Chronos:
+- **Hephaestus owns DDL and writes** — `ensurePostgresSchema()` in `frontend/lib/application-db.ts` manages the schema
+- **Chronos reads** `flolabs_users.status` to determine display (read-only on Chronos Users → Edit)
+- `graduated` and `terminated` status → Chronos `is_active = false` (blocks Chronos login)
+- `joined` status → Chronos `is_active = true` (grants Chronos access)
+- **Permanent delete** of a user is only performed from Hephaestus HR dashboard
 
 ---
 
-## Repository layout
+## Key Applicant Statuses
+
+| Status | Hephaestus login | Chronos access |
+|---|---|---|
+| `applying` / `waiting` / `signed` / `approved` | ✅ | ❌ |
+| `joined` | ✅ | ✅ (`is_active = true`) |
+| `rejected` | ❌ | ❌ |
+| `graduated` | ✅ | ❌ (`is_active = false`) |
+| `terminated` | ✅ | ❌ (`is_active = false`) |
+
+---
+
+## Repository Layout
 
 ```text
-frontend/          # Next.js app (primary entry for local dev)
-strapi/app/        # Strapi 5 CMS (schema, APIs, admin)
-scripts/           # Utilities (content sync, etc. — see scripts/README.md)
+frontend/          # Next.js app (Docker build context)
+strapi/app/        # Optional Strapi 5 CMS (marketing pages only)
+e2e/               # Playwright E2E tests (run against live AWS URL)
+test_assets/       # Test credentials (test_users.json)
+scripts/           # Historical migration scripts
+buildspec.yml      # AWS CodeBuild primary deploy pipeline
+.github/workflows/ # GitHub Actions fallback deploy pipeline
 ```
-
----
-
-## Prerequisites
-
-- **Node.js** 18–22 (see `strapi/app/package.json` engines)
-- API tokens for Strapi (from your team or Railway/Vercel env)
-
----
-
-## Local development
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-```
-
-Create `frontend/.env.local` from `frontend/.env.example` (do not commit secrets):
-
-```env
-NEXT_PUBLIC_STRAPI_URL=https://your-main-strapi.example.com
-STRAPI_API_TOKEN=<main-strapi-api-token>
-
-CONTENT_STRAPI_URL=https://your-content-strapi.example.com
-CONTENT_STRAPI_API_TOKEN=<content-strapi-api-token>
-```
-
-In development, both URLs may point to the same Strapi instance if your deployment supports it; production often uses two instances as described in `frontend/README.md`.
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### Strapi (optional)
-
-Only when changing schemas, plugins, or running the admin locally:
-
-```bash
-cd strapi/app
-npm install
-npm run develop
-```
-
-Admin UI: [http://localhost:1337/admin](http://localhost:1337/admin). Configure `DATABASE_URL` and other secrets per `strapi/app/.env.example`.
-
----
-
-## Scripts
-
-| Command | Where |
-|---------|--------|
-| `npm run dev` / `build` / `start` / `lint` | `frontend/` |
-| `npm run develop` / `build` / `start` | `strapi/app/` |
 
 ---
 
@@ -116,62 +85,44 @@ Admin UI: [http://localhost:1337/admin](http://localhost:1337/admin). Configure 
 
 | Document | Purpose |
 |----------|---------|
-| [frontend/README.md](./frontend/README.md) | Frontend env vars, dual Strapi behavior, ISR |
-| [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) | Developer setup and patterns |
-| [CMS_USER_GUIDE.md](./CMS_USER_GUIDE.md) | Content editing in Strapi |
-| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Deployment (AWS App Runner + shared Chronos data) |
-| [DOMAIN_SETUP_GUIDE.md](./DOMAIN_SETUP_GUIDE.md) | DNS and domains |
-| [QUICK_START.md](./QUICK_START.md) | Short onboarding |
-| [QA_CHECKLIST.md](./QA_CHECKLIST.md) | Pre-release checks |
-| [REBRAND_SUMMARY.md](./REBRAND_SUMMARY.md) | Hephaestus rebrand notes |
-| [scripts/README.md](./scripts/README.md) | Scripts folder |
+| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Full system architecture, status/stage tables, AWS resource inventory |
+| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | CI/CD pipeline (CodeBuild primary, GHA fallback), verification commands |
+| [`CLAUDE.md`](./CLAUDE.md) | Coding rules, status change checklist, common task recipes |
+| [`QA_CHECKLIST.md`](./QA_CHECKLIST.md) | HR pipeline test cases, Playwright commands |
+| [`QUICK_START.md`](./QUICK_START.md) | Short onboarding for new agents/developers |
+| [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) | Developer setup and patterns |
+| [`DATA.md`](./DATA.md) | Full field inventory across all database tables |
+| [`CMS_USER_GUIDE.md`](./CMS_USER_GUIDE.md) | Strapi content editing (marketing pages only) |
+| [`DOMAIN_SETUP_GUIDE.md`](./DOMAIN_SETUP_GUIDE.md) | DNS and custom domain setup |
+| [`TESTING.md`](./TESTING.md) | Testing overview and quick commands |
 
 ---
 
-## Environment variables (summary)
+## Environment Variables (Summary)
 
-### Frontend
+All production secrets are in **AWS SSM**, fetched at deploy time:
 
-| Variable | Purpose |
-|----------|---------|
-| `NEXT_PUBLIC_STRAPI_URL` | Main Strapi base URL (public) |
-| `STRAPI_API_TOKEN` | Server-only token for main Strapi |
-| `CONTENT_STRAPI_URL` | Content Strapi base URL (server-only) |
-| `CONTENT_STRAPI_API_TOKEN` | Server-only token for content Strapi |
-| `DATABASE_URL` / `CHRONOS_DB_DATABASE_URL` | Shared Chronos Postgres database (same credentials and account identity) |
+| SSM Parameter | Purpose |
+|---|---|
+| `/flolabs-chronos/DATABASE_URL` | Shared Neon PostgreSQL (`neondb`) |
+| `/hephaestus-international/CHRONOS_SYNC_API_URL` | Chronos sync endpoint |
+| `/hephaestus-international/CHRONOS_SYNC_TOKEN` | Chronos sync auth token |
+| `/hephaestus-international/CONTENT_STRAPI_URL` | Optional Strapi CMS URL |
+| `/hephaestus-international/CONTENT_STRAPI_API_TOKEN` | Strapi token |
+| `/flolabs-chronos/RESEND_API_KEY` | Email sending |
+| `/flolabs-chronos/EMAIL_FROM` | Sender address |
 
-Never prefix secret tokens with `NEXT_PUBLIC_`.
-
-### Strapi (Railway / self-hosted)
-
-Typical values include `DATABASE_URL`, `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, `JWT_SECRET`, and Cloudinary/transfer settings as required by your Strapi config. See `DEPLOYMENT_GUIDE.md` and `strapi/app/.env.example`.
-
----
-
-## Features
-
-- **Content**: Strapi v5 REST APIs with bearer tokens; optional split between “main” and “content” backends  
-- **Performance**: ISR (~60s) on listing and detail pages; optimized images via Next.js image config  
-- **Forms**: HubSpot embedded forms on internship pages (`portalId` default in `hubspot-form.tsx`; per-role `formId` from CMS)  
-- **Media**: Cloudinary + Strapi; `next.config.ts` allows Strapi and Cloudinary hostnames  
+GitHub Actions secrets: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_API_KEY`.
 
 ---
 
 ## Troubleshooting
 
-- **Stale content**: Wait up to ~60 seconds for ISR, or confirm items are **Published** in Strapi.  
-- **Missing projects/internships**: Ensure `CONTENT_STRAPI_URL` / `CONTENT_STRAPI_API_TOKEN` are set and match the content instance.  
-- **Images**: Check `NEXT_PUBLIC_STRAPI_URL`, `CONTENT_STRAPI_URL`, and Cloudinary hostnames in `frontend/next.config.ts`.  
-- **Build failures**: Verify all required env vars in Vercel; ensure Strapi is reachable at build time if pages fetch during build.
+- **App not serving new image:** check `aws apprunner describe-service` for image tag vs expected `git-<sha>`
+- **Login issues in Playwright:** React hydration — always use `waitUntil: 'load'` and `waitFor({ state: 'visible' })` before `.fill()`
+- **Type errors:** run `npx tsc --noEmit` from `frontend/` before pushing
+- **CI/CD failures:** check GitHub Actions logs; most common cause is missing SSM ARN in IAM policy (see `DEPLOYMENT.md`)
 
 ---
 
-## License
-
-Specify license in this repository as decided by your organization.
-
----
-
-**Last updated:** April 2026  
-
-Maintained by Flo Labs / Hephaestus.International development.
+Maintained by Flo Labs / FloLabs International development team.

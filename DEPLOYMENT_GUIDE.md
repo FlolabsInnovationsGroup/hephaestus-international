@@ -1,5 +1,9 @@
 # Hephaestus.International Deployment Guide
 
+> **ARCHIVED / HISTORICAL** — this document describes the original Vercel (frontend) + Railway (Strapi) deployment that is no longer active. The current production deployment uses AWS CodeBuild → ECR → App Runner (primary) or GitHub Actions → ECR → App Runner (fallback). The database is **Neon serverless PostgreSQL** shared with Chronos, not Railway PostgreSQL. **For current deployment instructions, read `DEPLOYMENT.md`.**
+
+---
+
 This guide covers deploying Hephaestus.International on AWS using the same credentials and shared database account model as Chronos.
 
 ## Architecture Overview
