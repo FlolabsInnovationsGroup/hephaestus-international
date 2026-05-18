@@ -2,7 +2,7 @@
 
 For full system context, read `ARCHITECTURE.md`. This file covers how to release and verify.
 
-## Deploy flow (primary) — AWS CodeBuild
+## Deploy flow — AWS CodeBuild
 
 | Item | Value |
 |---|---|
@@ -48,22 +48,11 @@ aws codebuild start-build \
 
 Project definition: `infra/codebuild-project.json`. IAM: `infra/codebuild-deploy-policy.json`, `infra/codebuild-logs-policy.json`.
 
-## Deploy flow (fallback) — GitHub Actions
-
-Push to `main` triggers `.github/workflows/deploy-aws-apprunner.yml` when Actions billing is available:
-
-1. OIDC → `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy`
-2. Docker build from `./frontend` with Strapi URL build arg
-3. Push `git-<12-char-sha>` to ECR `hephaestus-international`
-4. Read SSM runtime secrets, update App Runner, verify health
-
-Same App Runner service and proof standard as CodeBuild.
-
 ## Deployment proof standard
 
 A deployment is proven when all of the following are true:
 
-1. CodeBuild or GitHub Actions completed successfully
+1. CodeBuild build completed successfully
 2. App Runner is serving the expected `git-<sha>` image
 3. `GET https://fykgssqbvg.us-east-1.awsapprunner.com/api/health` returns `"ok":true` with matching `commitSha`
 4. The affected live user path works on the deployed surface
@@ -74,7 +63,7 @@ For Hephaestus, the normal deploy path must **not** depend on the local machine 
 
 - No local Docker build for routine deploys
 - No local browser validation as deployment proof
-- Source of truth for production is AWS (CodeBuild or GHA, ECR, SSM, App Runner)
+- Source of truth for production is AWS (CodeBuild, ECR, SSM, App Runner)
 
 ## AWS resources
 
@@ -82,22 +71,16 @@ For Hephaestus, the normal deploy path must **not** depend on the local machine 
 |---|---|
 | VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` |
 | App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
-| GitHub Actions role (fallback) | `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy` |
-
-## IAM policy note (GitHub Actions fallback)
-
-The role `hephaestus-international-github-actions-deploy` inline policy must grant `ssm:GetParameter` on every SSM parameter the workflow reads. When adding parameters, extend `ReadSharedRuntimeSecrets` ARNs.
-
 ## Runtime secret source of truth
 
-Values are sourced from **AWS SSM** during CodeBuild `pre_build` or the GHA deploy job:
+Values are sourced from **AWS SSM** during CodeBuild `pre_build`:
 
 | SSM Parameter | Runtime env var |
 |---|---|
 | `/flolabs-chronos/DATABASE_URL` | `DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`, `FL_CHRONOS_DATABASE_URL` |
 | `/hephaestus-international/CHRONOS_SYNC_API_URL` | `CHRONOS_SYNC_API_URL` |
 | `/hephaestus-international/CHRONOS_SYNC_TOKEN` | `CHRONOS_SYNC_TOKEN` |
-| `/hephaestus-international/CONTENT_STRAPI_URL` | `CONTENT_STRAPI_URL`, `NEXT_PUBLIC_STRAPI_URL` (also build arg in GHA) |
+| `/hephaestus-international/CONTENT_STRAPI_URL` | `CONTENT_STRAPI_URL`, `NEXT_PUBLIC_STRAPI_URL` |
 | `/hephaestus-international/STRAPI_API_TOKEN` | `STRAPI_API_TOKEN` |
 | `/hephaestus-international/CONTENT_STRAPI_API_TOKEN` | `CONTENT_STRAPI_API_TOKEN` |
 | `/flolabs-chronos/RESEND_API_KEY` | `RESEND_API_KEY` |
@@ -106,12 +89,11 @@ Values are sourced from **AWS SSM** during CodeBuild `pre_build` or the GHA depl
 | `/flolabs-chronos/CRON_SECRET` | `CRON_SECRET` (CodeBuild) |
 | `/flolabs-chronos/OPENAI_API_KEY` | `OPENAI_API_KEY` (CodeBuild) |
 
-`NEXTAUTH_SECRET` is preserved from the current App Runner service during CodeBuild, or supplied from GitHub `AUTH_SECRET` in the GHA path.
+`NEXTAUTH_SECRET` is preserved from the current App Runner service during CodeBuild.
 
 ## Files that define the deploy path
 
-- `buildspec.yml` — primary CodeBuild pipeline
-- `.github/workflows/deploy-aws-apprunner.yml` — fallback CI/CD
+- `buildspec.yml` — CodeBuild pipeline
 - `infra/codebuild-project.json` — CodeBuild project config
 
 ## Shared applicant status (`flolabs_users.status`)
