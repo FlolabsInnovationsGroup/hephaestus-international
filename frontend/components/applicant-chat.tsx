@@ -6,6 +6,7 @@ type Message = {
   id: string;
   author: 'applicant' | 'paula' | 'john' | 'oliver';
   text: string;
+  createdAt?: string;
 };
 
 const authorNames = {
@@ -14,6 +15,37 @@ const authorNames = {
   john: 'John Hazlewood',
   oliver: 'Oliver Belliard',
 } as const;
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function formatDateSeparator(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(date, now)) return 'Today';
+  if (isSameDay(date, yesterday)) return 'Yesterday';
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86_400_000);
+  if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'long' });
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  }
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
 
 export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = false, hrAuthor = 'paula' }: { initialMessages: Message[]; applicantId?: string; canReplyAsHr?: boolean; hrAuthor?: 'paula' | 'john' | 'oliver' }) {
   const [messages, setMessages] = useState(initialMessages);
@@ -30,7 +62,7 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
     if (!text.trim()) return;
     const tempId = `local-${Date.now()}`;
     const optimisticAuthor = canReplyAsHr ? hrAuthor : 'applicant';
-    const optimistic: Message = { id: tempId, author: optimisticAuthor, text: text.trim() };
+    const optimistic: Message = { id: tempId, author: optimisticAuthor, text: text.trim(), createdAt: new Date().toISOString() };
     setMessages((current) => [...current, optimistic]);
     const submittedText = text.trim();
     setText('');
@@ -44,11 +76,9 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
       const data = await res.json();
       if (res.ok && data.reply) {
         if (canReplyAsHr) {
-          // Replace the optimistic HR message with the confirmed stored one
-          setMessages((current) => current.map(m => m.id === tempId ? { id: data.reply.id, author: data.reply.author, text: data.reply.text } : m));
+          setMessages((current) => current.map(m => m.id === tempId ? { id: data.reply.id, author: data.reply.author, text: data.reply.text, createdAt: data.reply.createdAt ?? new Date().toISOString() } : m));
         } else {
-          // Append Paula's auto-reply after the applicant's optimistic message
-          setMessages((current) => [...current, { id: data.reply.id, author: data.reply.author, text: data.reply.text }]);
+          setMessages((current) => [...current, { id: data.reply.id, author: data.reply.author, text: data.reply.text, createdAt: data.reply.createdAt ?? new Date().toISOString() }]);
         }
       }
     } finally {
@@ -56,15 +86,44 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
     }
   }
 
+  // Build render list: inject date separators between messages from different days
+  const items: ({ type: 'separator'; label: string; key: string } | { type: 'message'; message: Message })[] = [];
+  let lastDate = '';
+  for (const message of messages) {
+    if (message.createdAt) {
+      const d = new Date(message.createdAt);
+      const dayKey = Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (dayKey && dayKey !== lastDate) {
+        items.push({ type: 'separator', label: formatDateSeparator(message.createdAt), key: `sep-${dayKey}` });
+        lastDate = dayKey;
+      }
+    }
+    items.push({ type: 'message', message });
+  }
+
   return (
     <>
       <div className="flex max-h-[680px] flex-col gap-4 overflow-y-auto px-6 py-5">
-        {messages.map((message) => {
+        {items.map((item) => {
+          if (item.type === 'separator') {
+            return (
+              <div key={item.key} className="flex items-center gap-3 py-1">
+                <div className="h-px flex-1 bg-blue-100" />
+                <span className="text-xs font-medium text-gray-400">{item.label}</span>
+                <div className="h-px flex-1 bg-blue-100" />
+              </div>
+            );
+          }
+          const { message } = item;
           const isApplicant = message.author === 'applicant';
+          const time = message.createdAt ? formatTime(message.createdAt) : '';
           return (
             <div key={message.id} className={`max-w-[88%] rounded-2xl px-4 py-3 ${isApplicant ? 'self-end bg-[#00349B] text-white' : 'bg-[#eef5ff] text-gray-900'}`}>
               <p className={`mb-1 text-xs font-semibold ${isApplicant ? 'text-white/80' : 'text-[#00349B]'}`}>{authorNames[message.author]}</p>
               <p className="text-sm leading-6">{message.text}</p>
+              {time && (
+                <p className={`mt-1 text-right text-[10px] ${isApplicant ? 'text-white/50' : 'text-gray-400'}`}>{time}</p>
+              )}
             </div>
           );
         })}
