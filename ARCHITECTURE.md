@@ -18,7 +18,7 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 |---|---|
 | **App server** | **Next.js 16** (App Router) in `frontend/` directory. Docker image on **AWS App Runner** (`us-east-1`). Handles SSR, route handlers (`frontend/app/api/**`), and Server Components. |
 | **Images & deploy** | Immutable ECR tags `git-<12-char-sha>`. **GitHub Actions** (`.github/workflows/deploy-aws-apprunner.yml`) builds on push to `main` or manual `workflow_dispatch`, updates App Runner, verifies `/api/health` returns matching commit SHA. |
-| **Database** | Shared **AWS RDS PostgreSQL** with FloLabs Chronos. Env aliases point at the same SSM param `/flolabs-chronos/DATABASE_URL`. **Canonical identity** is the **`flolabs_users`** table (renamed from `website_applicants`); Chronos and Hephaestus read/write the same rows for profiles, pipeline fields, and (where applicable) credentials. |
+| **Database** | Shared **Neon serverless PostgreSQL** with FloLabs Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL injected from SSM `/flolabs-chronos/DATABASE_URL` at deploy time. **Canonical identity** is the **`flolabs_users`** table; Chronos and Hephaestus read/write the same rows for profiles, pipeline fields, and (where applicable) credentials. |
 | **Auth** | Cookie-based session (`fl_preview_session`). `canAccessSharedFloLabsAccount()` in `frontend/lib/application-store.ts` gates login — blocks `rejected` only; all other statuses allowed. |
 | **AI chatbot** | Paula uses OpenAI when `OPENAI_API_KEY` is set; falls back to rule-based replies when absent. |
 | **Location picker** | OpenStreetMap / Leaflet (`frontend/components/location-picker.tsx`) |
@@ -45,7 +45,7 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 ### Runtime Secrets
 
 Pulled from **AWS SSM** during deploy:
-- `/flolabs-chronos/DATABASE_URL` — shared Postgres (RDS)
+- `/flolabs-chronos/DATABASE_URL` — shared Neon PostgreSQL (`neondb`)
 - `/hephaestus-international/CHRONOS_SYNC_API_URL`
 - `/hephaestus-international/CHRONOS_SYNC_TOKEN`
 - `/hephaestus-international/CONTENT_STRAPI_URL`
@@ -136,7 +136,7 @@ When HR selects a stage, the status auto-updates to the canonical value (via `st
 
 ## Database
 
-Hephaestus and Chronos share **one AWS RDS PostgreSQL instance** and connect with identical credentials.
+Hephaestus and Chronos share **one Neon serverless PostgreSQL database** (`neondb`) and connect with identical credentials (`neondb_owner`). The old AWS RDS instance was decommissioned in 2026-05.
 
 **Hephaestus-managed table:** **`flolabs_users`** — created/altered by `ensurePostgresSchema()` in `frontend/lib/application-db.ts`. On first boot against a legacy database, `website_applicants` is renamed to `flolabs_users` when the latter does not yet exist.
 
@@ -204,4 +204,4 @@ hephaestus-international/
 
 - Real CV file upload/storage: API stubs exist but end-to-end storage is incomplete
 - Paula not yet wired to the Emails_automation backend (uses OpenAI direct or rule-based fallback)
-- `@neondatabase/serverless` is in `package.json` as an unused legacy dependency — app uses `postgres` driver only
+- `@neondatabase/serverless` is in `package.json` but the app uses the standard `postgres` npm driver directly (Neon works fine over standard `pg`/`postgres` with `sslmode=require`)

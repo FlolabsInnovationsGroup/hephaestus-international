@@ -32,7 +32,7 @@ This is not a public SaaS. It is an internal FloLabs operations tool.
 
 - **Framework:** Next.js 16 App Router — `frontend/` directory is the Docker build context
 - **Language:** TypeScript
-- **Database:** PostgreSQL via `postgres` driver — shared AWS RDS with Chronos (identical credentials)
+- **Database:** PostgreSQL via `postgres` driver — shared **Neon serverless PostgreSQL** with Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL` and `frontend/.env.local`.
 - **Auth:** Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` GitHub secret
 - **AI:** OpenAI for Paula chatbot (optional — falls back to rule-based if `OPENAI_API_KEY` absent)
 - **Email:** Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`)
@@ -74,7 +74,7 @@ Using `domcontentloaded` or native DOM setters before hydration causes the form 
 This branching is in `POST /api/admin/leads/stage`. The Chronos `users.is_active` flag is what actually gates Chronos login — sync alone does not revoke access.
 
 ### Database schema changes
-`ensurePostgresSchema()` in `frontend/lib/application-db.ts` creates/alters **`flolabs_users`**. Write it idempotently — it must not fail if columns already exist. Chronos shares the same RDS instance and owns other tables (`time_entries`, `teams`, …) but **not** a separate `users` / `applicants` pair for identity anymore.
+`ensurePostgresSchema()` in `frontend/lib/application-db.ts` creates/alters **`flolabs_users`**. Write it idempotently — it must not fail if columns already exist. Chronos shares the same Neon database and owns other tables (`time_entries`, `teams`, …) but **not** a separate `users` / `applicants` pair for identity anymore.
 
 ## Common Tasks
 
