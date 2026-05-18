@@ -90,6 +90,7 @@ export function HrDashboardWorkspace({
   uniqueProfilesCount,
   initialHasMore,
   queryParams,
+  hrAuthor = 'paula',
 }: {
   applicants: Lead[];
   initialLeadId?: string;
@@ -97,6 +98,7 @@ export function HrDashboardWorkspace({
   uniqueProfilesCount: number;
   initialHasMore: boolean;
   queryParams: Record<string, string>;
+  hrAuthor?: 'paula' | 'john' | 'oliver';
 }) {
   const [loadedApplicants, setLoadedApplicants] = useState<Lead[]>(applicants);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -445,7 +447,7 @@ export function HrDashboardWorkspace({
                   <Spinner size="md" className="text-[#00349B]" label="Loading conversation…" />
                 </p>
               ) : (
-                <ApplicantChat initialMessages={conversation} applicantId={activeLead.id} canReplyAsHr />
+                <ApplicantChat initialMessages={conversation} applicantId={activeLead.id} canReplyAsHr hrAuthor={hrAuthor} />
               )
             ) : <p className="px-6 py-5 text-sm text-gray-500">No lead selected.</p>}
           </div>

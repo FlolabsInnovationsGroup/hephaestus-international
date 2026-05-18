@@ -8,7 +8,9 @@ export async function POST(request: Request) {
   if (!body.text) return NextResponse.json({ error: 'Message text required' }, { status: 400 });
 
   if (viewer.hrBinaryRole && body.applicantId) {
-    const author = body.author === 'john' || body.author === 'oliver' ? body.author : 'paula';
+    const firstName = (viewer.firstName ?? '').toLowerCase();
+    const author: 'paula' | 'john' | 'oliver' =
+      firstName === 'john' ? 'john' : firstName === 'oliver' ? 'oliver' : 'paula';
     const reply = await sendHrMessage(String(body.applicantId), String(body.text), author);
     return NextResponse.json({ ok: true, reply });
   }

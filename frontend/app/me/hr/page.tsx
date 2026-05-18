@@ -83,6 +83,10 @@ export default async function HrPage({ searchParams }: { searchParams: Promise<{
           uniqueProfilesCount={totalMatching}
           initialHasMore={hasMore}
           queryParams={queryParams}
+          hrAuthor={
+            (viewer.firstName ?? '').toLowerCase() === 'john' ? 'john' :
+            (viewer.firstName ?? '').toLowerCase() === 'oliver' ? 'oliver' : 'paula'
+          }
         />
       </div>
     </Section>

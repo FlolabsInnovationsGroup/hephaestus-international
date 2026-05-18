@@ -15,7 +15,7 @@ const authorNames = {
   oliver: 'Oliver Belliard',
 } as const;
 
-export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = false }: { initialMessages: Message[]; applicantId?: string; canReplyAsHr?: boolean }) {
+export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = false, hrAuthor = 'paula' }: { initialMessages: Message[]; applicantId?: string; canReplyAsHr?: boolean; hrAuthor?: 'paula' | 'john' | 'oliver' }) {
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,9 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
     if (!text.trim()) return;
-    const optimistic: Message = { id: `local-${Date.now()}`, author: canReplyAsHr ? 'paula' : 'applicant', text: text.trim() };
+    const tempId = `local-${Date.now()}`;
+    const optimisticAuthor = canReplyAsHr ? hrAuthor : 'applicant';
+    const optimistic: Message = { id: tempId, author: optimisticAuthor, text: text.trim() };
     setMessages((current) => [...current, optimistic]);
     const submittedText = text.trim();
     setText('');
@@ -37,11 +39,17 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
       const res = await fetch('/api/applications/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: submittedText, applicantId, author: canReplyAsHr ? 'paula' : 'applicant' }),
+        body: JSON.stringify({ text: submittedText, applicantId }),
       });
       const data = await res.json();
       if (res.ok && data.reply) {
-        setMessages((current) => [...current, { id: data.reply.id, author: data.reply.author, text: data.reply.text }]);
+        if (canReplyAsHr) {
+          // Replace the optimistic HR message with the confirmed stored one
+          setMessages((current) => current.map(m => m.id === tempId ? { id: data.reply.id, author: data.reply.author, text: data.reply.text } : m));
+        } else {
+          // Append Paula's auto-reply after the applicant's optimistic message
+          setMessages((current) => [...current, { id: data.reply.id, author: data.reply.author, text: data.reply.text }]);
+        }
       }
     } finally {
       setLoading(false);
