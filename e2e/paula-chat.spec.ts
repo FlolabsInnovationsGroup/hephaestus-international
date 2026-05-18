@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { getCredentials, gotoApp, loginAsMember } from './lib/auth';
+import { test, expect, type Page } from '@playwright/test';
+import { getCredentials, gotoApp, loginAsMember, loginWithCredentials } from './lib/auth';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -240,5 +240,156 @@ test.describe('Paula Ferry — fallback robustness', () => {
       expect(body.ok, `Expected ok:true for "${text}"`).toBe(true);
       expect(body.reply?.text.length ?? 0, `Expected non-empty reply for "${text}"`).toBeGreaterThan(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. UI-level: full round-trip via tesororeptilipotermius@gmail.com
+//
+// Paula always replies — to every applicant message, without exception.
+// The reply path branches:
+//   • OPENAI_API_KEY present  → GPT-4.1-nano with stage context + effort hint
+//   • No API key (fallback)   → rule-based pattern matching:
+//       < 14 chars / "ok" / "hi" / ≤2 words no "?" → guide to read materials
+//       "paid"/"salary"/"compensation"              → defer to HR
+//       "meeting"/"orientation"/"oliver"            → orientation timing
+//       "what next"/"next step"/"timeline"          → points to right panel
+//       "cv"/"resume"/"file"                        → CV update
+//       "hello"/"hi"/"hey"                          → greeting intro
+//       "thank"                                     → welcome response
+//       anything else                               → generic process reply
+// ---------------------------------------------------------------------------
+const MEMBER_EMAIL_DIRECT = 'tesororeptilipotermius@gmail.com';
+const { password: MEMBER_PASSWORD_DIRECT } = getCredentials('member');
+
+async function loginAsMemberDirect(page: Page) {
+  await loginWithCredentials(page, MEMBER_EMAIL_DIRECT, MEMBER_PASSWORD_DIRECT, /\/me/);
+}
+
+test.describe('Paula Ferry — UI round-trip (tesororeptilipotermius@gmail.com)', () => {
+  test.setTimeout(180_000);
+
+  // Helper: type a message in the chat input and wait for Paula's reply bubble
+  async function sendAndWaitForReply(page: Page, messageText: string) {
+    const chatInput = page.locator('input[placeholder*="Ask Paula"]');
+    await expect(chatInput).toBeVisible({ timeout: 30_000 });
+
+    const countBefore = await page.locator('[class*="max-w-"][class*="rounded-2xl"]').count();
+
+    const replyPromise = page.waitForResponse(
+      r => {
+        try { return new URL(r.url()).pathname === '/api/applications/message' && r.request().method() === 'POST'; }
+        catch { return false; }
+      },
+      { timeout: 60_000 }
+    );
+
+    await chatInput.fill(messageText);
+    await page.getByRole('button', { name: /^Send$/i }).click();
+    const res = await replyPromise;
+    expect(res.status(), `/api/applications/message returned ${res.status()}`).toBe(200);
+
+    const body = await res.json() as { ok: boolean; reply?: { text: string; author: string } };
+    expect(body.ok).toBe(true);
+    expect(body.reply?.text.length ?? 0).toBeGreaterThan(0);
+    expect(body.reply?.author).toBe('paula');
+
+    // Two new bubbles must appear: applicant's message + Paula's reply
+    await page.waitForFunction(
+      ({ sel, before }: { sel: string; before: number }) =>
+        document.querySelectorAll(sel).length >= before + 2,
+      { sel: '[class*="max-w-"][class*="rounded-2xl"]', before: countBefore },
+      { timeout: 30_000 }
+    );
+
+    return body.reply!;
+  }
+
+  test('normal question — Paula replies with non-empty text as author "paula"', async ({ page }) => {
+    await loginAsMemberDirect(page);
+    await gotoApp(page, '/me/application');
+
+    const reply = await sendAndWaitForReply(page, 'What should I focus on for the current stage?');
+    expect(reply.text.length).toBeGreaterThan(0);
+    expect(reply.author).toBe('paula');
+  });
+
+  test('low-effort message "ok" — Paula guides to open materials', async ({ page }) => {
+    await loginAsMemberDirect(page);
+    await gotoApp(page, '/me/application');
+
+    const reply = await sendAndWaitForReply(page, 'ok');
+    // Fallback: short message → materials / prompts guidance
+    const lower = reply.text.toLowerCase();
+    const hasMaterialsGuidance =
+      lower.includes('material') || lower.includes('prompt') || lower.includes('open') ||
+      lower.includes('read') || lower.includes('stage') || lower.includes('content') ||
+      lower.includes('help') || lower.includes('sentences');
+    expect(hasMaterialsGuidance, `Expected materials guidance, got: "${reply.text}"`).toBe(true);
+  });
+
+  test('greeting "Hello Paula" — Paula responds with a helpful greeting', async ({ page }) => {
+    await loginAsMemberDirect(page);
+    await gotoApp(page, '/me/application');
+
+    const reply = await sendAndWaitForReply(page, 'Hello Paula');
+    const lower = reply.text.toLowerCase();
+    // Should be a helpful response, not an error
+    const isHelpful =
+      lower.includes('hello') || lower.includes('hi') || lower.includes('paula') ||
+      lower.includes('help') || lower.includes('happy') || lower.includes('sure') ||
+      lower.includes('welcome') || lower.includes('coordinator') || lower.includes('question');
+    expect(isHelpful, `Expected helpful greeting reply, got: "${reply.text}"`).toBe(true);
+    expect(lower).not.toMatch(/^error/);
+  });
+
+  test('next-step question — Paula points to the right panel', async ({ page }) => {
+    await loginAsMemberDirect(page);
+    await gotoApp(page, '/me/application');
+
+    const reply = await sendAndWaitForReply(page, 'What is my next step?');
+    const lower = reply.text.toLowerCase();
+    const pointsToPanel =
+      lower.includes('right') || lower.includes('panel') || lower.includes('stage') ||
+      lower.includes('step') || lower.includes('current') || lower.includes('dashboard') ||
+      lower.includes('prompts') || lower.includes('form');
+    expect(pointsToPanel, `Expected next-step guidance, got: "${reply.text}"`).toBe(true);
+  });
+
+  test('both message bubbles appear — applicant first, then Paula', async ({ page }) => {
+    await loginAsMemberDirect(page);
+    await gotoApp(page, '/me/application');
+
+    const userMsg = `E2E round-trip — ${Date.now()}`;
+    const chatInput = page.locator('input[placeholder*="Ask Paula"]');
+    await expect(chatInput).toBeVisible({ timeout: 30_000 });
+
+    const countBefore = await page.locator('[class*="max-w-"][class*="rounded-2xl"]').count();
+
+    const replyPromise = page.waitForResponse(
+      r => {
+        try { return new URL(r.url()).pathname === '/api/applications/message' && r.request().method() === 'POST'; }
+        catch { return false; }
+      },
+      { timeout: 60_000 }
+    );
+    await chatInput.fill(userMsg);
+    await page.getByRole('button', { name: /^Send$/i }).click();
+    await replyPromise;
+
+    await page.waitForFunction(
+      ({ sel, before }: { sel: string; before: number }) =>
+        document.querySelectorAll(sel).length >= before + 2,
+      { sel: '[class*="max-w-"][class*="rounded-2xl"]', before: countBefore },
+      { timeout: 30_000 }
+    );
+
+    // The user's message bubble must be visible in the chat
+    const userBubble = page.locator('[class*="max-w-"][class*="rounded-2xl"]').filter({ hasText: userMsg });
+    await expect(userBubble).toHaveCount(1, { timeout: 10_000 });
+
+    // And the "You" author label must be inside it
+    const authorLabel = userBubble.locator('p').first();
+    await expect(authorLabel).toHaveText('You', { timeout: 5_000 });
   });
 });
