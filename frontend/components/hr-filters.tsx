@@ -51,7 +51,7 @@ export function HrFilters({ params, stageOptions, statusOptions, sourceOptions, 
             <FilterField label="Duplicate review"><select name="duplicateReview" defaultValue={params.duplicateReview ?? ''} className={inputClass}><option value="">Any</option><option value="has_pending">Has pending review</option><option value="confirmed_duplicate">Confirmed duplicate</option><option value="different_people">Different people</option><option value="merged">Merged</option><option value="none">No duplicate review</option></select></FilterField>
             <FilterField label="Notion page"><select name="hasNotion" defaultValue={params.hasNotion ?? ''} className={inputClass}><option value="">All leads</option><option value="yes">Has Notion page</option><option value="no">No Notion page</option></select></FilterField>
             <FilterField label="More"><button type="button" onClick={() => setMoreOpen((v) => !v)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">...</button></FilterField>
-            <FilterField label="Apply"><button type="submit" className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button></FilterField>
+            <FilterField label="Apply"><button type="submit" data-testid="apply-filter" className="w-full rounded-xl bg-[#00349B] px-4 py-3 text-sm font-semibold text-white">Apply</button></FilterField>
           </div>
           {moreOpen && (
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">

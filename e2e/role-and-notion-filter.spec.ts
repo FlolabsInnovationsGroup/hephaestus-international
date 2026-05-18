@@ -44,7 +44,7 @@ test.describe('Notion Team Members page filter', () => {
 
   test('selecting Has Notion page and applying updates URL', async ({ page }) => {
     await page.locator('select[name="hasNotion"]').first().selectOption('yes');
-    await page.getByRole('button', { name: 'Apply' }).click();
+    await page.locator('[data-testid="apply-filter"]').click();
     await page.waitForURL(/hasNotion=yes/, { timeout: 30_000 });
     await expect(page).toHaveURL(/hasNotion=yes/);
     await page.screenshot({ path: 'test-results/notion-02-filter-applied.png' });
@@ -52,7 +52,7 @@ test.describe('Notion Team Members page filter', () => {
 
   test('selecting No Notion page filters to leads without a page', async ({ page }) => {
     await page.locator('select[name="hasNotion"]').first().selectOption('no');
-    await page.getByRole('button', { name: 'Apply' }).click();
+    await page.locator('[data-testid="apply-filter"]').click();
     await page.waitForURL(/hasNotion=no/, { timeout: 30_000 });
     await expect(page).toHaveURL(/hasNotion=no/);
     await page.screenshot({ path: 'test-results/notion-03-no-notion.png' });
