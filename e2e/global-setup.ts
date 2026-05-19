@@ -79,35 +79,53 @@ export default async function globalSetup() {
   // the correct commit — skip the commit check.
   const expectedSha = process.env.PLAYWRIGHT_BASE_URL ? null : getLocalCommitSha();
 
+  // SKIP_DB_HEALTH_WAIT=true bypasses the DB check so tests can run even when the
+  // database is temporarily unavailable (e.g. Neon compute quota exceeded).
+  // Tests that require the DB will still fail — but the run starts and shows real failures.
+  const skipDbWait = process.env.SKIP_DB_HEALTH_WAIT === 'true';
+
   console.log(
-    `[globalSetup] Waiting for ${baseUrl}${expectedSha ? ` (commit ${expectedSha.slice(0, 8)})` : ''} …`,
+    `[globalSetup] Waiting for ${baseUrl}${expectedSha ? ` (commit ${expectedSha.slice(0, 8)})` : ''}${skipDbWait ? ' [SKIP_DB_HEALTH_WAIT]' : ''} …`,
   );
 
   // Poll /api/health until:
   //   1. The service is responsive (no 502 upstream-timeout)
   //   2. The commitSha in the response matches our local HEAD (if not in CI mode)
-  //   3. db === 'ok'
+  //   3. db === 'ok'  (skipped when SKIP_DB_HEALTH_WAIT=true)
   while (true) {
     try {
       const res = await fetch(`${baseUrl}/api/health`, {
         signal: AbortSignal.timeout(requestTimeoutMs),
       });
-      if (res.ok) {
-        const body = (await res.json()) as { ok?: boolean; db?: string; commitSha?: string };
-        if (body.ok && body.db === 'ok') {
-          if (expectedSha && body.commitSha !== expectedSha) {
-            console.log(
-              `[globalSetup] Service running ${body.commitSha?.slice(0, 8)}, want ${expectedSha.slice(0, 8)} — waiting for deploy…`,
-            );
-          } else {
-            console.log(`[globalSetup] Service warm (${Math.round((Date.now() - start) / 1000)}s, sha=${body.commitSha?.slice(0, 8)})`);
-            break;
-          }
+      let body: { ok?: boolean; db?: string; commitSha?: string } | null = null;
+      try { body = await res.json(); } catch { /* ignore parse errors */ }
+
+      const dbReady = skipDbWait || (body?.ok === true && body?.db === 'ok');
+      const shaMatch = !expectedSha || body?.commitSha === expectedSha;
+      // 502/504 = upstream gateway timeout (service not running); 200/503 = Next.js is up
+      const serviceResponding = res.status !== 502 && res.status !== 504;
+
+      if (serviceResponding && dbReady) {
+        if (!shaMatch) {
+          console.log(
+            `[globalSetup] Service running ${body?.commitSha?.slice(0, 8)}, want ${expectedSha!.slice(0, 8)} — waiting for deploy…`,
+          );
         } else {
-          console.log(`[globalSetup] Health ok=${body.ok} db=${body.db}, retrying…`);
+          if (skipDbWait && body?.db !== 'ok') {
+            console.warn(`[globalSetup] WARNING: DB not healthy (${body?.db}) — proceeding anyway (SKIP_DB_HEALTH_WAIT)`);
+          }
+          console.log(`[globalSetup] Service warm (${Math.round((Date.now() - start) / 1000)}s, sha=${body?.commitSha?.slice(0, 8)})`);
+          break;
         }
+      } else if (!serviceResponding) {
+        console.log(`[globalSetup] Health status ${res.status} — service not up, retrying…`);
       } else {
-        console.log(`[globalSetup] Health status ${res.status}, retrying…`);
+        // Service up but DB not ready
+        if (body?.db?.includes('compute time quota')) {
+          console.error(`[globalSetup] *** Neon DB compute quota exceeded. Upgrade at neon.tech or set SKIP_DB_HEALTH_WAIT=true to run tests anyway. ***`);
+        } else {
+          console.log(`[globalSetup] Health ok=${body?.ok} db=${body?.db}, retrying…`);
+        }
       }
     } catch (e) {
       console.log(`[globalSetup] Not ready: ${(e as Error).message}`);
@@ -149,6 +167,12 @@ export default async function globalSetup() {
   // Verify HR access via /api/auth/me. This also warms schemaReady() and the login path.
   // Retries every 15 s for up to 25 minutes. Throws if HR access cannot be confirmed —
   // tests cannot pass without it, so there is no point proceeding.
+  // When SKIP_DB_HEALTH_WAIT=true, skip entirely — DB is unavailable so login will always fail.
+  if (skipDbWait) {
+    console.warn('[globalSetup] SKIP_DB_HEALTH_WAIT: skipping HR login verification — DB unavailable, auth-dependent tests will fail');
+    return;
+  }
+
   const { email: hrEmail, password: hrPassword } = getHrCredentials();
   let loginWarmedUp = false;
   const hrVerifyStartMs = Date.now();
