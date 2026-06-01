@@ -109,7 +109,7 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
             return (
               <div key={item.key} className="flex items-center gap-3 py-1">
                 <div className="h-px flex-1 bg-blue-100" />
-                <span className="text-xs font-medium text-gray-400">{item.label}</span>
+                <span suppressHydrationWarning className="text-xs font-medium text-gray-400">{item.label}</span>
                 <div className="h-px flex-1 bg-blue-100" />
               </div>
             );
@@ -122,7 +122,7 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
               <p className={`mb-1 text-xs font-semibold ${isApplicant ? 'text-white/80' : 'text-[#00349B]'}`}>{authorNames[message.author]}</p>
               <p className="text-sm leading-6">{message.text}</p>
               {time && (
-                <p className={`mt-1 text-right text-[10px] ${isApplicant ? 'text-white/50' : 'text-gray-400'}`}>{time}</p>
+                <p suppressHydrationWarning className={`mt-1 text-right text-[10px] ${isApplicant ? 'text-white/50' : 'text-gray-400'}`}>{time}</p>
               )}
             </div>
           );
