@@ -139,14 +139,14 @@
 | 11.2 | `GET /api/admin/stages/definitions` returns 403 without an HR session | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.3 | All 14 stages are present in the API response | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.4 | `application_submitted` has `passingCondition: "none"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
-| 11.5 | `new` has `passingCondition: "none"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.5 | `new` has `passingCondition: "ai"` (HR configured to AI evaluation in prod) | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.6 | `contacted` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.7 | `interested_review` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.8 | `before_meeting` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.9 | `meeting_recordings_submitted` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.10 | `saturday_meeting` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.11 | `attended` has `passingCondition: "ai"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
-| 11.12 | `masterclass_submitted` has `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
+| 11.12 | `masterclass_submitted` has `passingCondition: "ai"` (HR configured to AI evaluation in prod) | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 | 11.13 | All 5 locked stages (`second_meeting` → `joined`) have `passingCondition: "hr"` | **[automated]** `e2e/stage-passing-conditions.spec.ts` |
 
 ### Stage passing conditions — UI (locked stages)
@@ -247,14 +247,14 @@ Credentials and `baseUrl` are read from `test_assets/test_users.json`. `PLAYWRIG
 | # | Stage ID | Label | Canonical status | Passing condition default |
 |---|---|---|---|---|
 | 1 | `application_submitted` | Application submitted | `applying` | `none` |
-| 2 | `new` | New | `applying` | `none` |
+| 2 | `new` | New | `applying` | `ai` |
 | 3 | `contacted` | Contacted | `applying` | `ai` |
 | 4 | `interested_review` | Interested review | `applying` | `hr` |
 | 5 | `before_meeting` | Before meeting | `applying` | `ai` |
 | 6 | `meeting_recordings_submitted` | Meeting recordings submitted | `applying` | `hr` |
 | 7 | `saturday_meeting` | Saturday meeting | `applying` | `hr` |
 | 8 | `attended` | Attended | `applying` | `ai` |
-| 9 | `masterclass_submitted` | Masterclass submitted | `applying` | `hr` |
+| 9 | `masterclass_submitted` | Masterclass submitted | `applying` | `ai` |
 | 10 | `second_meeting` | Oliver 1-on-1 | `waiting` | `hr` (locked) |
 | 11 | `agreement_sent` | Agreement sent | `waiting` | `hr` (locked) |
 | 12 | `agreement_signed` | Agreement signed | `signed` | `hr` (locked) |

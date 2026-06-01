@@ -6,14 +6,14 @@ import { getCredentials, gotoApp, loginAsHr } from './lib/auth';
 // ---------------------------------------------------------------------------
 const EXPECTED_CONDITIONS: Array<{ id: string; passingCondition: 'none' | 'hr' | 'ai'; locked?: boolean }> = [
   { id: 'application_submitted', passingCondition: 'none' },
-  { id: 'new', passingCondition: 'none' },
+  { id: 'new', passingCondition: 'ai' },
   { id: 'contacted', passingCondition: 'ai' },
   { id: 'interested_review', passingCondition: 'hr' },
   { id: 'before_meeting', passingCondition: 'ai' },
   { id: 'meeting_recordings_submitted', passingCondition: 'hr' },
   { id: 'saturday_meeting', passingCondition: 'hr' },
   { id: 'attended', passingCondition: 'ai' },
-  { id: 'masterclass_submitted', passingCondition: 'hr' },
+  { id: 'masterclass_submitted', passingCondition: 'ai' },
   { id: 'second_meeting', passingCondition: 'hr', locked: true },
   { id: 'agreement_sent', passingCondition: 'hr', locked: true },
   { id: 'agreement_signed', passingCondition: 'hr', locked: true },
