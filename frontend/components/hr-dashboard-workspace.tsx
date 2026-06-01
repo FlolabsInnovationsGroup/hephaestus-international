@@ -414,10 +414,10 @@ export function HrDashboardWorkspace({
                   <p className="mt-1 text-xs text-gray-600">{lead.roleAppliedFor}</p>
                   <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
                     <span>Stage: {formatStageLabel(lead.stage)}</span>
-                    <span>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
-                    <span title="Last seen on Hephaestus">Hephaestus: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
+                    <span suppressHydrationWarning>Joined: {new Date(lead.joinedAt).toLocaleDateString()}</span>
+                    <span suppressHydrationWarning title="Last seen on Hephaestus">Hephaestus: {new Date(lead.lastVisitedAt).toLocaleDateString()}</span>
                     {lead.chronosLastActiveAt
-                      ? <span title="Last active on Chronos" className="text-emerald-700">Chronos: {new Date(lead.chronosLastActiveAt).toLocaleDateString()}</span>
+                      ? <span suppressHydrationWarning title="Last active on Chronos" className="text-emerald-700">Chronos: {new Date(lead.chronosLastActiveAt).toLocaleDateString()}</span>
                       : <span className="text-gray-400">Chronos: —</span>}
                   </div>
                 </button>
@@ -476,7 +476,7 @@ export function HrDashboardWorkspace({
               <div className="mt-4 grid gap-3 text-sm text-gray-700">
                 <p><strong>Status:</strong> {activeLead.status}</p>
                 <p><strong>Stage:</strong> {formatStageLabel(activeLead.stage)}</p>
-                <p><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
+                <p suppressHydrationWarning><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
                 <div className="rounded-xl border border-blue-100 bg-[#f7faff] px-4 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B] mb-2">Role & access</p>
                   <div className="grid gap-2">
@@ -525,7 +525,7 @@ export function HrDashboardWorkspace({
                         <span className="inline-block h-2 w-2 rounded-full bg-[#00349B]" />
                         Hephaestus
                       </span>
-                      <span className="text-gray-600">{new Date(activeLead.lastVisitedAt).toLocaleString()}</span>
+                      <span suppressHydrationWarning className="text-gray-600">{new Date(activeLead.lastVisitedAt).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-1.5 font-medium text-gray-700">
@@ -533,7 +533,7 @@ export function HrDashboardWorkspace({
                         Chronos
                       </span>
                       {activeLead.chronosLastActiveAt
-                        ? <span className="text-gray-600">{new Date(activeLead.chronosLastActiveAt).toLocaleString()}</span>
+                        ? <span suppressHydrationWarning className="text-gray-600">{new Date(activeLead.chronosLastActiveAt).toLocaleString()}</span>
                         : <span className="text-gray-400 italic">No Chronos account</span>}
                     </div>
                   </div>

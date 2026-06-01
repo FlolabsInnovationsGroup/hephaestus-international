@@ -120,7 +120,7 @@ export function HrResponsesTable({ rows }: { rows: Row[] }) {
                   <td className="px-3 py-3 text-gray-700">{row.resourceTitle}</td>
                   <td className="px-3 py-3 text-gray-700 max-w-[520px] whitespace-pre-wrap">{row.responseText}</td>
                   <td className="px-3 py-3"><AiOutcomeBadge outcome={row.aiOutcome} /></td>
-                  <td className="px-3 py-3 text-gray-600 whitespace-nowrap">
+                  <td suppressHydrationWarning className="px-3 py-3 text-gray-600 whitespace-nowrap">
                     {new Date(row.submittedAt).toLocaleString()}
                   </td>
                 </tr>
