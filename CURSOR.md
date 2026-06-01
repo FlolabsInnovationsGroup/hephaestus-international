@@ -6,12 +6,12 @@ Paste this entire file into Cursor (or any AI coding assistant) to continue wher
 
 ## Context
 
-You are working on **Hephaestus** (`hephaestus-international`), FloLabs' internship applicant tracking platform, and **Chronos** (`FloLabs_Chronos`), the time-tracking system. Both share a single **Neon serverless PostgreSQL** database and a single identity table `flolabs_users`.
+You are working on **Hephaestus** (`hephaestus-international`), FloLabs' internship applicant tracking platform, and **Chronos** (`FloLabs_Chronos`), the time-tracking system. Both share a single **AWS RDS PostgreSQL 16** database and a single identity table `flolabs_users`.
 
-### AWS Infrastructure (as of 2026-05-18)
+### AWS Infrastructure (as of 2026-06-01)
 
-- **Database**: **Neon serverless PostgreSQL** — `ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`. The old AWS RDS instance (`flolabs-chronos-db`) was decommissioned in 2026-05. AWS `rds describe-db-instances` returns empty.
-- **DATABASE_URL SSM param**: `/flolabs-chronos/DATABASE_URL` (shared by both apps — points to Neon)
+- **Database**: **AWS RDS PostgreSQL 16** — `flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`. Migrated from Neon 2026-06-01. Private (VPC-only, no public access).
+- **DATABASE_URL SSM param**: `/flolabs-chronos/DATABASE_URL` (shared by both apps — updated to RDS on 2026-06-01)
 - **Hephaestus App Runner**: `hephaestus-international` — URL: `https://fykgssqbvg.us-east-1.awsapprunner.com`
 - **Chronos App Runner**: `flolabs-chronos` — URL: `https://hcmsmnfq5q.us-east-1.awsapprunner.com`
 - **Production domain (Hephaestus)**: `https://efestos.international` (also `https://hephaestus.international`)
@@ -19,7 +19,7 @@ You are working on **Hephaestus** (`hephaestus-international`), FloLabs' interns
 
 ### Shared Database Architecture
 
-Both apps connect to the same **Neon PostgreSQL** database (`neondb`) via the same connection string from SSM.
+Both apps connect to the same **RDS PostgreSQL** database (`neondb` database on `flolabs-db`) via the same connection string from SSM.
 
 - `flolabs_users` — unified identity table (owned by Hephaestus DDL, Chronos uses Drizzle ORM schema against it)
 - Chronos tables: `teams`, `time_entries`, `team_memberships`, `tags`, `time_entry_tags`, `projects`, etc.

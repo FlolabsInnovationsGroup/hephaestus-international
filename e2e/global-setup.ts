@@ -80,7 +80,7 @@ export default async function globalSetup() {
   const expectedSha = process.env.PLAYWRIGHT_BASE_URL ? null : getLocalCommitSha();
 
   // SKIP_DB_HEALTH_WAIT=true bypasses the DB check so tests can run even when the
-  // database is temporarily unavailable (e.g. Neon compute quota exceeded).
+  // database is temporarily unavailable.
   // Tests that require the DB will still fail — but the run starts and shows real failures.
   const skipDbWait = process.env.SKIP_DB_HEALTH_WAIT === 'true';
 
@@ -121,11 +121,7 @@ export default async function globalSetup() {
         console.log(`[globalSetup] Health status ${res.status} — service not up, retrying…`);
       } else {
         // Service up but DB not ready
-        if (body?.db?.includes('compute time quota')) {
-          console.error(`[globalSetup] *** Neon DB compute quota exceeded. Upgrade at neon.tech or set SKIP_DB_HEALTH_WAIT=true to run tests anyway. ***`);
-        } else {
           console.log(`[globalSetup] Health ok=${body?.ok} db=${body?.db}, retrying…`);
-        }
       }
     } catch (e) {
       console.log(`[globalSetup] Not ready: ${(e as Error).message}`);

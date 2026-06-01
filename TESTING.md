@@ -8,14 +8,22 @@ From `hephaestus-international` (repo root, where `playwright.config.ts` lives):
 
 ```bash
 npx playwright install chromium
-npx playwright test --config playwright.config.ts
+PLAYWRIGHT_BASE_URL=https://fykgssqbvg.us-east-1.awsapprunner.com npx playwright test --config playwright.config.ts
 ```
 
-`PLAYWRIGHT_BASE_URL` overrides the default App Runner URL. Credentials and optional `baseUrl` come from `test_assets/test_users.json`.
+`PLAYWRIGHT_BASE_URL` overrides the default App Runner URL. Credentials and optional `baseUrl` come from `test_assets/test_users.json`. Always set `PLAYWRIGHT_BASE_URL` when running against production — the global setup skips the git SHA check when this is set.
 
 ## Chronos (shared identity)
 
 Chronos documents production Playwright flows in its own [`FloLabs_Chronos/TESTING.md`](../FloLabs_Chronos/TESTING.md). After identity or migration work, run Chronos live tests if timer/session surfaces are touched.
+
+## Database
+
+Hephaestus uses the **shared AWS RDS PostgreSQL 16** (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). The DB URL is in App Runner env vars and SSM `/flolabs-chronos/DATABASE_URL`. Migration from Neon was completed 2026-06-01.
+
+If the DB health check fails (`db != ok` in `/api/health`), check:
+1. RDS instance is available: `aws rds describe-db-instances --db-instance-identifier flolabs-db`
+2. App Runner VPC connector is attached (required for private RDS access)
 
 ## HubSpot CSV → `flolabs_users` (admin)
 

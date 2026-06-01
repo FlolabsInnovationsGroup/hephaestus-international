@@ -16,9 +16,9 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, live at `http
 |---|---|
 | Framework | Next.js 16 App Router (`frontend/` is the Docker build context) |
 | Language | TypeScript |
-| Database | Shared **Neon serverless PostgreSQL** — same database as FloLabs Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. |
+| Database | Shared **AWS RDS PostgreSQL 16** — same database as FloLabs Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. Migrated from Neon 2026-06-01. |
 | Auth | Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` |
-| Deploy | AWS App Runner via GitHub Actions on push to `main` |
+| Deploy | AWS App Runner via AWS CodeBuild (`hephaestus-international-deploy`) |
 | CMS | Strapi (optional, for marketing pages only — app works without it) |
 | AI chatbot | OpenAI (Paula); falls back to rule-based if `OPENAI_API_KEY` absent |
 | Email | Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`) |

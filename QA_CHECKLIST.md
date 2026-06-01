@@ -113,7 +113,7 @@
 | 9.1 | Setting status to `graduated` or `terminated` in HR revokes `users.is_active` in Chronos | **[automated]** `e2e/hr-stage-lifecycle.spec.ts` (terminated path); graduated is manual |
 | 9.2 | Setting status to `joined` grants Chronos access (`is_active = true`) | **[automated]** `e2e/notion-member-link.spec.ts` |
 | 9.3 | Chronos Users directory shows same `flolabs_users.status` without batch sync | **[manual]** Edit a lead's status in HR; open Chronos for the same email and verify |
-| 9.4 | `flolabs_users` table exists in shared Neon DB | **[manual]** `SELECT to_regclass('public.flolabs_users');` after schema-altering deploys |
+| 9.4 | `flolabs_users` table exists in shared RDS DB | **[automated]** `/api/health` returns `"flolabsUsersTable":"flolabs_users"` — checked in global-setup before every test run |
 | 9.5 | Lead merge: canonical row keeps merged emails; secondaries become `closed`/`is_active=false` | **[manual]** Run merge via `POST /api/admin/leads/merge`; spot-check `time_entries.user_id` |
 
 ---
@@ -197,22 +197,35 @@
 
 ---
 
+---
+
+## 12. Chat Timestamps
+
+| # | Check | Coverage |
+|---|---|---|
+| 12.1 | Existing messages in applicant chat show `HH:MM` timestamps | **[automated]** `e2e/chat-timestamps.spec.ts` — looks for `^\d{2}:\d{2}$` paragraphs in bubbles |
+| 12.2 | "Today" date separator visible after sending a message today | **[automated]** `e2e/chat-timestamps.spec.ts` |
+| 12.3 | Optimistic bubble shows `HH:MM` timestamp before server replies | **[automated]** `e2e/chat-timestamps.spec.ts` |
+| 12.4 | Existing messages in HR conversation panel show `HH:MM` timestamps | **[automated]** `e2e/chat-timestamps.spec.ts` |
+
+---
+
 ## Running the Full Suite
 
 ```bash
 cd hephaestus-international
 
-# All specs
-npx playwright test --config playwright.config.ts
+# All specs (always set PLAYWRIGHT_BASE_URL to skip git SHA commit wait)
+PLAYWRIGHT_BASE_URL=https://fykgssqbvg.us-east-1.awsapprunner.com npx playwright test --config playwright.config.ts
 
 # Individual spec
-npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
+PLAYWRIGHT_BASE_URL=https://fykgssqbvg.us-east-1.awsapprunner.com npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
 
 # With HTML report
-npx playwright test --config playwright.config.ts --reporter=html && npx playwright show-report
+PLAYWRIGHT_BASE_URL=https://fykgssqbvg.us-east-1.awsapprunner.com npx playwright test --config playwright.config.ts --reporter=html && npx playwright show-report
 ```
 
-Credentials and `baseUrl` are read from `test_assets/test_users.json`.
+Credentials and `baseUrl` are read from `test_assets/test_users.json`. `PLAYWRIGHT_BASE_URL` is required when running locally — omitting it causes the global setup to stall waiting for a git SHA that the production image may not embed.
 
 ---
 

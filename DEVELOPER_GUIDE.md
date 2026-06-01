@@ -20,9 +20,9 @@ Hephaestus is FloLabs' **internship applicant tracking platform**, deployed at `
 |---|---|
 | Framework | Next.js 16 App Router (`frontend/` is the Docker build context) |
 | Language | TypeScript |
-| Database | Shared **Neon serverless PostgreSQL** — same database as FloLabs Chronos (`ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. |
+| Database | Shared **AWS RDS PostgreSQL 16** — same database as FloLabs Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. Migrated from Neon 2026-06-01. |
 | Auth | Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` |
-| Deploy | AWS App Runner via GitHub Actions on push to `main` |
+| Deploy | AWS App Runner via AWS CodeBuild (`hephaestus-international-deploy`) — manual trigger |
 | CMS | Strapi (optional — for marketing pages only; app works without it) |
 | AI chatbot | OpenAI (Paula); falls back to rule-based if `OPENAI_API_KEY` absent |
 | Email | Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`) |
@@ -148,7 +148,7 @@ When adding or changing a status, update all five locations listed in `CLAUDE.md
 
 ## Database
 
-Hephaestus and Chronos share one **Neon serverless PostgreSQL** database (`neondb`).
+Hephaestus and Chronos share one **AWS RDS PostgreSQL 16** database (`neondb` on `flolabs-db`, migrated from Neon 2026-06-01).
 
 - **`flolabs_users`** — Hephaestus-owned DDL; primary identity table for all applicants. Managed by `ensurePostgresSchema()` in `application-db.ts`. Chronos reads this table via Drizzle ORM (maps `users` → physical `flolabs_users`).
 - **`applicants`** — Chronos-owned; written by `syncApplicantToChronos()` for HubSpot-imported contacts

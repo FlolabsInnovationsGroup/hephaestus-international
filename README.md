@@ -7,7 +7,7 @@ FloLabs' **internship applicant tracking platform**, live at `https://efestos.in
 Hephaestus manages the full lifecycle of FloLabs internship applicants:
 - Captures applications and routes them through a **14-stage HR pipeline**
 - Provides HR with a dashboard to manage leads, filter by status, set stage/status, and trigger Chronos access
-- **Owns the `flolabs_users` identity table** — shared with FloLabs Chronos (the time-tracking system) via the same Neon PostgreSQL database
+- **Owns the `flolabs_users` identity table** — shared with FloLabs Chronos (the time-tracking system) via the same AWS RDS PostgreSQL database
 - Allows applicants to log in and view their application progress
 - HR sets `graduated` and `terminated` status here; Chronos reads `flolabs_users.status` read-only
 
@@ -20,7 +20,7 @@ Hephaestus manages the full lifecycle of FloLabs internship applicants:
 | **Production domain** | `https://efestos.international` |
 | **AWS App Runner URL** | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
 | **Health check** | `GET /api/health` returns `{ ok, commitSha, imageTag, ... }` |
-| **Database** | Neon serverless PostgreSQL — `ep-broad-shadow-anqzuaqr.c-6.us-east-1.aws.neon.tech/neondb` (shared with Chronos) |
+| **Database** | AWS RDS PostgreSQL 16 — `flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb` (shared with Chronos, migrated from Neon 2026-06-01) |
 
 **Testing rule:** Test only against the live AWS URL. Do not use the local dev server as deployment proof.
 
@@ -31,7 +31,7 @@ Hephaestus manages the full lifecycle of FloLabs internship applicants:
 | Layer | Role |
 |--------|------|
 | **Frontend** (`frontend/`) | Next.js 16 App Router, TypeScript, Tailwind CSS — Docker build context |
-| **Database** | Shared **Neon serverless PostgreSQL** with FloLabs Chronos. URL in SSM `/flolabs-chronos/DATABASE_URL`. Identity table: `flolabs_users`. |
+| **Database** | Shared **AWS RDS PostgreSQL 16** with FloLabs Chronos. URL in SSM `/flolabs-chronos/DATABASE_URL`. Identity table: `flolabs_users`. |
 | **Auth** | Cookie-based session (`fl_preview_session`), NextAuth secret = `AUTH_SECRET` |
 | **Deploy** | AWS CodeBuild → ECR → App Runner (primary); GitHub Actions → ECR → App Runner (fallback) |
 | **CMS (optional)** | Strapi — for public marketing pages only. HR pipeline works entirely without it. |
@@ -83,7 +83,7 @@ All production secrets are in **AWS SSM**, fetched at deploy time:
 
 | SSM Parameter | Purpose |
 |---|---|
-| `/flolabs-chronos/DATABASE_URL` | Shared Neon PostgreSQL (`neondb`) |
+| `/flolabs-chronos/DATABASE_URL` | Shared RDS PostgreSQL (`neondb` database on `flolabs-db`) |
 | `/hephaestus-international/CHRONOS_SYNC_API_URL` | Chronos sync endpoint |
 | `/hephaestus-international/CHRONOS_SYNC_TOKEN` | Chronos sync auth token |
 | `/hephaestus-international/CONTENT_STRAPI_URL` | Optional Strapi CMS URL |
