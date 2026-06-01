@@ -17,9 +17,9 @@ const authorNames = {
 } as const;
 
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+  return a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate();
 }
 
 function formatDateSeparator(iso: string): string {
@@ -27,16 +27,16 @@ function formatDateSeparator(iso: string): string {
   if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
   const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
+  yesterday.setUTCDate(now.getUTCDate() - 1);
   if (isSameDay(date, now)) return 'Today';
   if (isSameDay(date, yesterday)) return 'Yesterday';
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / 86_400_000);
-  if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'long' });
-  if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  if (date.getUTCFullYear() === now.getUTCFullYear()) {
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   }
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 function formatTime(iso: string): string {
@@ -92,7 +92,7 @@ export function ApplicantChat({ initialMessages, applicantId, canReplyAsHr = fal
   for (const message of messages) {
     if (message.createdAt) {
       const d = new Date(message.createdAt);
-      const dayKey = Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const dayKey = Number.isNaN(d.getTime()) ? '' : `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
       if (dayKey && dayKey !== lastDate) {
         items.push({ type: 'separator', label: formatDateSeparator(message.createdAt), key: `sep-${dayKey}` });
         lastDate = dayKey;
