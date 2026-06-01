@@ -72,8 +72,8 @@ export function HrStagesWorkspace({
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editApplicantAction, setEditApplicantAction] = useState('');
-  const [conditionType, setConditionType] = useState<PassingCondition>('ai');
-  const [conditionAiPrompt, setConditionAiPrompt] = useState('');
+  const [conditionType, setConditionType] = useState<PassingCondition>(steps[0]?.passingCondition ?? 'ai');
+  const [conditionAiPrompt, setConditionAiPrompt] = useState(steps[0]?.passingConditionAiPrompt ?? '');
   const [savingCondition, setSavingCondition] = useState(false);
   // Track the last-saved {type, prompt} so conditionSaved is derived rather than
   // relying on a setTimeout-based boolean (which is prone to batching races).
@@ -694,7 +694,7 @@ function PassingConditionCard({
       </div>
 
       {conditionType === 'ai' && !isLocked && (
-        <div className="mt-4">
+        <div suppressHydrationWarning className="mt-4">
           <label className="block text-xs font-semibold uppercase tracking-[0.12em] text-[#00349B]">
             AI evaluation prompt
           </label>
