@@ -1,12 +1,10 @@
-import { put } from '@vercel/blob';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { NextResponse } from 'next/server';
-
-function getBlobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN || process.env.NEXT_PUBLIC_BLOB_READ_WRITE_TOKEN || '';
-}
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const BUCKET = 'flolabs-assets';
+const s3 = new S3Client({ region: 'us-east-1' });
 
 export const runtime = 'nodejs';
 
@@ -26,35 +24,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Profile picture must be 5MB or smaller' }, { status: 400 });
   }
 
-  const token = getBlobToken();
-  if (!token) {
-    return NextResponse.json({
-      error: 'Profile picture upload is unavailable because BLOB_READ_WRITE_TOKEN is missing in this deployment environment.',
-      code: 'BLOB_TOKEN_MISSING',
-    }, { status: 503 });
-  }
-
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const key = `hephaestus/profile-pictures/${Date.now()}-${safeName}`;
   try {
-    const blob = await put(`applicants/profile-pictures/${Date.now()}-${safeName}`, file, {
-      access: 'private',
-      addRandomSuffix: true,
-      token,
-    });
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: Buffer.from(await file.arrayBuffer()),
+      ContentType: file.type,
+    }));
 
+    const url = `https://${BUCKET}.s3.us-east-1.amazonaws.com/${key}`;
     return NextResponse.json({
       ok: true,
-      profilePictureUrl: blob.downloadUrl || `${blob.url}?download=1`,
-      blobUrl: blob.url,
-      downloadUrl: blob.downloadUrl || `${blob.url}?download=1`,
+      profilePictureUrl: url,
+      blobUrl: url,
+      downloadUrl: url,
       fileName: file.name,
     });
   } catch (error) {
     console.error('Profile picture upload failed', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      hasToken: Boolean(token),
-      env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',
     });
     return NextResponse.json({
       error: 'Profile picture upload failed. Storage is unavailable right now.',
