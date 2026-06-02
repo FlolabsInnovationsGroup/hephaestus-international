@@ -476,7 +476,7 @@ export function HrDashboardWorkspace({
               <div className="mt-4 grid gap-3 text-sm text-gray-700">
                 <p><strong>Status:</strong> {activeLead.status}</p>
                 <p><strong>Stage:</strong> {formatStageLabel(activeLead.stage)}</p>
-                <p suppressHydrationWarning><strong>Date joined:</strong> {new Date(activeLead.joinedAt).toLocaleString()}</p>
+                <p><strong>Date joined:</strong> <span suppressHydrationWarning>{new Date(activeLead.joinedAt).toLocaleString()}</span></p>
                 <div className="rounded-xl border border-blue-100 bg-[#f7faff] px-4 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00349B] mb-2">Role & access</p>
                   <div className="grid gap-2">
