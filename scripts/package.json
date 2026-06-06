@@ -7,7 +7,7 @@
     "import": "node import-wordpress-to-strapi.js"
   },
   "dependencies": {
-    "axios": "^1.13.2",
+    "axios": "^1.16.0",
     "cheerio": "^1.1.2",
     "fast-xml-parser": "^4.3.2",
     "form-data": "^4.0.4"
