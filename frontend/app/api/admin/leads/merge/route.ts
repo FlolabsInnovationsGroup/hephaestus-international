@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/application-store';
 import { sql } from '@/lib/db';
+import {
+  collectMergeTimeEntrySourceIds,
+  isMergeTimeEntrySourceStatus,
+  reattributeMergedTimeEntries,
+} from '@/lib/merge-time-entries';
 
 function unique(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)));
@@ -109,11 +114,11 @@ export async function POST(request: Request) {
     ...hydratedLeads.map((lead) => String(lead.notion_team_member_page_url ?? '')),
   );
 
-  // If any merged lead (including canonical) was actively joined, promote canonical too.
+  // If any merged lead (including canonical) was at/after joined, promote canonical too.
   const anyJoined = hydratedLeads.some(
-    (lead) => String(lead.status ?? '') === 'joined' && lead.is_active !== false,
+    (lead) => isMergeTimeEntrySourceStatus(String(lead.status ?? '')) && lead.is_active !== false,
   );
-  const canonicalIsJoined = String(canonical.status ?? '') === 'joined';
+  const canonicalIsJoined = isMergeTimeEntrySourceStatus(String(canonical.status ?? ''));
 
   await sql`
     update flolabs_users
@@ -170,14 +175,7 @@ export async function POST(request: Request) {
     `.catch(() => null);
   }
 
-  // Re-point time_entries from secondary accounts to the canonical account.
-  const canonicalUserRow = await sql`
-    select id from flolabs_users
-    where id = ${canonicalLeadId}
-       or lower(email) = lower(${primaryEmail})
-    limit 1
-  `.catch(() => []);
-  const chronosCanonicalUserId = canonicalUserRow[0] ? String(canonicalUserRow[0].id) : null;
+  const chronosCanonicalUserId = canonicalLeadId;
 
   const secondaryEmailsLower = hydratedLeads
     .filter((l) => secondaryLeadIds.includes(String(l.id)))
@@ -195,19 +193,16 @@ export async function POST(request: Request) {
     ...secondaryUserRows.map((r: Record<string, unknown>) => String(r['id'])),
   ])].filter((id) => id !== chronosCanonicalUserId);
 
+  const timeEntrySourceLeadIds = collectMergeTimeEntrySourceIds(
+    hydratedLeads.map((lead) => ({ id: String(lead.id), status: String(lead.status ?? '') })),
+    canonicalLeadId,
+  );
+
+  if (chronosCanonicalUserId && timeEntrySourceLeadIds.length > 0) {
+    await reattributeMergedTimeEntries(sql, chronosCanonicalUserId, timeEntrySourceLeadIds);
+  }
+
   if (chronosCanonicalUserId && secondaryUserIds.length > 0) {
-    await sql`
-      update time_entries set user_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
-      where user_id = any(${secondaryUserIds}::uuid[])
-    `.catch(() => null);
-    await sql`
-      update time_entries set flolabs_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
-      where flolabs_id = any(${secondaryUserIds}::uuid[])
-    `.catch(() => null);
-    await sql`
-      update time_entries set applicant_id = ${chronosCanonicalUserId}::uuid, updated_at = now()
-      where applicant_id = any(${secondaryUserIds}::uuid[])
-    `.catch(() => null);
     // Move tags owned by secondary users to the canonical (skip names that would conflict).
     await sql`
       update tags set user_id = ${chronosCanonicalUserId}::uuid

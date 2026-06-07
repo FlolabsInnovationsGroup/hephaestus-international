@@ -42,7 +42,7 @@ export function appHostname(): string {
         return '';
       }
     })() ||
-    'https://fykgssqbvg.us-east-1.awsapprunner.com';
+    'https://efestos.international';
   return new URL(base).hostname;
 }
 

@@ -30,26 +30,13 @@ test.describe('HR lead edit modal', () => {
       page.getByRole('heading', { name: /edit lead details/i }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The name field — could be a text input labelled "Name" or "Full name"
-    const nameInput = page
-      .locator('label', { hasText: /^name$/i })
-      .locator('..')
-      .locator('input[type="text"], input:not([type])')
-      .first();
+    const firstName = page.getByRole('textbox', { name: /^first name$/i });
+    const lastName = page.getByRole('textbox', { name: /^last name$/i });
+    await expect(firstName).toBeVisible({ timeout: 10_000 });
+    await expect(lastName).toBeVisible({ timeout: 10_000 });
 
-    // Fallback: any input whose placeholder or value looks like a person's name
-    const hasNameInput = await nameInput.isVisible({ timeout: 5_000 }).catch(() => false);
-    if (!hasNameInput) {
-      // Accept any non-empty text input as the name field
-      const anyInput = page.locator('input[type="text"]').first();
-      await expect(anyInput).toBeVisible({ timeout: 5_000 });
-      const value = await anyInput.inputValue();
-      expect(value.length, 'Name input is empty').toBeGreaterThan(0);
-    } else {
-      await expect(nameInput).toBeVisible();
-      const value = await nameInput.inputValue();
-      expect(value.length, 'Name input is empty').toBeGreaterThan(0);
-    }
+    const fullName = `${await firstName.inputValue()} ${await lastName.inputValue()}`.trim();
+    expect(fullName.length, 'Name fields are empty').toBeGreaterThan(0);
 
     await page.screenshot({ path: 'test-results/edit-modal-02-name-field.png' });
   });
