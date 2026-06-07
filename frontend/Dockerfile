@@ -7,6 +7,10 @@ FROM base AS deps
 COPY package*.json ./
 RUN npm ci
 
+FROM base AS prod-deps
+COPY package*.json ./
+RUN npm ci --omit=dev
+
 FROM base AS builder
 ARG NEXT_PUBLIC_STRAPI_URL
 ARG BUILD_COMMIT_SHA
@@ -35,7 +39,7 @@ ENV BUILD_TIMESTAMP=$BUILD_TIMESTAMP
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.js ./next.config.js
 EXPOSE 3000
 CMD ["npm", "run", "start", "--", "-p", "3000"]
