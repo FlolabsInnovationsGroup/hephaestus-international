@@ -31,32 +31,6 @@ Both apps connect to the same **RDS PostgreSQL** database (`neondb` database on 
 
 ---
 
-## Current State (as of 2026-05-18)
-
-### Hephaestus — latest deployed commit: `6f74491`
-
-**What was fixed:**
-1. `ensurePostgresSchema()` in `frontend/lib/application-db.ts` — added fast-path guard. Checks if `low_effort_rollback_after` column exists first; if yes, skips ALL DDL (prevents 60+ second login latency on cold start).
-2. `ensureStageFeatureSchema()` — converted to a cached promise via `getStageSchemaReady()` so ALTER TABLE only runs once per process instead of on every call from 14 call sites.
-3. `ALTER TABLE ADD COLUMN IF NOT EXISTS` in `ensureStageFeatureSchema()` — replaced with explicit `information_schema.columns` check to avoid ACCESS EXCLUSIVE lock on `website_stage_definitions`.
-4. `ensureApplicantLowEffortHoldColumns()` — same fix applied in previous commit (`1a0394a`).
-
-**What still needs to be done:**
-1. **Hephaestus HR E2E tests** — re-run after `6f74491` deploys and confirm they pass. Tests are in `e2e/hr-stage-lifecycle.spec.ts` and `e2e/hr-status-filter.spec.ts`.
-2. **`hr_binary_role` for HR test user** — after every new App Runner deploy, run:
-   ```bash
-   curl -X POST "https://fykgssqbvg.us-east-1.awsapprunner.com/api/admin/bootstrap" \
-     -H "Content-Type: application/json" \
-     -d '{"secret":"6IXvIoMfk8MCMOvWzBPAWgnlwl0T6gAPaAxpYMtO8xkA","email":"zoom@flomadlabs.com"}'
-   ```
-   Expected response: `{"ok":true,"action":"updated","user":{"hr_binary_role":true}}`
-
-### Chronos — latest deployed commit: `e78182c`
-
-**All 16 Playwright E2E tests pass.** Work was completed in the previous session.
-
----
-
 ## HR Test User Credentials
 
 ```json
@@ -132,16 +106,6 @@ Wait until `commitSha` matches the latest commit before running tests.
 5. **hr_binary_role**: This column controls HR dashboard access in Hephaestus. It must be `true` for the HR test user. The bootstrap API sets it, but data may reset if a fresh DB state is applied.
 6. **CRON_SECRET**: `6IXvIoMfk8MCMOvWzBPAWgnlwl0T6gAPaAxpYMtO8xkA` — used for bootstrap and cron auth.
 7. **App Runner cold start**: First request after cold start runs the schema fast-path check (one read-only DB query). Should be <1s now with the fix.
-
----
-
-## Next Actions (priority order)
-
-1. Wait for `6f74491` to deploy to Hephaestus App Runner (monitor via health API)
-2. Run `bootstrap` curl to set `hr_binary_role = true` for `zoom@flomadlabs.com`
-3. Run the HR E2E test suite and confirm all 7 tests pass
-4. If tests pass: task complete — shared DB implementation is fully validated end-to-end
-5. If tests fail: check test output carefully, fix the specific failure, repeat
 
 ---
 
