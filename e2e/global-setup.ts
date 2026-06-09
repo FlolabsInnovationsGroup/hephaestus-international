@@ -94,7 +94,7 @@ export default async function globalSetup() {
   //   3. db === 'ok'  (skipped when SKIP_DB_HEALTH_WAIT=true)
   while (true) {
     try {
-      const res = await fetch(`${baseUrl}/api/health`, {
+      const res = await fetch(`${baseUrl}/api/health?deep=1`, {
         signal: AbortSignal.timeout(requestTimeoutMs),
       });
       let body: { ok?: boolean; db?: string; commitSha?: string } | null = null;
