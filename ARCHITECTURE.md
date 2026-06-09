@@ -5,8 +5,7 @@
 | | URL |
 |---|---|
 | **Production domain** | `https://efestos.international` |
-| **AWS App Runner URL** | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
-| **Health check** | `GET https://fykgssqbvg.us-east-1.awsapprunner.com/api/health` |
+| **Health check** | `GET https://efestos.international/api/health` |
 
 ---
 
@@ -16,9 +15,9 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 
 | Concern | Implementation |
 |---|---|
-| **App server** | **Next.js 16** (App Router) in `frontend/` directory. Docker image on **AWS App Runner** (`us-east-1`). Handles SSR, route handlers (`frontend/app/api/**`), and Server Components. |
-| **Images & deploy** | Immutable ECR tags `git-<12-char-sha>`. **AWS CodeBuild** (`hephaestus-international-deploy`) builds on manual trigger, updates App Runner, verifies `/api/health` returns matching commit SHA. |
-| **Database** | Shared **AWS RDS PostgreSQL 16** with FloLabs Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL` and App Runner env vars. Migrated from Neon 2026-06-01. **Canonical identity** is the **`flolabs_users`** table; Chronos and Hephaestus read/write the same rows for profiles, pipeline fields, and (where applicable) credentials. |
+| **App server** | **Next.js 16** (App Router) in `frontend/` directory. Docker image on **EC2** (`i-0292b7ec02f26a25b`, `44.195.108.173`) via Docker Compose at `/opt/hosting`. Nginx reverse-proxies port 3001 → container port 3000. |
+| **Images & deploy** | ECR repository `hephaestus-international`. **AWS CodeBuild** (`hephaestus-international-deploy`) builds and pushes `git-<sha>` + `:latest` tags. EC2 pulls `:latest` via `docker compose pull && docker compose up -d hephaestus`. |
+| **Database** | Shared **AWS RDS PostgreSQL 16** with FloLabs Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. Migrated from Neon 2026-06-01. **Canonical identity** is the **`flolabs_users`** table; Chronos and Hephaestus read/write the same rows for profiles, pipeline fields, and (where applicable) credentials. |
 | **Auth** | Cookie-based session (`fl_preview_session`). `canAccessSharedFloLabsAccount()` in `frontend/lib/application-store.ts` gates login — blocks `rejected` only; all other statuses allowed. |
 | **AI chatbot** | Paula uses OpenAI when `OPENAI_API_KEY` is set; falls back to rule-based replies when absent. |
 | **Location picker** | OpenStreetMap / Leaflet (`frontend/components/location-picker.tsx`) |
@@ -27,34 +26,28 @@ Read this section first for **where code runs**, **what stores state**, and **ho
 | **Chronos sync** | `frontend/lib/chronos-sync.ts` — `syncApplicantToChronos()` pushes profile/stage/status to Chronos. `revokeChronosAccess()` runs when status becomes **`graduated`** or **`terminated`**; `grantChronosAccess()` when status becomes **`joined`**. |
 | **Applicant status** | Shared column **`flolabs_users.status`** (`frontend/lib/applicant-status.ts`, mirrored in Chronos `src/lib/applicant-status.ts`). HR edit modal includes all pipeline values including **`graduated`** and **`terminated`**. |
 | **Permanent delete** | `POST /api/admin/leads/delete` → `deleteApplicantPermanently()` archives the Notion Team Member page and removes related DB rows. UI confirmation warns to use Terminate/Graduate instead when appropriate. |
-| **NEXTAUTH_URL** | Set to AWS URL at runtime. Custom domain `efestos.international` is a DNS / App Runner alias pointing to the same service. |
+| **NEXTAUTH_URL** | Set to `https://efestos.international` in the EC2 env file (`/opt/hosting/hephaestus.env`). |
 
 ### AWS Resources
 
 | Resource | Value |
 |---|---|
-| App Runner service | `hephaestus-international` |
-| Service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
-| ECR repository | `hephaestus-international` |
-| GitHub Actions role | `arn:aws:iam::975049954782:role/hephaestus-international-github-actions-deploy` |
-| App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
-| VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` (shared with Chronos) |
-| Instance size | 1 vCPU / 2 GB |
+| EC2 instance | `i-0292b7ec02f26a25b` (`44.195.108.173`, `us-east-1`) |
+| EC2 IAM profile | `flolabs-hosting-ec2-profile` |
+| Docker Compose dir | `/opt/hosting/docker-compose.yml` on the EC2 |
+| ECR repository | `hephaestus-international` (`975049954782.dkr.ecr.us-east-1.amazonaws.com/hephaestus-international`) |
+| CodeBuild project | `hephaestus-international-deploy` |
 | Region / Account | `us-east-1` / `975049954782` |
 
 ### Runtime Secrets
 
-Pulled from **AWS SSM** during deploy:
+Baked into the Docker image at build time from **AWS SSM** (CodeBuild `pre_build`):
 - `/flolabs-chronos/DATABASE_URL` — shared RDS PostgreSQL (`neondb` database on `flolabs-db`)
-- `/hephaestus-international/CHRONOS_SYNC_API_URL`
-- `/hephaestus-international/CHRONOS_SYNC_TOKEN`
-- `/hephaestus-international/CONTENT_STRAPI_URL`
-- `/hephaestus-international/STRAPI_API_TOKEN`
-- `/hephaestus-international/CONTENT_STRAPI_API_TOKEN`
-- `/flolabs-chronos/RESEND_API_KEY` (shared with Chronos)
-- `/flolabs-chronos/EMAIL_FROM` (shared with Chronos)
+- `/hephaestus-international/CHRONOS_SYNC_API_URL`, `CHRONOS_SYNC_TOKEN`
+- `/hephaestus-international/CONTENT_STRAPI_URL`, `STRAPI_API_TOKEN`, `CONTENT_STRAPI_API_TOKEN`
+- `/flolabs-chronos/RESEND_API_KEY`, `EMAIL_FROM`, `NOTION_API_KEY`, `CRON_SECRET`, `OPENAI_API_KEY`
 
-From **GitHub Actions secrets**: `AUTH_SECRET` (→ `NEXTAUTH_SECRET`), `OPENAI_API_KEY`
+Runtime env file on EC2: `/opt/hosting/hephaestus.env` (pulled from `s3://flolabs-chronos-backups/hosting-ec2/hephaestus.env`).
 
 ---
 

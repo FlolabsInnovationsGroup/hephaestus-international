@@ -2,78 +2,71 @@
 
 For full system context, read `ARCHITECTURE.md`. This file covers how to release and verify.
 
-## Deploy flow — AWS CodeBuild
+## Production stack
 
 | Item | Value |
 |---|---|
-| CodeBuild project | `hephaestus-international-deploy` |
-| Build spec | `buildspec.yml` (repo root) |
-| Source bucket | `s3://flolabs-hephaestus-codebuild/source.zip` |
-| IAM role | `arn:aws:iam::975049954782:role/hephaestus-international-codebuild` |
-| ECR repository | `hephaestus-international` |
-| Image tag | `git-<12-char-sha>` |
-| App Runner service | `hephaestus-international` |
-| Service ARN | `arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7` |
-| AWS URL | `https://fykgssqbvg.us-east-1.awsapprunner.com` |
-| Production domain | `https://efestos.international` |
-| Region / account | `us-east-1` / `975049954782` |
+| **Production domain** | `https://efestos.international` |
+| **EC2 instance** | `i-0292b7ec02f26a25b` (`44.195.108.173`, `us-east-1`) |
+| **Docker Compose dir** | `/opt/hosting/` on the EC2 |
+| **ECR repository** | `975049954782.dkr.ecr.us-east-1.amazonaws.com/hephaestus-international` |
+| **CodeBuild project** | `hephaestus-international-deploy` |
+| **Region / account** | `us-east-1` / `975049954782` |
 
-### Steps
+Nginx on the EC2 proxies `efestos.international` → container port 3001. The container listens on 3000; host-side mapping is `127.0.0.1:3001:3000`.
 
-1. Create a source archive from `hephaestus-international` (build context is `./frontend`; `buildspec.yml` is at repo root):
+## Deploy flow
+
+### Step 1 — Build and push image (CodeBuild pipeline)
+
+Use the CodePipeline (auto-triggers on push to `main`) or trigger manually:
 
 ```powershell
-cd hephaestus-international
-git archive -o source.zip HEAD
+aws codepipeline start-pipeline-execution --name hephaestus-international-pipeline --region us-east-1
 ```
 
-2. Upload:
+The pipeline runs `hephaestus-international-build` → `hephaestus-international-deploy`. The buildspec pushes two ECR tags:
+- `git-<12-char-sha>` — immutable, for audit
+- `latest` — what the EC2 Docker Compose pulls
 
-```bash
-aws s3 cp source.zip s3://flolabs-hephaestus-codebuild/source.zip --region us-east-1
+### Step 2 — Update EC2 container
+
+After the pipeline succeeds, pull the new image on the EC2 via SSM Run Command:
+
+```powershell
+aws ssm send-command --region us-east-1 `
+  --instance-ids "i-0292b7ec02f26a25b" `
+  --document-name "AWS-RunShellScript" `
+  --parameters 'commands=["aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975049954782.dkr.ecr.us-east-1.amazonaws.com && cd /opt/hosting && docker compose pull hephaestus && docker compose up -d hephaestus"]'
 ```
 
-3. Start CodeBuild:
+Poll for completion:
 
-```bash
-aws codebuild start-build \
-  --project-name hephaestus-international-deploy \
-  --region us-east-1 \
-  --environment-variables-override name=GIT_SHA,value=$(git rev-parse HEAD),type=PLAINTEXT
+```powershell
+aws ssm get-command-invocation --region us-east-1 `
+  --command-id <CommandId> `
+  --instance-id "i-0292b7ec02f26a25b" `
+  --query '{Status:Status,Output:StandardOutputContent}'
 ```
 
-4. Wait for `SUCCEEDED`. `post_build` updates App Runner and verifies `GET /api/health` with matching `commitSha`.
+### Step 3 — Verify
 
-5. If HR tests are needed, ensure the HR bootstrap user still has `hr_binary_role` (see `QA_CHECKLIST.md`), then run Playwright against the AWS URL.
-
-Project definition: `infra/codebuild-project.json`. IAM: `infra/codebuild-deploy-policy.json`, `infra/codebuild-logs-policy.json`.
+```powershell
+Invoke-RestMethod https://efestos.international/api/health
+# Should return ok=true with the new commitSha
+```
 
 ## Deployment proof standard
 
-A deployment is proven when all of the following are true:
+A deployment is proven when:
 
-1. CodeBuild build completed successfully
-2. App Runner is serving the expected `git-<sha>` image
-3. `GET https://fykgssqbvg.us-east-1.awsapprunner.com/api/health` returns `"ok":true` with matching `commitSha`
-4. The affected live user path works on the deployed surface
+1. CodeBuild build succeeded and `latest` ECR tag updated
+2. SSM Run Command completed with `Success`
+3. `GET https://efestos.international/api/health` returns `"ok":true` with matching `commitSha`
 
-## Deployment rule
-
-For Hephaestus, the normal deploy path must **not** depend on the local machine for runtime proof:
-
-- No local Docker build for routine deploys
-- No local browser validation as deployment proof
-- Source of truth for production is AWS (CodeBuild, ECR, SSM, App Runner)
-
-## AWS resources
-
-| Resource | Value |
-|---|---|
-| VPC connector | `arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1` |
-| App Runner ECR role | `arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role` |
 ## Runtime secret source of truth
 
-Values are sourced from **AWS SSM** during CodeBuild `pre_build`:
+Env vars are baked into the Docker image at CodeBuild time from **AWS SSM**:
 
 | SSM Parameter | Runtime env var |
 |---|---|
@@ -85,32 +78,11 @@ Values are sourced from **AWS SSM** during CodeBuild `pre_build`:
 | `/hephaestus-international/CONTENT_STRAPI_API_TOKEN` | `CONTENT_STRAPI_API_TOKEN` |
 | `/flolabs-chronos/RESEND_API_KEY` | `RESEND_API_KEY` |
 | `/flolabs-chronos/EMAIL_FROM` | `EMAIL_FROM` |
-| `/flolabs-chronos/NOTION_API_KEY` | `NOTION_API_KEY` (CodeBuild) |
-| `/flolabs-chronos/CRON_SECRET` | `CRON_SECRET` (CodeBuild) |
-| `/flolabs-chronos/OPENAI_API_KEY` | `OPENAI_API_KEY` (CodeBuild) |
+| `/flolabs-chronos/OPENAI_API_KEY` | `OPENAI_API_KEY` |
 
-`NEXTAUTH_SECRET` is preserved from the current App Runner service during CodeBuild.
+Additional runtime config is in `/opt/hosting/hephaestus.env` on the EC2 (sourced from S3: `s3://flolabs-chronos-backups/hosting-ec2/hephaestus.env`).
 
 ## Files that define the deploy path
 
-- `buildspec.yml` — CodeBuild pipeline
-- `infra/codebuild-project.json` — CodeBuild project config
-
-## Shared applicant status (`flolabs_users.status`)
-
-- HR **Edit lead** writes `flolabs_users.status` (dropdown includes `graduated` / `terminated`). Chronos mirrors the same column read-only.
-- **Permanent delete:** Edit lead → **Delete user permanently** → confirmation modal → `POST /api/admin/leads/delete` (archives Notion Team Member page, removes DB rows). Prefer **Terminated** / **Graduated** when the person should remain in HR history.
-- Automated checks: `e2e/hr-applicant-status-delete.spec.ts`, `e2e/hr-status-filter.spec.ts` (9 statuses).
-
-## How to validate a deploy
-
-```bash
-aws codebuild list-builds-for-project --project-name hephaestus-international-deploy --region us-east-1 --max-items 3
-
-aws apprunner describe-service \
-  --service-arn arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7 \
-  --region us-east-1 \
-  --query 'Service.{Status:Status,ImageId:SourceConfiguration.ImageRepository.ImageIdentifier}'
-
-curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health | python3 -m json.tool
-```
+- `buildspec.yml` — CodeBuild pipeline (builds image, pushes `git-<sha>` + `latest` to ECR)
+- `FloLabs_Hermes/hosting-ec2-userdata.sh` — EC2 bootstrap (first-time setup only)

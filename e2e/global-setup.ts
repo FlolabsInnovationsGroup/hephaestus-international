@@ -74,10 +74,10 @@ export default async function globalSetup() {
   const requestTimeoutMs = 90_000; // span most of a cold start in one attempt
   const start = Date.now();
 
-  // Determine which commit we expect the service to be running.
-  // If PLAYWRIGHT_BASE_URL is set (CI mode), the deploy job already confirmed
-  // the correct commit — skip the commit check.
-  const expectedSha = process.env.PLAYWRIGHT_BASE_URL ? null : getLocalCommitSha();
+  // SHA check is opt-in: set PLAYWRIGHT_EXPECT_SHA=1 in CI after a deploy to verify
+  // the correct commit is live. Skipped by default — EC2 Docker Compose deploys are
+  // manual and the running image SHA routinely lags behind local git HEAD.
+  const expectedSha = process.env.PLAYWRIGHT_EXPECT_SHA ? getLocalCommitSha() : null;
 
   // SKIP_DB_HEALTH_WAIT=true bypasses the DB check so tests can run even when the
   // database is temporarily unavailable.

@@ -71,16 +71,16 @@ Project context for coding agents working in this repository.
 ## Read Order
 
 1. `ARCHITECTURE.md` — production URLs, system architecture, 8-status system, stage mapping, key files
-2. `DEPLOYMENT.md` — how production gets to AWS (CodeBuild, ECR, App Runner)
+2. `DEPLOYMENT.md` — how production gets to EC2 (CodeBuild → ECR → docker compose pull)
 3. `QA_CHECKLIST.md` — HR pipeline test cases and Playwright execution commands
 4. This file — workflow rules and coding guardrails
 5. Read actual source files in `frontend/` before changing behavior
 
 ## Workflow
 
-- **Deploy and verify on every task.** After any code change: commit, `git push origin main`, wait for App Runner to reach RUNNING with the new commitSha, then run the relevant Playwright E2E suite against the live URL and confirm the changed behaviour works in the browser. A task is not done until this passes. If no E2E test covers the changed path, write one first.
+- **Deploy and verify on every task.** After any code change: commit, `git push origin main`, trigger CodePipeline (`hephaestus-international-pipeline`), then run SSM to pull the new `:latest` image on EC2, verify `https://efestos.international/api/health` returns the new `commitSha`, run the relevant Playwright E2E suite, and confirm the changed behaviour works. A task is not done until this passes.
 - **Default: push after work.** Commit and `git push origin main` after a coherent change, then deploy via AWS CodeBuild (see `DEPLOYMENT.md`).
-- **Production validation:** test only on the live AWS surface (`https://fykgssqbvg.us-east-1.awsapprunner.com`). Do not use the local dev server as deployment proof.
+- **Production validation:** test only against `https://efestos.international` (EC2 Docker Compose). Do not use the local dev server as deployment proof.
 - **Playwright E2E:** use the MCP Playwright browser tool (preferred for interactive debugging) or `npx playwright test` for running specs. Test credentials live in `test_assets/test_users.json`. The `baseUrl` in that file must always point to the AWS URL.
 - **TypeScript:** run `npx tsc --noEmit` from `frontend/` before pushing to catch type errors.
 
@@ -98,11 +98,11 @@ This is not a public SaaS. It is an internal FloLabs operations tool.
 
 - **Framework:** Next.js 16 App Router — `frontend/` directory is the Docker build context
 - **Language:** TypeScript
-- **Database:** PostgreSQL via `postgres` driver — shared **AWS RDS PostgreSQL 16** with Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL` and App Runner env vars (`DATABASE_URL`, `FL_CHRONOS_DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`). Migrated from Neon on 2026-06-01.
+- **Database:** PostgreSQL via `postgres` driver — shared **AWS RDS PostgreSQL 16** with Chronos (`flolabs-db.ccxceiswgkrj.us-east-1.rds.amazonaws.com/neondb`). URL in SSM `/flolabs-chronos/DATABASE_URL`. Migrated from Neon on 2026-06-01.
 - **Auth:** Cookie-based session (`fl_preview_session`); NextAuth secret = `AUTH_SECRET` GitHub secret
 - **AI:** OpenAI for Paula chatbot (optional — falls back to rule-based if `OPENAI_API_KEY` absent)
 - **Email:** Resend (shared SSM params `/flolabs-chronos/RESEND_API_KEY`, `/flolabs-chronos/EMAIL_FROM`)
-- **Deploy:** AWS App Runner via AWS CodeBuild (`hephaestus-international-deploy`) → ECR — see `DEPLOYMENT.md`
+- **Deploy:** CodeBuild (`hephaestus-international-deploy`) → ECR `:latest` → SSM `docker compose pull` on EC2 — see `DEPLOYMENT.md`
 
 ## Status System (8 statuses)
 
@@ -170,14 +170,14 @@ npx playwright test e2e/hr-stage-lifecycle.spec.ts --config playwright.config.ts
 
 ### Validate a deploy
 ```bash
-curl -s https://fykgssqbvg.us-east-1.awsapprunner.com/api/health
+curl -s https://efestos.international/api/health
 # Should return: { "ok": true, "commitSha": "<sha>", ... }
 ```
 
 ## Access Context
 
 - **Production domain:** `https://efestos.international`
-- **AWS URL:** `https://fykgssqbvg.us-east-1.awsapprunner.com`
+- **EC2:** `i-0292b7ec02f26a25b` (`44.195.108.173`, `us-east-1`); IAM profile `flolabs-hosting-ec2-profile`
 - **Test HR credentials:** `test_assets/test_users.json` (role: `"Human Resources"`)
 - **AWS CLI:** pre-authenticated in this environment; region `us-east-1`, account `975049954782`
 - **Repo root:** `C:\Users\olire\Documents\workspace_python\hephaestus-international`
