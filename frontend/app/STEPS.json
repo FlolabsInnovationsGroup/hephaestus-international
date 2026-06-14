@@ -1,0 +1,114 @@
+[
+  {
+    "id": "application_submitted",
+    "title": "Application submitted",
+    "shortLabel": "Submitted",
+    "description": "We received your application and created your FloLabs profile.",
+    "applicantAction": "Make sure your profile details are complete and keep an eye on your dashboard.",
+    "adminAction": "Review the new application and move the lead into the contacted stage."
+  },
+  {
+    "id": "new",
+    "title": "New outreach",
+    "shortLabel": "New",
+    "description": "The applicant entered the funnel and is waiting for the first contact.",
+    "applicantAction": "Wait for the first message from the HR team.",
+    "adminAction": "Send the first outreach or let the automation handle it."
+  },
+  {
+    "id": "contacted",
+    "title": "Websites and presentations form",
+    "shortLabel": "Form 1",
+    "description": "The applicant was contacted and should complete the Websites & Presentations form.",
+    "applicantAction": "Go through the material and complete Form 1.",
+    "adminAction": "Track whether the form was sent and submitted."
+  },
+  {
+    "id": "interested_review",
+    "title": "Form 1 under review",
+    "shortLabel": "Review 1",
+    "description": "Form 1 was submitted and is being reviewed for effort and quality.",
+    "applicantAction": "Wait for the review result or a request to improve answers.",
+    "adminAction": "Evaluate answers and move strong applicants to Before Meeting."
+  },
+  {
+    "id": "before_meeting",
+    "title": "Meeting recordings",
+    "shortLabel": "Form 2",
+    "description": "The applicant should watch the meeting recordings and complete the second form.",
+    "applicantAction": "Watch the recordings and submit Form 2.",
+    "adminAction": "Track completion and answer process questions."
+  },
+  {
+    "id": "meeting_recordings_submitted",
+    "title": "Form 2 under review",
+    "shortLabel": "Review 2",
+    "description": "Form 2 was submitted and is being reviewed.",
+    "applicantAction": "Wait for the orientation invitation or a resubmission request.",
+    "adminAction": "Review answers and decide whether to invite the applicant to Saturday Orientation."
+  },
+  {
+    "id": "saturday_meeting",
+    "title": "Orientation session",
+    "shortLabel": "Saturday",
+    "description": "The applicant was invited to the Saturday Orientation session.",
+    "applicantAction": "Attend the orientation session or ask questions in chat.",
+    "adminAction": "Track attendance and send the correct follow-up."
+  },
+  {
+    "id": "attended",
+    "title": "Masterclass assigned",
+    "shortLabel": "Form 3",
+    "description": "The applicant attended the orientation session and should complete the General Masterclass step.",
+    "applicantAction": "Complete the General Masterclass content and form.",
+    "adminAction": "Wait for submission and answer questions."
+  },
+  {
+    "id": "masterclass_submitted",
+    "title": "Masterclass under review",
+    "shortLabel": "Review 3",
+    "description": "The General Masterclass step has been submitted and is under review.",
+    "applicantAction": "Wait for the next scheduling step.",
+    "adminAction": "Review depth of answers and move approved applicants to Second Meeting."
+  },
+  {
+    "id": "second_meeting",
+    "title": "Oliver 1-on-1",
+    "shortLabel": "1-on-1",
+    "description": "The applicant is ready to schedule the one-on-one with Oliver.",
+    "applicantAction": "Share two or three availability slots when requested.",
+    "adminAction": "Coordinate the one-on-one and log the outcome."
+  },
+  {
+    "id": "agreement_sent",
+    "title": "Agreement sent",
+    "shortLabel": "Agreement",
+    "description": "The onboarding agreement and next access instructions were sent.",
+    "applicantAction": "Review and sign the agreement.",
+    "adminAction": "Track signature, payment status, and reminders."
+  },
+  {
+    "id": "agreement_signed",
+    "title": "Agreement signed",
+    "shortLabel": "Signed",
+    "description": "The agreement is signed and the applicant is ready to be synced into Chronos and Team Members.",
+    "applicantAction": "Wait for workspace access and Chronos activation.",
+    "adminAction": "Create or update Chronos account and team member record."
+  },
+  {
+    "id": "chronos_synced",
+    "title": "Chronos synced",
+    "shortLabel": "Chronos",
+    "description": "The shared FloLabs and Chronos identity is active.",
+    "applicantAction": "Use the same credentials across FloLabs and Chronos.",
+    "adminAction": "Confirm the onboarding stack is complete."
+  },
+  {
+    "id": "joined",
+    "title": "Joined",
+    "shortLabel": "Joined",
+    "description": "The applicant is now an active FloLabs team member in Chronos.",
+    "applicantAction": "Use your FloLabs and Chronos access for active work.",
+    "adminAction": "Track the person as fully joined and no longer as a pending lead."
+  }
+]
