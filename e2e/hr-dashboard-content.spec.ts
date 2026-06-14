@@ -67,11 +67,18 @@ test.describe('HR dashboard content', () => {
 
   test('no JavaScript console errors on load', async ({ page }) => {
     const consoleErrors: string[] = [];
+    const ownApi404s: string[] = [];
+
     page.on('pageerror', (err) => consoleErrors.push(err.message));
-    // Also capture console.error calls
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         consoleErrors.push(`[console.error] ${msg.text()}`);
+      }
+    });
+    // Track our own API 404s separately — external CDN 404s are excluded below
+    page.on('response', (response) => {
+      if (response.status() === 404 && new URL(response.url()).pathname.startsWith('/api/')) {
+        ownApi404s.push(response.url());
       }
     });
 
@@ -79,14 +86,20 @@ test.describe('HR dashboard content', () => {
     // Allow a brief settle time for any deferred effects
     await page.waitForTimeout(2_000);
 
-    // Filter out known benign noise (e.g. network preload warnings)
-    const realErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('preload') &&
-        !e.includes('favicon') &&
-        !e.includes('ERR_ABORTED'),
-    );
+    // Filter out known benign noise. "Failed to load resource: 404" without a URL in the
+    // message text comes from external CDN resources (profile pictures, HubSpot, fonts) —
+    // we track our own /api/ 404s via the response listener above instead.
+    const realErrors = [
+      ...consoleErrors.filter(
+        (e) =>
+          !e.includes('preload') &&
+          !e.includes('favicon') &&
+          !e.includes('ERR_ABORTED') &&
+          !(e.includes('[console.error] Failed to load resource') && e.includes('404')),
+      ),
+      ...ownApi404s.map((url) => `[api 404] ${url}`),
+    ];
 
-    expect(realErrors, `Console errors on HR dashboard: ${realErrors.join('\n')}`).toHaveLength(0);
+    expect(realErrors, `Console errors on HR dashboard:\n${realErrors.join('\n')}`).toHaveLength(0);
   });
 });
