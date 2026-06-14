@@ -1,20 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-############################
-# GitHub Copilot & AI
-############################
-
-.github/copilot-instructions.md
-.github/instructions/
-
-############################
-# IDE & Editor
-############################
-
-.vscode/
-.idea/
-*.code-workspace
-
 # dependencies
 /node_modules
 /.pnp
@@ -45,11 +28,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
-
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
