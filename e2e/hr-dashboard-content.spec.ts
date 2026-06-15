@@ -86,16 +86,19 @@ test.describe('HR dashboard content', () => {
     // Allow a brief settle time for any deferred effects
     await page.waitForTimeout(2_000);
 
-    // Filter out known benign noise. "Failed to load resource: 404" without a URL in the
-    // message text comes from external CDN resources (profile pictures, HubSpot, fonts) —
-    // we track our own /api/ 404s via the response listener above instead.
+    // Filter out known benign noise:
+    // - External CDN 404s (profile pics, HubSpot, fonts) — tracked via response listener above
+    // - React #418 hydration mismatch on <html>: caused by browser extensions (e.g. LanguageTool,
+    //   Grammarly) injecting attributes after SSR; suppressHydrationWarning on <html> silences the
+    //   console warning but React still throws the error — it's not an app regression.
     const realErrors = [
       ...consoleErrors.filter(
         (e) =>
           !e.includes('preload') &&
           !e.includes('favicon') &&
           !e.includes('ERR_ABORTED') &&
-          !(e.includes('[console.error] Failed to load resource') && e.includes('404')),
+          !(e.includes('[console.error] Failed to load resource') && e.includes('404')) &&
+          !(e.includes('React error #418') && e.includes('args[]=HTML')),
       ),
       ...ownApi404s.map((url) => `[api 404] ${url}`),
     ];
