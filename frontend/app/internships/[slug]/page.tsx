@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Container, Section } from '@/components/layout'
-import { ApplicationForm } from '@/components/application-form'
+import { ApplicationForm } from '@/components/hubspot-form'
 import { getInternshipBySlug, getInternships } from '@/lib/strapi'
 import { getServerBrand } from '@/lib/branding'
 import { getApplicationSourceOptions } from '@/lib/source-options'
