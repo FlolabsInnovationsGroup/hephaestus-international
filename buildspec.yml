@@ -4,9 +4,8 @@ env:
   variables:
     AWS_REGION: us-east-1
     ECR_REPOSITORY: hephaestus-international
-    APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:us-east-1:975049954782:service/hephaestus-international/7b3d7cb4f0894c21ae16f15b985fedc7
-    VPC_CONNECTOR_ARN: arn:aws:apprunner:us-east-1:975049954782:vpcconnector/flolabs-chronos-vpc-connector/1/41208035860d463f92e083af41247fe1
-    APP_URL: https://fykgssqbvg.us-east-1.awsapprunner.com
+    EC2_INSTANCE_ID: i-0292b7ec02f26a25b
+    PRODUCTION_URL: https://efestos.international
 
 phases:
   pre_build:
@@ -18,33 +17,21 @@ phases:
       - ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
       - REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
       - IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+      - LATEST_URI="${REGISTRY}/${ECR_REPOSITORY}:latest"
       - BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - echo "COMMIT_SHA=${COMMIT_SHA}" > /tmp/build.env
       - echo "IMAGE_TAG=${IMAGE_TAG}" >> /tmp/build.env
       - echo "IMAGE_URI=${IMAGE_URI}" >> /tmp/build.env
-      - echo "LATEST_URI=${REGISTRY}/${ECR_REPOSITORY}:latest" >> /tmp/build.env
+      - echo "LATEST_URI=${LATEST_URI}" >> /tmp/build.env
       - echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> /tmp/build.env
-      - echo "SHORT_SHA=${SHORT_SHA}" >> /tmp/build.env
-      - echo "COMMIT_SHA=${COMMIT_SHA}" >> /tmp/build.env
+      - echo "REGISTRY=${REGISTRY}" >> /tmp/build.env
       - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
       - export CONTENT_STRAPI_URL="$(aws ssm get-parameter --name /hephaestus-international/CONTENT_STRAPI_URL --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export DATABASE_URL="$(aws ssm get-parameter --name /flolabs-chronos/DATABASE_URL --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export CHRONOS_SYNC_API_URL="$(aws ssm get-parameter --name /hephaestus-international/CHRONOS_SYNC_API_URL --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export CHRONOS_SYNC_TOKEN="$(aws ssm get-parameter --name /hephaestus-international/CHRONOS_SYNC_TOKEN --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export CONTENT_STRAPI_API_TOKEN="$(aws ssm get-parameter --name /hephaestus-international/CONTENT_STRAPI_API_TOKEN --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export STRAPI_API_TOKEN="$(aws ssm get-parameter --name /hephaestus-international/STRAPI_API_TOKEN --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION")"
-      - export EMAIL_FROM="$(aws ssm get-parameter --name /flolabs-chronos/EMAIL_FROM --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION" 2>/dev/null || true)"
-      - export RESEND_API_KEY="$(aws ssm get-parameter --name /flolabs-chronos/RESEND_API_KEY --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION" 2>/dev/null || true)"
-      - export NOTION_API_KEY="$(aws ssm get-parameter --name /flolabs-chronos/NOTION_API_KEY --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION" 2>/dev/null || true)"
-      - export CRON_SECRET="$(aws ssm get-parameter --name /flolabs-chronos/CRON_SECRET --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION" 2>/dev/null || true)"
-      - export OPENAI_API_KEY="$(aws ssm get-parameter --name /flolabs-chronos/OPENAI_API_KEY --with-decryption --query 'Parameter.Value' --output text --region "$AWS_REGION" 2>/dev/null || true)"
-      - |
-        CURRENT_JSON="$(aws apprunner describe-service --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --query 'Service.SourceConfiguration.ImageRepository.ImageConfiguration.RuntimeEnvironmentVariables' --output json)"
-        export NEXTAUTH_SECRET="$(echo "$CURRENT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('NEXTAUTH_SECRET','-'))")"
 
   build:
     commands:
       - set -eu
-      - . /tmp/build.env
+      - . /tmp/build.env && export COMMIT_SHA IMAGE_TAG IMAGE_URI LATEST_URI BUILD_TIMESTAMP REGISTRY
       - |
         docker build \
           --build-arg BUILD_COMMIT_SHA="$COMMIT_SHA" \
@@ -61,97 +48,58 @@ phases:
   post_build:
     commands:
       - set -eu
-      - . /tmp/build.env
-      - DIGEST="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$IMAGE_TAG" --query 'imageDetails[0].imageDigest' --output text --region "$AWS_REGION")"
-      - export DIGEST IMAGE_URI IMAGE_TAG BUILD_TIMESTAMP COMMIT_SHA
+      - . /tmp/build.env && export COMMIT_SHA IMAGE_TAG IMAGE_URI LATEST_URI BUILD_TIMESTAMP REGISTRY
       - |
-        python3 <<'PY'
-        import json, os
-        env = {
-          "APP_URL": os.environ["APP_URL"],
-          "APPLICANT_STORAGE_DRIVER": "postgres",
-          "NODE_ENV": "production",
-          "NEXTAUTH_URL": os.environ["APP_URL"],
-          "NEXTAUTH_SECRET": os.environ.get("NEXTAUTH_SECRET", "-"),
-          "DATABASE_URL": os.environ["DATABASE_URL"],
-          "CHRONOS_DB_DATABASE_URL": os.environ["DATABASE_URL"],
-          "FL_CHRONOS_DATABASE_URL": os.environ["DATABASE_URL"],
-          "CHRONOS_SYNC_API_URL": os.environ["CHRONOS_SYNC_API_URL"],
-          "CHRONOS_SYNC_TOKEN": os.environ["CHRONOS_SYNC_TOKEN"],
-          "CONTENT_STRAPI_URL": os.environ["CONTENT_STRAPI_URL"],
-          "CONTENT_STRAPI_API_TOKEN": os.environ["CONTENT_STRAPI_API_TOKEN"],
-          "NEXT_PUBLIC_STRAPI_URL": os.environ["CONTENT_STRAPI_URL"],
-          "STRAPI_API_TOKEN": os.environ["STRAPI_API_TOKEN"],
-          "RESEND_API_KEY": os.environ.get("RESEND_API_KEY", ""),
-          "EMAIL_FROM": os.environ.get("EMAIL_FROM", ""),
-          "NOTION_API_KEY": os.environ.get("NOTION_API_KEY", ""),
-          "CRON_SECRET": os.environ.get("CRON_SECRET", ""),
-          "NOTION_TEAM_MEMBERS_DB_ID": "286a1576955180d6acdec21f7a45dfcc",
-          "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
-          "BUILD_COMMIT_SHA": os.environ.get("GIT_SHA", os.environ.get("CODEBUILD_RESOLVED_SOURCE_VERSION", "")),
-          "BUILD_COMMIT_REF": "main",
-          "BUILD_IMAGE_TAG": os.environ["IMAGE_TAG"],
-          "BUILD_IMAGE_DIGEST": os.environ["DIGEST"],
-          "BUILD_TIMESTAMP": os.environ["BUILD_TIMESTAMP"],
-        }
-        source = {
-          "AuthenticationConfiguration": {
-            "AccessRoleArn": "arn:aws:iam::975049954782:role/hephaestus-international-apprunner-ecr-access-role"
-          },
-          "AutoDeploymentsEnabled": True,
-          "ImageRepository": {
-            "ImageIdentifier": os.environ["IMAGE_URI"],
-            "ImageRepositoryType": "ECR",
-            "ImageConfiguration": {
-              "Port": "3000",
-              "RuntimeEnvironmentVariables": env,
-            },
-          },
-        }
-        with open("apprunner-source.json", "w", encoding="utf-8") as f:
-          json.dump(source, f)
-        with open("apprunner-service.json", "w", encoding="utf-8") as f:
-          json.dump({"Cpu": "1 vCPU", "Memory": "2 GB"}, f)
-        PY
+        python3 - <<'PYEOF'
+        import subprocess, json, os, time, sys
+        aws_region = os.environ["AWS_REGION"]
+        registry = os.environ["REGISTRY"]
+        latest_uri = os.environ["LATEST_URI"]
+        commit_sha = os.environ["COMMIT_SHA"]
+        instance_id = os.environ["EC2_INSTANCE_ID"]
+        commands = [
+            f"aws ecr get-login-password --region {aws_region} | docker login --username AWS --password-stdin {registry}",
+            "docker image prune -f",
+            f"docker pull {latest_uri}",
+            "cd /opt/hosting && docker compose up -d --force-recreate hephaestus",
+        ]
+        r = subprocess.run(
+            ["aws", "ssm", "send-command",
+             "--instance-ids", instance_id,
+             "--document-name", "AWS-RunShellScript",
+             "--parameters", json.dumps({"commands": commands}),
+             "--region", aws_region,
+             "--query", "Command.CommandId",
+             "--output", "text"],
+            capture_output=True, text=True, check=True)
+        cmd_id = r.stdout.strip()
+        print(f"SSM CommandId: {cmd_id}")
+        for attempt in range(1, 61):
+            try:
+                s = subprocess.run(
+                    ["aws", "ssm", "get-command-invocation",
+                     "--command-id", cmd_id,
+                     "--instance-id", instance_id,
+                     "--region", aws_region,
+                     "--query", "Status",
+                     "--output", "text"],
+                    capture_output=True, text=True, check=True)
+                status = s.stdout.strip()
+            except subprocess.CalledProcessError:
+                status = "Pending"
+            print(f"SSM status={status} attempt={attempt}")
+            if status == "Success":
+                break
+            if status in ("Failed", "TimedOut", "Cancelled"):
+                print("EC2 deploy failed", file=sys.stderr)
+                sys.exit(1)
+            time.sleep(10)
+        PYEOF
       - |
-        for attempt in $(seq 1 60); do
-          SERVICE_STATUS="$(aws apprunner describe-service --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --query 'Service.Status' --output text)"
-          LATEST_OPERATION_STATUS="$(aws apprunner list-operations --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --max-results 1 --query 'OperationSummaryList[0].Status' --output text)"
-          if [ "$LATEST_OPERATION_STATUS" = "None" ] || [ -z "$LATEST_OPERATION_STATUS" ]; then
-            LATEST_OPERATION_STATUS="SUCCEEDED"
-          fi
-          echo "idle check service=${SERVICE_STATUS} op=${LATEST_OPERATION_STATUS} attempt=${attempt}"
-          if [ "$SERVICE_STATUS" = "RUNNING" ] && [ "$LATEST_OPERATION_STATUS" != "IN_PROGRESS" ] && [ "$LATEST_OPERATION_STATUS" != "PENDING" ]; then
-            break
-          fi
-          sleep 10
-        done
-      - |
-        OPERATION_ID="$(aws apprunner update-service \
-          --service-arn "$APP_RUNNER_SERVICE_ARN" \
-          --source-configuration file://apprunner-source.json \
-          --instance-configuration file://apprunner-service.json \
-          --network-configuration "EgressConfiguration={EgressType=VPC,VpcConnectorArn=$VPC_CONNECTOR_ARN}" \
-          --region "$AWS_REGION" \
-          --query 'OperationId' \
-          --output text)"
-        echo "operation_id=$OPERATION_ID"
-        while true; do
-          STATUS="$(aws apprunner list-operations --service-arn "$APP_RUNNER_SERVICE_ARN" --region "$AWS_REGION" --query "OperationSummaryList[?Id=='$OPERATION_ID'].Status | [0]" --output text)"
-          echo "operation status=$STATUS"
-          if [ "$STATUS" = "SUCCEEDED" ]; then break; fi
-          if [ "$STATUS" = "None" ] || [ -z "$STATUS" ]; then
-            sleep 10
-            continue
-          fi
-          if [ "$STATUS" != "IN_PROGRESS" ] && [ "$STATUS" != "PENDING" ]; then exit 1; fi
-          sleep 10
-        done
-      - |
-        for attempt in $(seq 1 45); do
-          BODY="$(curl -fsSL --connect-timeout 10 --max-time 25 "${APP_URL}/api/health" || true)"
+        for attempt in $(seq 1 30); do
+          BODY="$(curl -fsSL --connect-timeout 10 --max-time 25 "${PRODUCTION_URL}/api/health" || true)"
           echo "$BODY"
-          if echo "$BODY" | grep -F '"ok":true' >/dev/null && echo "$BODY" | grep -F "\"commitSha\":\"${COMMIT_SHA}\"" >/dev/null; then
+          if echo "$BODY" | grep -F '"ok":true' >/dev/null && echo "$BODY" | grep -F "${COMMIT_SHA}" >/dev/null; then
             exit 0
           fi
           sleep 10

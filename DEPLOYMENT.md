@@ -1,6 +1,4 @@
-# Hephaestus Deployment
-
-For full system context, read `ARCHITECTURE.md`. This file covers how to release and verify.
+# Hephaestus deployment workflow
 
 ## Production stack
 
@@ -8,81 +6,77 @@ For full system context, read `ARCHITECTURE.md`. This file covers how to release
 |---|---|
 | **Production domain** | `https://efestos.international` |
 | **EC2 instance** | `i-0292b7ec02f26a25b` (`44.195.108.173`, `us-east-1`) |
-| **Docker Compose dir** | `/opt/hosting/` on the EC2 |
+| **Docker Compose dir** | `/opt/hosting/` |
 | **ECR repository** | `975049954782.dkr.ecr.us-east-1.amazonaws.com/hephaestus-international` |
+| **CodePipeline** | `hephaestus-international-pipeline` (auto-triggers on push to `main`) |
 | **CodeBuild project** | `hephaestus-international-deploy` |
 | **Region / account** | `us-east-1` / `975049954782` |
 
-Nginx on the EC2 proxies `efestos.international` → container port 3001. The container listens on 3000; host-side mapping is `127.0.0.1:3001:3000`.
+Nginx on the EC2 proxies `efestos.international` → container port 3001 (`127.0.0.1:3001:3000`).
 
 ## Deploy flow
 
-### Step 1 — Build and push image (CodeBuild pipeline)
+### Normal path — push to main
 
-Use the CodePipeline (auto-triggers on push to `main`) or trigger manually:
+```bash
+git push origin main
+```
 
-```powershell
+This triggers `hephaestus-international-pipeline`, which runs CodeBuild. The build:
+
+1. Reads `CONTENT_STRAPI_URL` from SSM (baked in as `NEXT_PUBLIC_STRAPI_URL` at build time)
+2. Builds the Docker image from `./frontend`, tagging it `git-<12-char-sha>` and `latest`
+3. Pushes both tags to ECR
+4. SSMs into the EC2 to: ECR login → `docker image prune -f` → pull `:latest` → `docker compose up -d --force-recreate hephaestus`
+5. Polls `https://efestos.international/api/health` until `"ok":true` with the new `commitSha`
+
+Build succeeds = container is live with the pushed commit.
+
+### Manual pipeline trigger
+
+```bash
 aws codepipeline start-pipeline-execution --name hephaestus-international-pipeline --region us-east-1
 ```
 
-The pipeline runs `hephaestus-international-build` → `hephaestus-international-deploy`. The buildspec pushes two ECR tags:
-- `git-<12-char-sha>` — immutable, for audit
-- `latest` — what the EC2 Docker Compose pulls
+### Manual EC2 update (if pipeline post_build fails)
 
-### Step 2 — Update EC2 container
-
-After the pipeline succeeds, pull the new image on the EC2 via SSM Run Command:
-
-```powershell
-aws ssm send-command --region us-east-1 `
-  --instance-ids "i-0292b7ec02f26a25b" `
-  --document-name "AWS-RunShellScript" `
-  --parameters 'commands=["aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975049954782.dkr.ecr.us-east-1.amazonaws.com && cd /opt/hosting && docker compose pull hephaestus && docker compose up -d hephaestus"]'
+```bash
+aws ssm send-command \
+  --instance-ids "i-0292b7ec02f26a25b" \
+  --document-name "AWS-RunShellScript" \
+  --region us-east-1 \
+  --parameters '{"commands":[
+    "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975049954782.dkr.ecr.us-east-1.amazonaws.com",
+    "docker image prune -f",
+    "docker pull 975049954782.dkr.ecr.us-east-1.amazonaws.com/hephaestus-international:latest",
+    "cd /opt/hosting && docker compose up -d --force-recreate hephaestus"
+  ]}'
 ```
 
-Poll for completion:
+Poll the command status:
 
-```powershell
-aws ssm get-command-invocation --region us-east-1 `
-  --command-id <CommandId> `
-  --instance-id "i-0292b7ec02f26a25b" `
+```bash
+aws ssm get-command-invocation \
+  --command-id <CommandId> \
+  --instance-id "i-0292b7ec02f26a25b" \
+  --region us-east-1 \
   --query '{Status:Status,Output:StandardOutputContent}'
 ```
 
-### Step 3 — Verify
+## Verify
 
-```powershell
-Invoke-RestMethod https://efestos.international/api/health
-# Should return ok=true with the new commitSha
+```bash
+curl -s https://efestos.international/api/health
+# Expected: {"ok":true,"commitSha":"<sha>", ...}
 ```
 
-## Deployment proof standard
+A deployment is proven when `"ok":true` and `"commitSha"` matches the pushed commit.
 
-A deployment is proven when:
+## Runtime secrets
 
-1. CodeBuild build succeeded and `latest` ECR tag updated
-2. SSM Run Command completed with `Success`
-3. `GET https://efestos.international/api/health` returns `"ok":true` with matching `commitSha`
-
-## Runtime secret source of truth
-
-Env vars are baked into the Docker image at CodeBuild time from **AWS SSM**:
-
-| SSM Parameter | Runtime env var |
-|---|---|
-| `/flolabs-chronos/DATABASE_URL` | `DATABASE_URL`, `CHRONOS_DB_DATABASE_URL`, `FL_CHRONOS_DATABASE_URL` |
-| `/hephaestus-international/CHRONOS_SYNC_API_URL` | `CHRONOS_SYNC_API_URL` |
-| `/hephaestus-international/CHRONOS_SYNC_TOKEN` | `CHRONOS_SYNC_TOKEN` |
-| `/hephaestus-international/CONTENT_STRAPI_URL` | `CONTENT_STRAPI_URL`, `NEXT_PUBLIC_STRAPI_URL` |
-| `/hephaestus-international/STRAPI_API_TOKEN` | `STRAPI_API_TOKEN` |
-| `/hephaestus-international/CONTENT_STRAPI_API_TOKEN` | `CONTENT_STRAPI_API_TOKEN` |
-| `/flolabs-chronos/RESEND_API_KEY` | `RESEND_API_KEY` |
-| `/flolabs-chronos/EMAIL_FROM` | `EMAIL_FROM` |
-| `/flolabs-chronos/OPENAI_API_KEY` | `OPENAI_API_KEY` |
-
-Additional runtime config is in `/opt/hosting/hephaestus.env` on the EC2 (sourced from S3: `s3://flolabs-chronos-backups/hosting-ec2/hephaestus.env`).
+Runtime env vars come from `/opt/hosting/hephaestus.env` on the EC2 at container start (sourced from `s3://flolabs-chronos-backups/hosting-ec2/hephaestus.env`). The only exception is `NEXT_PUBLIC_STRAPI_URL`, which is baked into the image at build time from SSM `/hephaestus-international/CONTENT_STRAPI_URL`.
 
 ## Files that define the deploy path
 
-- `buildspec.yml` — CodeBuild pipeline (builds image, pushes `git-<sha>` + `latest` to ECR)
+- `buildspec.yml` — CodeBuild pipeline (build image, push to ECR, SSM deploy to EC2)
 - `FloLabs_Hermes/hosting-ec2-userdata.sh` — EC2 bootstrap (first-time setup only)
