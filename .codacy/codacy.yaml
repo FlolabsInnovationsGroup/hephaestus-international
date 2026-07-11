@@ -1,6 +1,0 @@
-runtimes:
-    - python@3.11.11
-tools:
-    - pmd@7.11.0
-    - pylint@3.3.6
-1
