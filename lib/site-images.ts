@@ -12,6 +12,7 @@ function asset(path: string, width: number, height: number): SiteImageAsset {
 }
 
 export const siteImages = {
+  ogImage: asset("/og-image.png", 1280, 720),
   heroBackground: asset("/images/hero-background.webp", 1440, 980),
   didYouKnowBackground: asset("/images/did-you-know-lemnos.webp", 1024, 768),
   pillarsBackground: asset("/images/pillars-background.webp", 1920, 1280),

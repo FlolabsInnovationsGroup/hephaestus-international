@@ -4,7 +4,7 @@ import { brandLogoPath } from "@/lib/brand-assets";
 import { siteImages } from "@/lib/site-images";
 import { withBasePath } from "@/lib/site-url";
 
-const socialPreviewImage = siteImages.heroBackground;
+const socialPreviewImage = siteImages.ogImage;
 
 const siteUrl = siteConfig.url;
 

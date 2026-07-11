@@ -457,6 +457,8 @@ export type GalleryItem = {
   media: GalleryItemMedia;
   /** Facebook or other iframe embed URL for inline playback on the gallery page. */
   embedSrc?: string;
+  /** Overrides the default external link label when set. */
+  linkLabel?: string;
 };
 
 /** Gallery tiles link to external pages for full stories, articles, or videos. */
@@ -536,17 +538,32 @@ export const galleryItems: readonly GalleryItem[] = [
     },
   },
   {
-    id: "john-hazlewood-five-years-later",
-    title: "5 Years Later",
+    id: "ancient-hephaestia-archaeological-site",
+    title: "Archeological Site Ancient Hephaestia",
     description:
-      "Photos shared by John Andrew Hazlewood on Facebook. See the full post for more.",
-    href: "https://www.facebook.com/john.a.hazlewood/posts/5-years-later-/10234695141053810/",
+      "The ancient city and sanctuary of Hephaestus on Lemnos. View the archaeological site on Google Maps.",
+    href: "https://maps.app.goo.gl/9kU3UNfSLE496oqTA",
+    linkLabel: "View on Google Maps",
     media: {
       type: "image",
-      src: withBasePath("/images/limnos-coastal-bay-sunset.webp"),
-      width: 550,
-      height: 248,
-      alt: "Preview image for John Andrew Hazlewood Facebook post, 5 Years Later",
+      src: withBasePath("/images/limnos-hephaistia-theatre-360.webp"),
+      width: 600,
+      height: 600,
+      alt: "Ancient Theatre of Hephaistia at the archaeological site of Ancient Hephaestia on Lemnos",
+    },
+  },
+  {
+    id: "john-hazlewood-five-years-later",
+    title: "St. John's Beach",
+    description:
+      "St John's Beach: an upside down hearti where our lab is located behind the tree.",
+    href: "https://www.facebook.com/photo/?fbid=10234695140573798&set=pb.1057247183.-2207520000",
+    media: {
+      type: "image",
+      src: withBasePath("/images/john-hazlewood-five-years-later.webp"),
+      width: 2304,
+      height: 1040,
+      alt: "Coastal bay at sunset with boats, from John Andrew Hazlewood's 5 Years Later Facebook photo",
     },
   },
   {
@@ -591,6 +608,20 @@ export const galleryItems: readonly GalleryItem[] = [
       width: 700,
       height: 335,
       alt: "Death of the Greek philosopher Hypatia in Alexandria, unknown artist, public domain",
+    },
+  },
+  {
+    id: "paleothea-hephaestus-lemnos",
+    title: "Hephaestus and Lemnos",
+    description:
+      "Paleothea on Hephaestus's forge on Lemnos, the island's mythic history, and his legendary creations.",
+    href: "https://paleothea.com/gods-and-goddesses/hephaestus-and-lemnos/",
+    media: {
+      type: "image",
+      src: withBasePath("/images/paleothea-hephaestus-lemnos.webp"),
+      width: 1200,
+      height: 686,
+      alt: "Hephaestus and Lemnos, featured image from Paleothea",
     },
   },
   {
@@ -655,28 +686,31 @@ export const projectsCatalog = [
     href: "https://www.athleticperformanceintelligence.com/",
     tileIntro:
       "Performance data lives everywhere except together. Unify mental, physical, and behavioral signals into one FloBrain-powered view.",
+    paragraphs: [
+      "Performance data lives everywhere except together. Unify mental, physical, and behavioral signals into one FloBrain-powered view.",
+    ],
   },
   {
     id: "caipo",
     title: "CAIPO",
     href: "https://www.caipo.ai/",
     storytellingId: "caipo",
+    tileIntro:
+      "A wearable AI system focused on capturing moments, organizing notes, and improving productivity workflows.",
+    focusPoints: [
+      "Design excellence and practical UX/UI",
+      "AI-enabled productivity gains for teams and individuals",
+      "Entrepreneurial execution in emerging AI products",
+    ],
   },
   {
     id: "connecting-the-dots",
     title: "Connecting The Dots",
     href: "https://www.youtube.com/@flolabsinnovation",
     tileIntro:
-      "Behind every FloLabs project is a conversation worth sharing. Episodes that connect AI, robotics, and education across the ecosystem.",
+      "A cross-disciplinary initiative connecting ideas, teams, and execution into clearer and more actionable outcomes.",
     paragraphs: [
-      "Connecting the Dots is a FloLabs media and storytelling project that turns conversations, meetings, and founder insights into clear episodes about innovation. The series helps explain how different FloLabs projects, ideas, and teams connect across AI, robotics, entrepreneurship, education, and real-world problem solving. It gives viewers a behind-the-scenes look at the challenges, thinking, and vision behind building something new.",
-    ],
-    focusPoints: [
-      "Thought leadership and storytelling",
-      "Behind-the-scenes FloLabs conversations",
-      "AI, robotics, entrepreneurship, and education",
-      "Connecting different projects into one bigger vision",
-      "Making complex ideas easier to understand publicly",
+      "Developing connected content and systems that align design, technology, and business workstreams into cohesive project outcomes.",
     ],
   },
   {
@@ -684,7 +718,10 @@ export const projectsCatalog = [
     title: "Cosmos Intelligence",
     href: "https://cosmosintelligence.org/",
     tileIntro:
-      "AI search across public space data. Open research on cosmic structure, signals, and information patterns.",
+      "An open research and product initiative using AI to study cosmic-scale structure, signals, and information patterns across public space data.",
+    paragraphs: [
+      "An open research and product initiative using AI to study cosmic-scale structure, signals, and information patterns across public space data.",
+    ],
   },
   {
     id: "flobrain",
@@ -692,70 +729,107 @@ export const projectsCatalog = [
     href: "https://www.flobrain.ai/",
     storytellingId: "flobrain",
     tileIntro:
-      "The central intelligence layer for every device: memory, orchestration, and real-time AI across web, mobile, wearables, and robotics.",
+      "An AI-native initiative focused on knowledge workflows, intelligent assistants, and practical team productivity systems.",
   },
   {
     id: "flolabs-innovations",
     title: "FloLabs Innovations Group",
     href: "https://www.flolabsinnovations.com/",
     tileIntro:
-      "From classrooms to clinics to orbit, pioneering AI and robotics across education, healthcare, travel, and space.",
+      "A global platform showcasing FloLabs initiatives, partnerships, and AI/technology innovation.",
+    paragraphs: [
+      "Redesigning the platform to better highlight mission, active projects, and collaboration opportunities.",
+    ],
   },
   {
     id: "flolabs-international",
     title: "FloLabs International",
     href: "https://www.flolabs.international/",
     tileIntro:
-      "Builders learn by shipping. A global incubator pairing experiential learning with real venture execution in AI and robotics.",
+      "A global hub highlighting FloLabs' mission, projects, and collaboration opportunities.",
+    paragraphs: [
+      "Redesigning the website to better highlight FloLabs' mission, ongoing projects, and opportunities for collaboration and internships.",
+    ],
   },
   {
     id: "flostudios",
     title: "FloStudios",
     href: "https://www.flostudios.ai/",
     tileIntro:
-      "Where creativity meets code: digital experiences for the FloLabs ecosystem, from live platforms to brand identity.",
+      "A creative hub for UX/UI, multimedia, and marketing teams building next-generation internal projects and digital experiences.",
+    paragraphs: [
+      "Our first production is a film project inspired by the mythological roots of Lemnos, Greece, blending ancient tales with the future of AI and robotics. The story highlights Hephaestus, the legendary blacksmith who built the first robot, Talos, and AI Pandora on the island of Lemnos, where we are launching one of our labs and future campus. This project, along with others, offers an incredible opportunity to contribute to something meaningful while honing your skills.",
+    ],
+    focusPoints: [
+      "Design excellence across digital products",
+      "Multimedia innovation with AI-first tooling",
+      "Startup experimentation in creative production",
+    ],
   },
   {
     id: "flotravel",
     title: "FloTravel",
     href: "https://www.flomadtravel.com/",
     tileIntro:
-      "Tell it where you want to go. Conversational AI plans flights, stays, reservations, and experiences in one personal journey.",
+      "AI-powered travel planning for flights, hotels, reservations, and activities in one connected experience.",
+    paragraphs: [
+      "AI is taking over in the market for travel. Flo Travel is using AI to help clients plan their trips accordingly. Plan your flight, hotel, trip, activites, etc. all in one place.",
+    ],
   },
   {
     id: "hephaestus-international",
     title: "Hephaestus International",
     href: "https://hephaestus.international/",
     tileIntro:
-      "Where the forge meets the future: immersive, hands-on learning in AI and robotics on real marketable projects.",
+      "An experiential learning institute focused on innovation, education, and advanced technology development.",
+    paragraphs: [
+      "Hephaestus Labs Institute of Experiential Learning Center of Excellence",
+    ],
   },
   {
     id: "innovation-bootcamp-university",
     title: "Innovation Bootcamp University",
     href: "https://www.bootcampuniversity.org/",
     tileIntro:
-      "Start as a student, graduate as a working professional. Structured learning connected to paid internships in AI and robotics.",
+      "A cooperative education initiative that helps learners move from foundational training to paid, real-world tech project experience.",
+    paragraphs: [
+      "A cooperative education initiative that helps learners move from foundational training to paid, real-world tech project experience.",
+    ],
   },
   {
     id: "legal-ethics",
     title: "Legal & Ethics Ventures Institute",
     href: "https://www.legalethicsventuresinstitute.com/",
     tileIntro:
-      "Widening the doors to legal careers with hands-on client work, ethics training, and AI tools for career changers.",
+      "A remote-first, hands-on institute for legal, ethics, and AI venture projects with real-world execution.",
+    paragraphs: [
+      "Expanding hands-on legal and ethics initiatives that help students and career changers build real-world experience through applied projects and venture-style collaboration.",
+    ],
   },
   {
     id: "moodchanger",
     title: "MoodChanger",
     href: "https://www.moodchanger.ai/",
     tileIntro:
-      "Unified wearables and routines into personalized insights, with a 24/7 FloBrain-powered coach for people and athletes.",
+      "An AI-powered platform designed to enhance emotional well-being with personalized insights and practical guidance.",
+    paragraphs: [
+      "Expanding MoodChanger's functionality by integrating interactive AI tools, refining algorithms for better personalization, and designing a user-friendly interface to make emotional health accessible to everyone.",
+    ],
+    focusPoints: [
+      "Design excellence and intuitive UX/UI",
+      "AI connectivity across multiple innovations",
+      "Startup-style innovation and creator enablement",
+    ],
   },
   {
     id: "moodchanger-pets",
     title: "MoodChanger for Pets",
     href: "https://moodchanger.ai/pets",
     tileIntro:
-      "Pets cannot tell you when stress builds beneath the surface. AI that spots anxiety and behavior patterns early.",
+      "An AI-driven pet wellness platform combining wearables, environment data, and behavior insights.",
+    paragraphs: [
+      "Developing a seamless platform that integrates with pet wearables, creating AI models for real-time analysis, and designing engaging tools for pet owners to monitor and enhance their pets' quality of life.",
+    ],
   },
   {
     id: "robocollective",
@@ -763,21 +837,27 @@ export const projectsCatalog = [
     href: "https://robocollective.ai/",
     storytellingId: "robocollective",
     tileIntro:
-      "Like Hephaestus and Talos before us, we bring robots to life through shows that inspire, entertain, and educate.",
+      "A major initiative focused on intelligent systems, human-robot interaction, and robotics commercialization through RoboCollective.",
   },
   {
     id: "space-ventures",
     title: "Space Ventures Institute",
     href: "https://www.spaceventuresinstitute.com/",
     tileIntro:
-      "Space jobs can feel distant. A remote-first venture studio where builders ship real work on AI, robotics, and space.",
+      "A remote-first experiential venture institute connecting talent to real space economy projects.",
+    paragraphs: [
+      "Building project streams across CAIPO Space Buddy, MoodChanger for space, space travel initiatives, and robotics-focused product development.",
+    ],
   },
   {
     id: "tarrl",
     title: "TARRL",
     href: "https://www.tarrl.org/",
     tileIntro:
-      "Real robots sit behind locked lab doors. An open, remote-first embodied AI lab where researchers ship reproducible work.",
+      "The official portal for FloLabs' Texas Advanced Robotics Research Lab (TARRL).",
+    paragraphs: [
+      "Redesigning the site to reflect ongoing changes at FloLabs.",
+    ],
   },
 ] as const;
 
@@ -785,7 +865,7 @@ export const projectsPage = {
   title: "Our Projects",
   heading: "Our Projects",
   intro:
-    "Initiatives in the Hephaestus and FloLabs ecosystem. Open a project for full details.",
+    "Explore the innovative AI, robotics, education, and media initiatives being built across the Hephaestus and FloLabs ecosystem.",
   viewDetailsLabel: "View details",
   backToProjectsLabel: "All projects",
   externalSiteLabel: "Visit site",

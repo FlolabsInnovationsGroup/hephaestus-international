@@ -7,7 +7,9 @@ import { type } from "@/lib/typography";
 import { cardRadiusClass } from "@/lib/ui-styles";
 
 function getLinkLabel(item: GalleryItem): string {
-  return item.embedSrc ? galleryPage.watchExternalLabel : galleryPage.externalLinkLabel;
+  if (item.linkLabel) return item.linkLabel;
+  if (item.embedSrc) return galleryPage.watchExternalLabel;
+  return galleryPage.externalLinkLabel;
 }
 
 export function GalleryTile({ item }: { item: GalleryItem }) {
