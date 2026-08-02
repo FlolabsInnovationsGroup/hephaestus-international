@@ -1,11 +1,19 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Col, Container, Section } from "@/components/layout/container";
 import { ContentColumn } from "@/components/layout/content-column";
+import { ClosingCtaChamber } from "@/components/sections/closing-cta-chamber";
+import { DidYouKnowTimeline } from "@/components/sections/did-you-know-timeline";
+import { EcosystemChamber } from "@/components/sections/ecosystem-chamber";
+import { EngineThresholdChamber } from "@/components/sections/engine-threshold-chamber";
+import { FormBridgeChamber } from "@/components/sections/form-bridge-chamber";
+import { LearningEngineChamber } from "@/components/sections/learning-engine-chamber";
+import { LemnosLegend } from "@/components/sections/lemnos-legend";
+import { NameForgeChamber } from "@/components/sections/name-forge-chamber";
+import { NameOriginsManuscript } from "@/components/sections/name-origins-manuscript";
+import { PillarsCarousel } from "@/components/sections/pillars-carousel";
+import { RootsChamber } from "@/components/sections/roots-chamber";
 import { TransitionBlock } from "@/components/sections/transition-block";
 import { HeroBackdrop } from "@/components/ui/hero-backdrop";
 import {
-  PhotoGridOverlay,
   SectionBackdrop,
   SectionCoverBackdrop,
   SectionImageSplit,
@@ -21,19 +29,9 @@ import {
   didYouKnow,
   positioning,
   pillars,
-  roots,
   mappingLegacy,
-  lemnos,
-  nameBridge,
-  nameOrigins,
-  engineBridge,
-  learningEngine,
-  formBridge,
-  ecosystem,
-  closingCta,
 } from "@/content/site-content";
 import { siteImages } from "@/lib/site-images";
-import { preventOrphans, preventOrphansInParagraph } from "@/lib/prevent-orphans";
 import { type } from "@/lib/typography";
 import {
   cardRadiusClass,
@@ -41,16 +39,6 @@ import {
   glassTextClass,
   photoCoverOverlayClass,
   photoCoverOverlayStrongClass,
-  photoGradientBottomClosingClass,
-  photoGradientVerticalSoftClass,
-  photoBrandAccentClass,
-  externalBodyLinkClass,
-  photoRadialCenterClass,
-  photoTextColumnScrimClass,
-  photoTintClosingClass,
-  photoTintStrongClass,
-  photoWhiteTextClass,
-  photoWhiteTextSoftClass,
 } from "@/lib/ui-styles";
 
 const glassTitlePillClass = `inline-block max-w-full ${cardRadiusClass} ${glassSurfaceClass} px-5 py-3`;
@@ -87,7 +75,7 @@ export function DidYouKnowSection() {
         overlayClassName={photoCoverOverlayClass}
       >
         <Container className="py-16 md:py-24 lg:py-28">
-          <ContentColumn centered className="mb-8">
+          <ContentColumn centered className="mb-10 md:mb-12">
             <div className={glassTitlePillClass}>
               <SectionHeading as="h2" scale="title" className={glassTextClass}>
                 {didYouKnow.leadIn}
@@ -95,20 +83,11 @@ export function DidYouKnowSection() {
             </div>
           </ContentColumn>
           <ContentColumn width="full">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 xl:grid-cols-4">
-              {didYouKnow.facts.map((fact, index) => (
-                <Card key={fact} chipSeed={index} className="h-full min-w-0">
-                  <p className={`${type.slideBody} text-pretty ${glassTextClass}`}>
-                    {preventOrphansInParagraph(fact)}
-                  </p>
-                </Card>
-              ))}
-            </div>
-            <Card chipSeed="did-you-know-closing" className="mt-4 text-center">
-              <BalancedText className={`${type.slideLead} ${glassTextClass}`}>
-                {didYouKnow.closing}
-              </BalancedText>
-            </Card>
+            <DidYouKnowTimeline
+              facts={didYouKnow.facts}
+              closing={didYouKnow.closing}
+              closingHref="#positioning"
+            />
           </ContentColumn>
         </Container>
       </SectionCoverBackdrop>
@@ -137,7 +116,7 @@ export function PositioningSection() {
         <div className="mt-6 w-full">
           <Prose
             size="lg"
-            className="max-w-none [&_p]:type-slide-subhead [&_p]:text-balance max-lg:text-white/90 max-lg:[&_p]:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88),0_4px_20px_rgb(0_0_0_/_0.6)] lg:[&_p]:[text-shadow:none]"
+            className="max-w-none [&_p]:type-slide-subhead [&_p]:![font-size:calc(var(--text-slide-subhead)-8px)] [&_p]:text-balance max-lg:text-white/90 max-lg:[&_p]:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88),0_4px_20px_rgb(0_0_0_/_0.6)] lg:[&_p]:[text-shadow:none]"
           >
             {positioning.paragraphs.map((paragraph) => (
               <ProseParagraph key={paragraph}>{paragraph}</ProseParagraph>
@@ -158,33 +137,23 @@ export function PillarsSection() {
         overlayClassName={photoCoverOverlayStrongClass}
       >
         <Container className="py-16 md:py-24 lg:py-28">
-          <ContentColumn centered className="mb-12">
-            <div className={glassTitlePillClass}>
-              <SectionHeading as="h2" scale="headline" className={glassTextClass}>
+          <ContentColumn centered className="mb-0 md:mb-1">
+            <div className="relative isolate inline-block max-w-full px-3 py-2 text-center">
+              <span
+                className="pointer-events-none absolute inset-[-0.15em_-0.4em] -z-10 bg-black/35 blur-2xl dark:bg-black/55"
+                aria-hidden
+              />
+              <SectionHeading
+                as="h2"
+                scale="headline"
+                className="relative text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.85),0_2px_12px_rgb(0_0_0_/_0.55)]"
+              >
                 {pillars.title}
               </SectionHeading>
             </div>
           </ContentColumn>
           <ContentColumn width="full">
-            <div className="grid gap-6 md:grid-cols-3">
-              {pillars.items.map((pillar) => (
-                <Card key={pillar.number} chipSeed={pillar.number} className="h-full">
-                  <span className={`${type.slideNumber} text-brand-primary`}>
-                    {pillar.number}
-                  </span>
-                  <SectionHeading as="h3" scale="lead" className={`mt-4 ${glassTextClass}`}>
-                    {pillar.title}
-                  </SectionHeading>
-                  <div className={`mt-4 ${type.slideBody} ${glassTextClass}`}>
-                    {pillar.paragraphs.map((paragraph) => (
-                      <p key={paragraph} className="text-pretty">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <PillarsCarousel items={pillars.items} />
           </ContentColumn>
         </Container>
       </SectionCoverBackdrop>
@@ -193,14 +162,7 @@ export function PillarsSection() {
 }
 
 export function RootsTransition() {
-  return (
-    <TransitionBlock
-      lines={roots.lines}
-      image={siteImages.rootsTransition}
-      imageAlt="Everything starts somewhere"
-      alternateHeadlineSizes
-    />
-  );
+  return <RootsChamber />;
 }
 
 export function MappingLegacySection() {
@@ -228,399 +190,38 @@ export function MappingLegacySection() {
   );
 }
 
-const LEMNOS_ACCENT_TERMS = [
-  "For us,",
-  "Hephaestus.",
-  "Lemnos.",
-  "Made.",
-  "legacy…",
-] as const;
-
-const lemnosAccentPattern = new RegExp(
-  `(${LEMNOS_ACCENT_TERMS.map((term) =>
-    term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-  ).join("|")})`,
-  "g",
-);
-
-function LemnosParagraph({ text }: { text: string }) {
-  const isLead =
-    text.startsWith("Each journey") ||
-    text.startsWith("Our forge") ||
-    text.startsWith("Our workshop") ||
-    text.startsWith("Our first lab");
-  const parts = text.split(lemnosAccentPattern).filter((part) => part.length > 0);
-
-  return (
-    <ProseParagraph className={isLead ? type.slideLead : type.slideBody}>
-      {parts.map((part, index) =>
-        (LEMNOS_ACCENT_TERMS as readonly string[]).includes(part) ? (
-          <span
-            key={`${part}-${index}`}
-            className="font-semibold text-brand-primary drop-shadow-sm"
-          >
-            {part}
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </ProseParagraph>
-  );
-}
-
 export function LemnosSection() {
-  return (
-    <Section id="lemnos" padding="none">
-      <SectionBackdrop
-        image={siteImages.lemnos}
-        alt={lemnos.title}
-        overlay="heavy"
-        contentClassName="py-8 md:py-10"
-      >
-        <Container>
-          <Col span={12} className="lg:col-span-9">
-            <SectionHeading className="text-white drop-shadow-md">
-              {lemnos.title}
-            </SectionHeading>
-            <div className="mt-4">
-              <Prose className="!space-y-1.5 text-white/90 [&_p]:drop-shadow-sm">
-                {lemnos.paragraphs.map((paragraph) => (
-                  <LemnosParagraph key={paragraph} text={paragraph} />
-                ))}
-              </Prose>
-            </div>
-          </Col>
-        </Container>
-      </SectionBackdrop>
-    </Section>
-  );
+  return <LemnosLegend />;
 }
 
 export function NameBridgeTransition() {
-  return (
-    <TransitionBlock
-      lines={nameBridge.lines}
-      image={siteImages.nameBridge}
-      imageAlt="Before a name exists"
-    />
-  );
-}
-
-const NAME_ORIGINS_TEXT = photoWhiteTextSoftClass;
-
-const NAME_ORIGINS_LEFT_ACCENTS = [
-  "Hephaestus International",
-  "reclaimed",
-  "spark",
-  "Hephaestus",
-] as const;
-
-const NAME_ORIGINS_RIGHT_ACCENTS = [
-  "learning through doing",
-  "questioning what exists",
-  "making",
-  "craft",
-  "knowledge",
-  "creation",
-] as const;
-
-function nameOriginsAccentPattern(terms: readonly string[]) {
-  const escaped = [...terms]
-    .sort((a, b) => b.length - a.length)
-    .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(`(${escaped.join("|")})`, "g");
-}
-
-function NameOriginsAccentLine({
-  text,
-  accents,
-}: {
-  text: string;
-  accents: readonly string[];
-}) {
-  const parts = preventOrphans(text)
-    .split(nameOriginsAccentPattern(accents))
-    .filter((part) => part.length > 0);
-
-  return (
-    <p className={`${type.slideBody} sm:type-slide-lead text-balance text-center ${NAME_ORIGINS_TEXT}`}>
-      {parts.map((part, index) =>
-        (accents as readonly string[]).includes(part) ? (
-          <span
-            key={`${part}-${index}`}
-            className={photoBrandAccentClass}
-          >
-            {part}
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </p>
-  );
-}
-
-function NameOriginsContent() {
-  const blocks = nameOrigins.leftBlocks.flatMap((leftLines, index) => [
-    {
-      lines: leftLines,
-      accents: NAME_ORIGINS_LEFT_ACCENTS,
-    },
-    {
-      lines: nameOrigins.rightBlocks[index],
-      accents: NAME_ORIGINS_RIGHT_ACCENTS,
-    },
-  ]);
-
-  return (
-    <div
-      className={`flex flex-col items-center gap-6 sm:gap-8 ${NAME_ORIGINS_TEXT}`}
-    >
-      {blocks.map((block, index) => (
-        <div key={index} className="w-full max-w-[92%] space-y-0.5 text-center sm:max-w-[80%] sm:space-y-1">
-          {block.lines.map((line) => (
-            <NameOriginsAccentLine
-              key={line}
-              text={line}
-              accents={block.accents}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
+  return <NameForgeChamber />;
 }
 
 export function NameOriginsSection() {
-  const image = siteImages.nameOrigins;
-
-  return (
-    <Section id="name-origins" padding="none">
-      <PhotoGridOverlay
-        image={image}
-        alt={nameOrigins.title}
-        alignClass="justify-between"
-        contentClassName="gap-8 px-[6%] py-8 sm:gap-10 sm:px-[8%] sm:py-10"
-        overlayLayers={
-          <>
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] ${photoTintStrongClass}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] ${photoRadialCenterClass}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] ${photoGradientVerticalSoftClass}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-0 z-[6] ${photoTextColumnScrimClass}`}
-              aria-hidden
-            />
-          </>
-        }
-      >
-        <SectionHeading
-          as="h2"
-          scale="title"
-          className={`shrink-0 text-center ${photoWhiteTextClass}`}
-        >
-          {nameOrigins.title}
-        </SectionHeading>
-        <NameOriginsContent />
-        <BalancedText
-          className={`shrink-0 text-center ${type.slideSubhead} underline ${photoWhiteTextClass}`}
-        >
-          {nameOrigins.footer}
-        </BalancedText>
-      </PhotoGridOverlay>
-    </Section>
-  );
+  return <NameOriginsManuscript />;
 }
 
 export function EngineBridgeTransition() {
-  return (
-    <TransitionBlock
-      lines={engineBridge.lines}
-      image={siteImages.engineBridge}
-      imageAlt="Place and force"
-    />
-  );
-}
-
-const LEARNING_ENGINE_BODY =
-  "max-lg:text-white/90 max-lg:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88),0_4px_20px_rgb(0_0_0_/_0.6)] lg:text-muted lg:[text-shadow:none]";
-
-function LearningParagraph({ text }: { text: string }) {
-  if (text.includes("(Insert the link*)")) {
-    const parts = text.split("(Insert the link*)");
-    const hypatiaHref = learningEngine.hypatiaHref;
-
-    return (
-      <ProseParagraph className={LEARNING_ENGINE_BODY}>
-        {parts[0]}
-        {hypatiaHref ? (
-          <a
-            href={hypatiaHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${photoBrandAccentClass} ${externalBodyLinkClass} lg:[text-shadow:none]`}
-          >
-            Hypatia
-          </a>
-        ) : (
-          <span className="max-lg:text-white/75 lg:text-muted">(Insert the link*)</span>
-        )}
-        {parts[1] ?? ""}
-      </ProseParagraph>
-    );
-  }
-  return <ProseParagraph className={LEARNING_ENGINE_BODY}>{text}</ProseParagraph>;
+  return <EngineThresholdChamber />;
 }
 
 export function LearningEngineSection() {
-  return (
-    <Section id="learning-engine" padding="none">
-      <SectionImageSplit
-        image={siteImages.learningEngine}
-        alt={learningEngine.title}
-        mobileOverlay="learning"
-      >
-        <SectionHeading className={`max-lg:text-white ${MOBILE_PHOTO_HEADING_SHADOW}`}>
-          {learningEngine.title}
-        </SectionHeading>
-        <div className={`mt-8 w-full space-y-4 text-pretty ${type.slideBodyLg} ${LEARNING_ENGINE_BODY}`}>
-          {learningEngine.paragraphs.map((paragraph) => (
-            <LearningParagraph key={paragraph} text={paragraph} />
-          ))}
-        </div>
-      </SectionImageSplit>
-    </Section>
-  );
+  return <LearningEngineChamber />;
 }
 
 export function FormBridgeTransition() {
-  return (
-    <TransitionBlock
-      lines={formBridge.lines}
-      image={siteImages.ecosystemBridge}
-      imageAlt="Where intelligence takes form"
-    />
-  );
+  return <FormBridgeChamber />;
 }
 
 export function EcosystemSection() {
   return (
     <Section id="ecosystem" padding="none">
-      <SectionCoverBackdrop
-        image={siteImages.ecosystemBackground}
-        alt="Library of Celsus at Ephesus with classical columns and stone facade"
-        overlayClassName="bg-background/40 dark:bg-black/50"
-      >
-        <Container className="py-16 md:py-24 lg:py-28">
-          <ContentColumn centered className="mb-12">
-            <div className={glassTitlePillClass}>
-              <SectionHeading as="h2" scale="title" className={glassTextClass}>
-                {ecosystem.title}
-              </SectionHeading>
-            </div>
-            <BalancedText className={`mt-4 ${type.slideLead} ${glassTextClass}`}>
-              {ecosystem.subtitle}
-            </BalancedText>
-          </ContentColumn>
-          <ContentColumn>
-            <div className="space-y-6">
-              {ecosystem.items.map((item) => (
-                <Card key={item.id} chipSeed={item.id}>
-                  <SectionHeading as="h3" scale="lead" className={glassTextClass}>
-                    {item.title}
-                  </SectionHeading>
-                  <div className={`mt-4 space-y-3 ${type.slideBody} ${glassTextClass}`}>
-                    {item.paragraphs.map((paragraph) => (
-                      <p key={paragraph} className="text-pretty">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </ContentColumn>
-        </Container>
-      </SectionCoverBackdrop>
+      <EcosystemChamber />
     </Section>
   );
 }
 
-const CLOSING_CTA_TEXT =
-  "text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88),0_4px_20px_rgb(0_0_0_/_0.6)]";
-
 export function ClosingCtaSection() {
-  const image = siteImages.closing;
-
-  return (
-    <Section id="join" padding="none">
-      <PhotoGridOverlay
-        image={image}
-        alt="Join Hephaestus International"
-        alignClass="justify-end"
-        contentClassName="py-16 md:py-20 lg:py-24"
-        overlayLayers={
-          <>
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] ${photoTintClosingClass}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] ${photoRadialCenterClass}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[55%] ${photoGradientBottomClosingClass}`}
-              aria-hidden
-            />
-          </>
-        }
-      >
-        <Container>
-          <ContentColumn centered width="narrow">
-            <BalancedText className={`${type.slideLead} text-white/95 ${CLOSING_CTA_TEXT}`}>
-                {closingCta.lead}
-              </BalancedText>
-              <BalancedText className={`mt-8 ${type.slideLead} ${CLOSING_CTA_TEXT}`}>
-                {closingCta.prompt}
-              </BalancedText>
-              <ul
-                className={`mt-6 space-y-3 ${type.slideSubhead} text-white/90 ${CLOSING_CTA_TEXT}`}
-              >
-                {closingCta.questions.map((question) => (
-                  <BalancedText as="li" key={question} className={type.slideSubhead}>
-                    {question}
-                  </BalancedText>
-                ))}
-              </ul>
-              <BalancedText className={`mt-8 ${type.slideLead} ${CLOSING_CTA_TEXT}`}>
-                {closingCta.headline}
-              </BalancedText>
-              <BalancedText
-                className={`mt-4 ${type.slideLead} text-brand-primary [text-shadow:1.25px_0_0_#fff,-1.25px_0_0_#fff,0_1.25px_0_#fff,0_-1.25px_0_#fff,0_1px_2px_rgb(0_0_0_/_0.9),0_2px_8px_rgb(0_0_0_/_0.75)] dark:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88),0_4px_20px_rgb(0_0_0_/_0.6)] ${CLOSING_CTA_TEXT}`}
-              >
-                {closingCta.tagline}
-              </BalancedText>
-              <div className="mt-10 flex flex-wrap justify-center gap-4">
-                <Button href={closingCta.primaryHref}>
-                  {closingCta.primaryLabel}
-                </Button>
-                <Button href="/contact" variant="secondary">
-                  Contact us
-                </Button>
-              </div>
-            </ContentColumn>
-          </Container>
-      </PhotoGridOverlay>
-    </Section>
-  );
+  return <ClosingCtaChamber />;
 }

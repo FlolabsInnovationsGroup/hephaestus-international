@@ -177,7 +177,7 @@ export function SectionImageSplit({
   className = "",
   overlay = "heavy",
   mobileOverlay = "default",
-  contentClassName = "py-12 md:py-16",
+  contentClassName = "py-16 md:py-24 lg:py-28",
 }: {
   image: SiteImageAsset;
   alt: string;
@@ -238,16 +238,24 @@ export function SectionImageSplit({
             aria-hidden
           />
           <div
-            className={`relative col-start-1 row-start-1 min-h-full w-screen max-w-[100vw] shrink-0 max-lg:left-1/2 max-lg:-translate-x-1/2 lg:col-start-auto lg:row-start-auto lg:w-5/12 lg:max-w-none lg:translate-x-0`}
+            className={`relative col-start-1 row-start-1 min-h-full w-screen max-w-[100vw] shrink-0 max-lg:left-1/2 max-lg:-translate-x-1/2 lg:col-start-auto lg:row-start-auto lg:w-5/12 lg:max-w-none lg:translate-x-0 lg:self-stretch`}
           >
-            <Image
-              src={image.src}
-              alt={alt}
-              width={image.width}
-              height={image.height}
-              sizes={imageSizes}
-              className="relative z-0 hidden h-auto w-full lg:block"
-              priority={priority}
+            {/* Desktop: cover the full stretched column height with no letterbox gaps */}
+            <div className="absolute inset-0 hidden lg:block">
+              <Image
+                src={image.src}
+                alt={alt}
+                fill
+                sizes={imageSizes}
+                className="object-cover object-center"
+                priority={priority}
+              />
+            </div>
+            {/* Keeps a sensible minimum height when copy is short */}
+            <div
+              className="pointer-events-none relative z-0 hidden w-full opacity-0 lg:block"
+              style={intrinsicAspectStyle(image)}
+              aria-hidden
             />
             <div className="absolute inset-0 lg:hidden">
               <Image
@@ -262,7 +270,7 @@ export function SectionImageSplit({
             </div>
           </div>
           <div
-            className={`col-start-1 row-start-1 z-10 flex w-full min-w-0 flex-col justify-end ${contentClassName} lg:col-start-auto lg:row-start-auto lg:flex lg:w-7/12 lg:justify-center lg:py-0`}
+            className={`col-start-1 row-start-1 z-10 flex w-full min-w-0 flex-col justify-end ${contentClassName} lg:col-start-auto lg:row-start-auto lg:flex lg:w-7/12 lg:justify-center`}
           >
             <div className="mx-auto w-full min-w-0 max-w-[var(--max-width-content)] px-4 sm:px-6 lg:max-w-none lg:px-0">
               {children}

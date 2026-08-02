@@ -688,6 +688,1012 @@ body {
   }
 }
 
+/* ── Roots chamber (cinematic temple intro) ─────────────────────────────── */
+@keyframes roots-chamber-ken {
+  from {
+    transform: scale(1.06) translate3d(0.6%, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-0.8%, -0.4%, 0);
+  }
+}
+
+@keyframes roots-chamber-phrase-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.7rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes roots-chamber-warm-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes roots-chamber-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.4rem, 0);
+  }
+  15% {
+    opacity: 0.55;
+  }
+  85% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.35rem, -2.8rem, 0);
+  }
+}
+
+.roots-chamber__image {
+  transform: scale(1.08);
+  will-change: transform;
+}
+
+.roots-chamber__phrase {
+  opacity: 0;
+}
+
+.roots-chamber__phrase--closing {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .roots-chamber__image {
+    animation: roots-chamber-ken 42s ease-in-out infinite alternate;
+  }
+
+  .roots-chamber__warm {
+    animation: roots-chamber-warm-breathe 11s ease-in-out infinite;
+  }
+
+  .roots-chamber__phrase,
+  .roots-chamber__phrase--closing {
+    animation: roots-chamber-phrase-in 1.35s ease-out forwards;
+  }
+
+  .roots-chamber__mote {
+    animation-name: roots-chamber-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roots-chamber__image {
+    transform: scale(1.05);
+    animation: none;
+  }
+
+  .roots-chamber__warm {
+    animation: none;
+    opacity: 0.9;
+  }
+
+  .roots-chamber__phrase,
+  .roots-chamber__phrase--closing {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .roots-chamber__dust {
+    display: none;
+  }
+}
+
+/* ── Lemnos legend (cinematic origin story) ─────────────────────────────── */
+@keyframes lemnos-legend-bloom {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes lemnos-legend-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.5rem, 0);
+  }
+  20% {
+    opacity: 0.45;
+  }
+  80% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.4rem, -3rem, 0);
+  }
+}
+
+.lemnos-legend__grain {
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+.lemnos-legend__glow {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.lemnos-legend__glow-bg {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lemnos-legend__glow-bg {
+    transform: scaleX(1) !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lemnos-legend__bloom {
+    animation: lemnos-legend-bloom 14s ease-in-out infinite;
+  }
+
+  .lemnos-legend__mote {
+    animation-name: lemnos-legend-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lemnos-legend__bloom {
+    animation: none;
+    opacity: 0.9;
+  }
+
+  .lemnos-legend__dust {
+    display: none;
+  }
+}
+
+/* ── Name forge chamber (cinematic name-bridge) ─────────────────────────── */
+@keyframes name-forge-ken {
+  from {
+    transform: scale(1.05) translate3d(0.4%, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(-0.6%, -0.35%, 0);
+  }
+}
+
+@keyframes name-forge-haze {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes name-forge-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  18% {
+    opacity: 0.5;
+  }
+  82% {
+    opacity: 0.28;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.3rem, -2.6rem, 0);
+  }
+}
+
+@keyframes name-forge-ember {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.2rem, 0) scale(0.85);
+  }
+  15% {
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-0.55rem, -3.2rem, 0) scale(0.45);
+  }
+}
+
+.name-forge__image {
+  transform: scale(1.06);
+  will-change: transform;
+}
+
+.name-forge__grain {
+  opacity: 0.065;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .name-forge__image {
+    animation: name-forge-ken 48s ease-in-out infinite alternate;
+  }
+
+  .name-forge__haze {
+    animation: name-forge-haze 12s ease-in-out infinite;
+  }
+
+  .name-forge__mote {
+    animation-name: name-forge-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .name-forge__ember {
+    animation-name: name-forge-ember;
+    animation-timing-function: ease-out;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-forge__image {
+    transform: scale(1.04);
+    animation: none;
+  }
+
+  .name-forge__haze {
+    animation: none;
+    opacity: 0.88;
+  }
+
+  .name-forge__dust,
+  .name-forge__embers {
+    display: none;
+  }
+}
+
+/* ── Name origins manuscript (illuminated archive) ──────────────────────── */
+@keyframes name-origins-ms-ken {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes name-origins-ms-candle {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes name-origins-ms-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.4rem, 0);
+  }
+  20% {
+    opacity: 0.45;
+  }
+  80% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.35rem, -2.8rem, 0);
+  }
+}
+
+.name-origins-ms__image {
+  transform: scale(1.01);
+  will-change: transform;
+}
+
+.name-origins-ms__grain {
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+.name-origins-ms__ink {
+  text-shadow:
+    0 0 10px rgb(18 105 199 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.85),
+    0 2px 10px rgb(0 0 0 / 0.55);
+}
+
+.name-origins-ms__closing {
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.95),
+    0 4px 18px rgb(0 0 0 / 0.7),
+    0 10px 36px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .name-origins-ms__image {
+    animation: name-origins-ms-ken 55s ease-in-out infinite alternate;
+  }
+
+  .name-origins-ms__candle {
+    animation: name-origins-ms-candle 11s ease-in-out infinite;
+  }
+
+  .name-origins-ms__mote {
+    animation-name: name-origins-ms-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-origins-ms__image {
+    transform: scale(1.01);
+    animation: none;
+  }
+
+  .name-origins-ms__candle {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .name-origins-ms__dust {
+    display: none;
+  }
+}
+
+/* ── Engine threshold (temple corridor bridge) ──────────────────────────── */
+@keyframes engine-threshold-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  18% {
+    opacity: 0.5;
+  }
+  82% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.35rem, -2.6rem, 0);
+  }
+}
+
+@keyframes engine-threshold-bloom-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+.engine-threshold__grain {
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .engine-threshold__bloom {
+    animation: engine-threshold-bloom-breathe 12s ease-in-out infinite;
+  }
+
+  .engine-threshold__mote {
+    animation-name: engine-threshold-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engine-threshold__bloom {
+    animation: none;
+  }
+
+  .engine-threshold__dust {
+    display: none;
+  }
+}
+
+/* ── Form bridge (stories take form) ────────────────────────────────────── */
+@keyframes form-bridge-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  18% {
+    opacity: 0.5;
+  }
+  82% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.35rem, -2.6rem, 0);
+  }
+}
+
+@keyframes form-bridge-bloom-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+.form-bridge__grain {
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .form-bridge__bloom {
+    animation: form-bridge-bloom-breathe 12s ease-in-out infinite;
+  }
+
+  .form-bridge__mote {
+    animation-name: form-bridge-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-bridge__bloom {
+    animation: none;
+  }
+
+  .form-bridge__dust {
+    display: none;
+  }
+}
+
+/* ── Closing CTA chamber (Join us) ──────────────────────────────────────── */
+@keyframes closing-cta-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  18% {
+    opacity: 0.5;
+  }
+  82% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.35rem, -2.6rem, 0);
+  }
+}
+
+@keyframes closing-cta-bloom-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+.closing-cta__grain {
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .closing-cta__bloom {
+    animation: closing-cta-bloom-breathe 12s ease-in-out infinite;
+  }
+
+  .closing-cta__mote {
+    animation-name: closing-cta-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closing-cta__bloom {
+    animation: none;
+  }
+
+  .closing-cta__dust {
+    display: none;
+  }
+}
+
+/* ── Learning Engine chamber (Alexandria manuscript) ────────────────────── */
+@keyframes learning-engine-ch-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  20% {
+    opacity: 0.45;
+  }
+  80% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.3rem, -2.5rem, 0);
+  }
+}
+
+.learning-engine-ch__grain {
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+.learning-engine-ch__ink {
+  text-shadow:
+    0 0 10px rgb(18 105 199 / 0.2),
+    0 1px 2px rgb(0 0 0 / 0.75);
+}
+
+.learning-engine-ch__hypatia {
+  text-shadow:
+    0 0 12px rgb(18 105 199 / 0.28),
+    0 1px 2px rgb(0 0 0 / 0.8),
+    0 2px 10px rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .learning-engine-ch__mote {
+    animation-name: learning-engine-ch-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learning-engine-ch__dust {
+    display: none;
+  }
+}
+
+/* ── Ecosystem chamber (Where Intelligence Takes Form) ──────────────────── */
+.ecosystem-chamber__overlay {
+  background: rgb(12 9 6 / 0.28);
+}
+
+.ecosystem-chamber__vignette {
+  background:
+    radial-gradient(
+      ellipse 75% 70% at 50% 42%,
+      rgb(0 0 0 / 0.18),
+      transparent 72%
+    ),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 42%, rgb(0 0 0 / 0.5));
+}
+
+.ecosystem-chamber__haze {
+  background:
+    radial-gradient(
+      ellipse 55% 45% at 82% 18%,
+      rgb(212 184 138 / 0.14),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(0 0 0 / 0.12) 0%,
+      transparent 28%,
+      transparent 72%,
+      rgb(0 0 0 / 0.28) 100%
+    );
+}
+
+.ecosystem-chamber__grain {
+  opacity: 0.18;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+.ecosystem-chamber__feature-list {
+  padding-left: 0;
+}
+
+@media (min-width: 1024px) {
+  .ecosystem-chamber__feature-list {
+    padding-left: 2.75rem;
+  }
+}
+
+.ecosystem-chamber__rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .ecosystem-chamber__rail {
+    display: block;
+    position: absolute;
+    left: 0.35rem;
+    top: 1.25rem;
+    bottom: 1.25rem;
+    width: 1.25rem;
+    pointer-events: none;
+  }
+}
+
+.ecosystem-chamber__rail-track {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgb(196 165 116 / 0.35) 8%,
+    rgb(196 165 116 / 0.35) 92%,
+    transparent
+  );
+}
+
+.ecosystem-chamber__rail-fill {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgb(212 184 138 / 0.15),
+    rgb(196 165 116 / 0.85)
+  );
+}
+
+.ecosystem-chamber__rail-nodes {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ecosystem-chamber__rail-node {
+  position: absolute;
+  left: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: 0;
+  border: 1px solid rgb(196 165 116 / 0.55);
+  background: rgb(28 22 16 / 0.9);
+  transform: translate(-50%, -50%) rotate(45deg);
+  transition:
+    background-color 400ms ease,
+    border-color 400ms ease,
+    box-shadow 400ms ease;
+}
+
+.ecosystem-chamber__rail-node--active {
+  border-color: rgb(212 184 138 / 0.95);
+  background: rgb(196 165 116 / 0.7);
+  box-shadow: 0 0 0 3px rgb(196 165 116 / 0.12);
+}
+
+.ecosystem-artifact__shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+  color: rgb(236 226 210);
+  background:
+    linear-gradient(
+      145deg,
+      rgb(42 34 26 / 0.88) 0%,
+      rgb(24 19 14 / 0.9) 48%,
+      rgb(18 14 10 / 0.92) 100%
+    );
+  border: 1px solid rgb(196 165 116 / 0.42);
+  box-shadow:
+    0 1px 0 rgb(243 235 224 / 0.06) inset,
+    0 -1px 0 rgb(0 0 0 / 0.35) inset,
+    0 18px 40px rgb(0 0 0 / 0.38);
+  clip-path: polygon(
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0 calc(100% - 10px),
+    0 10px
+  );
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 420ms ease,
+    box-shadow 420ms ease;
+}
+
+.ecosystem-artifact__shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      120deg,
+      rgb(243 235 224 / 0.05),
+      transparent 28%,
+      transparent 70%,
+      rgb(0 0 0 / 0.18)
+    ),
+    radial-gradient(
+      ellipse 80% 60% at 12% 0%,
+      rgb(196 165 116 / 0.08),
+      transparent 55%
+    );
+  opacity: 0.9;
+}
+
+.ecosystem-artifact__shell::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  pointer-events: none;
+  border: 1px solid rgb(196 165 116 / 0.14);
+  clip-path: inherit;
+}
+
+@media (min-width: 768px) {
+  .ecosystem-artifact__shell {
+    grid-template-columns: minmax(11rem, 34%) minmax(0, 66%);
+    align-items: stretch;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ecosystem-artifact:hover .ecosystem-artifact__shell {
+    transform: translateY(-4px);
+    border-color: rgb(212 184 138 / 0.72);
+    box-shadow:
+      0 1px 0 rgb(243 235 224 / 0.1) inset,
+      0 -1px 0 rgb(0 0 0 / 0.35) inset,
+      0 22px 48px rgb(0 0 0 / 0.45);
+  }
+
+  .ecosystem-artifact:hover .ecosystem-artifact__media-zoom {
+    transform: scale(1.02);
+  }
+
+  .ecosystem-artifact:hover .ecosystem-artifact__medallion-ring {
+    box-shadow:
+      0 0 0 1px rgb(212 184 138 / 0.45),
+      0 0 18px rgb(196 165 116 / 0.28);
+  }
+}
+
+.ecosystem-artifact__media {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  min-height: 10.5rem;
+  border-bottom: 1px solid rgb(196 165 116 / 0.22);
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .ecosystem-artifact__media {
+    aspect-ratio: auto;
+    min-height: 100%;
+    align-self: stretch;
+    border-bottom: 0;
+    border-right: 1px solid rgb(196 165 116 / 0.22);
+  }
+}
+
+@media (max-width: 429px) {
+  .ecosystem-artifact__media {
+    aspect-ratio: 16 / 10;
+    min-height: 9rem;
+  }
+}
+
+.ecosystem-artifact__media-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ecosystem-artifact__media-zoom {
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ecosystem-artifact__image {
+  object-fit: contain;
+}
+
+.ecosystem-artifact__media-veil {
+  display: none;
+}
+
+.ecosystem-artifact__placeholder {
+  display: grid;
+  place-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  padding: 1.25rem;
+  background:
+    radial-gradient(
+      ellipse 70% 60% at 50% 45%,
+      rgb(48 38 28 / 0.9),
+      rgb(16 12 9 / 0.98)
+    );
+}
+
+.ecosystem-artifact__placeholder-mark {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgb(196 165 116 / 0.55);
+  background: rgb(196 165 116 / 0.12);
+  transform: rotate(45deg);
+}
+
+.ecosystem-artifact__placeholder-label {
+  font-family: var(--font-marcellus), Georgia, "Times New Roman", serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(212 184 138 / 0.72);
+}
+
+.ecosystem-artifact__content {
+  position: relative;
+  z-index: 2;
+  padding: 1.35rem 1.25rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .ecosystem-artifact__content {
+    padding: 1.65rem 1.75rem 1.75rem 2.35rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ecosystem-artifact__content {
+    padding: 1.85rem 2rem 1.95rem 2.6rem;
+  }
+}
+
+.ecosystem-artifact__medallion-slot {
+  position: absolute;
+  z-index: 3;
+  top: 10.35rem;
+  left: 1rem;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .ecosystem-artifact__medallion-slot {
+    top: 50%;
+    left: calc(34% - 1.15rem);
+    margin-top: -1.35rem;
+  }
+}
+
+.ecosystem-artifact__medallion {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ecosystem-artifact__medallion-ring {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  color: rgb(212 184 138);
+  background:
+    radial-gradient(
+      circle at 35% 30%,
+      rgb(58 46 34),
+      rgb(24 18 13) 70%
+    );
+  border: 1px solid rgb(196 165 116 / 0.7);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.35),
+    0 6px 14px rgb(0 0 0 / 0.35);
+  clip-path: polygon(
+    50% 0%,
+    93% 25%,
+    93% 75%,
+    50% 100%,
+    7% 75%,
+    7% 25%
+  );
+  transition: box-shadow 420ms ease;
+}
+
+.ecosystem-artifact__medallion-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+@keyframes ecosystem-chamber-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0);
+  }
+  18% {
+    opacity: 0.45;
+  }
+  82% {
+    opacity: 0.28;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0.3rem, -2.4rem, 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ecosystem-chamber__haze {
+    animation: roots-chamber-warm-breathe 14s ease-in-out infinite;
+  }
+
+  .ecosystem-chamber__mote {
+    animation-name: ecosystem-chamber-mote;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ecosystem-chamber__dust {
+    display: none;
+  }
+
+  .ecosystem-chamber__haze {
+    animation: none;
+  }
+
+  .ecosystem-artifact__shell,
+  .ecosystem-artifact__media-zoom,
+  .ecosystem-artifact__medallion-ring {
+    transition: none;
+  }
+
+  .ecosystem-artifact:hover .ecosystem-artifact__shell,
+  .ecosystem-artifact:hover .ecosystem-artifact__media-zoom {
+    transform: none;
+  }
+}
+
 /*
  * HubSpot embedded application forms — dark mode uses a light panel so HubSpot's
  * default label colors stay readable without per-field overrides.

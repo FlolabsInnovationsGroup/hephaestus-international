@@ -15,7 +15,7 @@ function headerNavLinkClass(href: string) {
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 min-h-[var(--site-header-height)] shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-40 min-h-[var(--site-header-height)] shrink-0 border-b border-border/35 bg-background/55 backdrop-blur-md supports-[backdrop-filter]:bg-background/40">
       <Container className="relative py-4">
         <Col span={12} className="flex min-w-0 items-center justify-between gap-3 sm:gap-4">
           <BrandLogo />
