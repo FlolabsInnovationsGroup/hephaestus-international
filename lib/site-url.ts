@@ -1,4 +1,4 @@
-const productionUrl = "https://hephaestus.international";
+const productionUrl = "https://www.hephaestus.international";
 const githubPagesRepo = "hephaestus-international";
 const githubPagesOwner = "gece-c";
 
