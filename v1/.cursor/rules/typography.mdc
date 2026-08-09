@@ -1,0 +1,29 @@
+---
+description: Presentation typography — fluid sizes from Version 3.pdf
+globs: "**/*.{tsx,ts,css}"
+alwaysApply: true
+---
+
+# Presentation typography (required)
+
+Text sizes follow **Hephaestus International. Version 3.pdf** (900pt slide width), not Material Design 3.
+
+## How to size text
+
+1. **Prefer semantic HTML** — `h1`–`h6`, `p`, `label`, `button`, `nav a`, etc. Base styles in `app/globals.css` apply presentation-proportional sizes automatically.
+2. **Homepage story sections** — use `type.slideTitle`, `type.slideHeadline`, `type.slideLead`, `type.slideBody`, etc. from `@/lib/typography` for PDF-accurate roles.
+3. **Or** use `components/ui/typography.tsx` (`SectionHeading` with `scale`, `Prose`, …).
+4. **Or** apply a `.type-slide-*` / legacy `.type-*` utility class directly.
+
+## PDF role reference (pt on 900pt slide)
+
+| Token | PDF pt | Use for |
+|-------|--------|---------|
+| `slide-title` | 30 | Hero lines, section titles, transition copy |
+| `slide-headline` | 24 | Secondary titles (positioning, pillars) |
+| `slide-subhead` | 18 | Closing CTA questions, emphasis lines |
+| `slide-lead` | 15 | Subtitles, card titles, emphasized body |
+| `slide-body` | 12 | Default body, fact cards |
+| `slide-number` | 14 | Pillar numbers |
+
+Sizes are fluid (`clamp` + `vw`) so full-bleed sections scale like the deck. Tokens live in `app/globals.css`.
