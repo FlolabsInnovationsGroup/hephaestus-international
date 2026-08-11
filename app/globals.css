@@ -1255,17 +1255,24 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
-.learning-engine-ch__ink {
-  text-shadow:
-    0 0 10px rgb(18 105 199 / 0.2),
-    0 1px 2px rgb(0 0 0 / 0.75);
-}
+/*
+ * Dark halo only below lg, where the accents sit on the full-bleed photo.
+ * From lg the copy moves beside the image onto the section background, so the
+ * glow is dropped and the accents rely on the theme foreground for contrast.
+ */
+@media (max-width: 63.9375rem) {
+  .learning-engine-ch__ink {
+    text-shadow:
+      0 0 10px rgb(18 105 199 / 0.2),
+      0 1px 2px rgb(0 0 0 / 0.75);
+  }
 
-.learning-engine-ch__hypatia {
-  text-shadow:
-    0 0 12px rgb(18 105 199 / 0.28),
-    0 1px 2px rgb(0 0 0 / 0.8),
-    0 2px 10px rgb(0 0 0 / 0.45);
+  .learning-engine-ch__hypatia {
+    text-shadow:
+      0 0 12px rgb(18 105 199 / 0.28),
+      0 1px 2px rgb(0 0 0 / 0.8),
+      0 2px 10px rgb(0 0 0 / 0.45);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

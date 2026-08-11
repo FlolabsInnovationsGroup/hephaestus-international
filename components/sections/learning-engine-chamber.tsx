@@ -8,9 +8,6 @@ import { siteImages } from "@/lib/site-images";
 import { SectionImageSplit } from "@/components/ui/section-image";
 import { externalBodyLinkClass, photoBrandAccentClass } from "@/lib/ui-styles";
 
-const TEXT_SHADOW_TITLE =
-  "0 1px 2px rgb(0 0 0 / 0.95), 0 6px 24px rgb(0 0 0 / 0.65)";
-
 const easeCinematic: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const serif =
@@ -179,7 +176,9 @@ function LearningParagraph({
   isHypatiaLine: boolean;
 }) {
   const reduceMotion = useReducedMotion();
-  const bodyClass = `${serif} text-[clamp(1.02rem,1.55vw,1.2rem)] leading-[1.65] text-pretty text-white/95 max-lg:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88)] lg:[text-shadow:none]`;
+  // Below lg the photo is a full-bleed backdrop (white copy); from lg the copy sits
+  // beside the image on the section background, so it must follow the theme.
+  const bodyClass = `${serif} text-[clamp(1.02rem,1.55vw,1.2rem)] leading-[1.65] text-pretty max-lg:text-white/95 max-lg:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_2px_8px_rgb(0_0_0_/_0.88)] lg:[text-shadow:none]`;
 
   if (text.includes("(Insert the link*)")) {
     const parts = text.split("(Insert the link*)");
@@ -212,7 +211,7 @@ function LearningParagraph({
             Hypatia
           </motion.a>
         ) : (
-          <span className="text-white/60">(Insert the link*)</span>
+          <span className="text-muted max-lg:text-white/60">(Insert the link*)</span>
         )}
         {parts[1] ? (
           <AccentedText
@@ -296,8 +295,7 @@ export function LearningEngineChamber() {
           <div className="flex flex-col items-start gap-3 sm:gap-3.5">
             <h2
               id="learning-engine-title"
-              className={`${serif} text-[clamp(1.75rem,3.4vw,2.75rem)] leading-[1.15] tracking-[0.05em] text-balance text-white max-lg:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_4px_18px_rgb(0_0_0_/_0.65)]`}
-              style={{ textShadow: TEXT_SHADOW_TITLE }}
+              className={`${serif} text-[clamp(1.75rem,3.4vw,2.75rem)] leading-[1.15] tracking-[0.05em] text-balance max-lg:text-white max-lg:[text-shadow:0_1px_2px_rgb(0_0_0_/_0.95),0_6px_24px_rgb(0_0_0_/_0.65)]`}
             >
               {learningEngine.title}
             </h2>
