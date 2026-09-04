@@ -16,11 +16,12 @@ const marcellus = Marcellus({
   weight: "400",
 });
 
-export const metadata: Metadata = buildMetadata({
+export const metadata: Metadata = {
+  ...buildMetadata({}),
   verification: {
     google: "oyJ2Ma9KM5DbxQmwPIJ8ppCVgJahFxybzpeC1Cb4kUs",
   },
-});
+};
 
 export default function RootLayout({
   children,
