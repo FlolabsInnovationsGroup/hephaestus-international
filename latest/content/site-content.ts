@@ -34,6 +34,17 @@ export const socialMediaLinks = [
   { id: "reddit", href: siteConfig.redditUrl, label: siteConfig.redditLabel },
 ] as const;
 
+/** Google Search preferred source. Domain-level only (not a path). */
+export const preferredSource = {
+  domain: "hephaestus.international",
+  deeplink: "https://www.google.com/preferences/source?q=hephaestus.international",
+  buttonLabel: "Add as preferred source on Google",
+  title: "Add Hephaestus International as a preferred source?",
+  body: "Google can show Hephaestus International more often in Search. You can change this anytime in your Google preferences.",
+  confirmLabel: "OK",
+  dismissLabel: "Not now",
+} as const;
+
 export const contentTodos = [
   "Grammar: For us, is the place (slide 7)",
   "Typo: But with very system (slide 11)",
@@ -325,6 +336,28 @@ export const ecosystem = {
       ],
     },
   ],
+} as const;
+
+export const sharedPurpose = {
+  kicker: "Our shared purpose",
+  headline: ["Talent is everywhere.", "Opportunity should be too."],
+  mission: {
+    label: "Mission",
+    lines: [
+      "Aspire to inspire",
+      "Help as many people as possible.",
+      "Live long and prosper.",
+    ],
+    body: "At FloStudios, we bring this purpose to life through design, storytelling, and creative projects that help people learn, build, and turn ideas into useful experiences.",
+  },
+  vision: {
+    label: "Vision",
+    body: "A world where talent everywhere has access to experiential learning, frontier technologies, and meaningful opportunities to solve humanity\u2019s greatest challenges and build a healthier, longer, and more prosperous future",
+  },
+  teams:
+    "Our teams build together across disciplines, developing their craft through work with a purpose.",
+  learningLabel: "Explore learning opportunities",
+  learningHref: "/internships",
 } as const;
 
 export const closingCta = {
