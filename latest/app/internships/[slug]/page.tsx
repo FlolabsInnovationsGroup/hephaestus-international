@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PageShell } from "@/components/layout/page-shell";
-import { HubSpotApplicationForm } from "@/components/internships/hubspot-application-form";
+import { CrmApplicationForm } from "@/components/internships/crm-application-form";
 import { StructuredOverview } from "@/components/internships/structured-overview";
 import { Button } from "@/components/ui/button";
 import { ProseParagraph } from "@/components/ui/typography";
@@ -13,7 +13,6 @@ import {
   structureOverviewBlocks,
 } from "@/lib/internship-description";
 import { formatInternshipLocation, internshipStatusClass } from "@/lib/internships-ui";
-import { resolveInternshipHubspotFormId } from "@/lib/hubspot";
 import { buildMetadata } from "@/lib/metadata";
 import { getAllInternships, getInternship } from "@/lib/strapi";
 import { type } from "@/lib/typography";
@@ -75,7 +74,6 @@ export default async function InternshipDetailPage({ params }: PageProps) {
   const useStructuredBody =
     internship.description && !isParsedInternshipDescriptionEmpty(parsed);
   const showSectionHeadings = hasStructuredSections(parsed);
-  const applicationFormId = resolveInternshipHubspotFormId(internship);
 
   return (
     <PageShell
@@ -201,16 +199,7 @@ export default async function InternshipDetailPage({ params }: PageProps) {
         <h2 className={`${type.headlineSmall} text-foreground text-balance`}>
           Apply for this position
         </h2>
-        {applicationFormId ? (
-          <HubSpotApplicationForm formId={applicationFormId} />
-        ) : (
-          <>
-            <ProseParagraph>
-              Ready to join the team? Contact us to apply for this role.
-            </ProseParagraph>
-            <Button href="/contact">Contact us</Button>
-          </>
-        )}
+        <CrmApplicationForm />
         <div className="flex flex-wrap gap-4">
           <Button href="/internships" variant="secondary">
             All positions

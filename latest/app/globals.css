@@ -1695,13 +1695,13 @@ body {
 }
 
 /*
- * HubSpot embedded application forms — dark mode uses a light panel so HubSpot's
- * default label colors stay readable without per-field overrides.
+ * CRM application iframe. Height is set from the form's resize message so the
+ * frame matches the form and does not show an inner scrollbar.
  */
-html.dark .hubspot-application-form-shell {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
-  color-scheme: light;
-  padding: var(--spacing-card);
+.crm-application-form {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
 }
