@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Marcellus } from "next/font/google";
+import Script from "next/script";
+import { PreferredSourcePrompt } from "@/components/preferred-source/preferred-source-prompt";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { buildMetadata } from "@/lib/metadata";
 import "./globals.css";
@@ -29,7 +31,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <Script
+          src="https://news.google.com/swg/js/v1/publisher.js"
+          strategy="afterInteractive"
+        />
+        <ThemeProvider>
+          {children}
+          <PreferredSourcePrompt />
+        </ThemeProvider>
       </body>
     </html>
   );

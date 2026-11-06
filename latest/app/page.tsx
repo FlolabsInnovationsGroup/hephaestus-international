@@ -14,6 +14,7 @@ import {
   LearningEngineSection,
   FormBridgeTransition,
   EcosystemSection,
+  SharedPurposeSection,
   ClosingCtaSection,
 } from "@/components/sections/home-sections";
 
@@ -35,6 +36,7 @@ export default function HomePage() {
         <LearningEngineSection />
         <FormBridgeTransition />
         <EcosystemSection />
+        <SharedPurposeSection />
         <ClosingCtaSection />
       </main>
       <SiteFooter />

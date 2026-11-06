@@ -11,6 +11,7 @@ import { NameForgeChamber } from "@/components/sections/name-forge-chamber";
 import { NameOriginsManuscript } from "@/components/sections/name-origins-manuscript";
 import { PillarsCarousel } from "@/components/sections/pillars-carousel";
 import { RootsChamber } from "@/components/sections/roots-chamber";
+import { SharedPurposeSection as SharedPurpose } from "@/components/sections/shared-purpose";
 import { TransitionBlock } from "@/components/sections/transition-block";
 import { HeroBackdrop } from "@/components/ui/hero-backdrop";
 import {
@@ -220,6 +221,10 @@ export function EcosystemSection() {
       <EcosystemChamber />
     </Section>
   );
+}
+
+export function SharedPurposeSection() {
+  return <SharedPurpose />;
 }
 
 export function ClosingCtaSection() {

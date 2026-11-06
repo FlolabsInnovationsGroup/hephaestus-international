@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Container, Col } from "@/components/layout/container";
 import { FooterCollapsibleSection } from "@/components/layout/footer-collapsible-section";
+import { PreferredSourceButton } from "@/components/preferred-source/preferred-source-button";
 import { siteConfig, siteFooter, socialMediaLinks } from "@/content/site-content";
 import { balanceText } from "@/lib/prevent-orphans";
 import { getFooterProjectLinkList } from "@/lib/projects";
@@ -274,6 +275,7 @@ export function SiteFooter() {
                     );
                   })}
                 </div>
+                <PreferredSourceButton className="mt-4" />
               </div>
             </div>
 
